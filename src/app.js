@@ -277,7 +277,13 @@ function sortable(el, cols, rows, { key, desc = true, limit = 0 } = {}) {
 const fmtCell = (v, c) => v == null ? '–' : c.f ? c.f(v) : typeof v === 'number' && !Number.isInteger(v) ? dec(v, 1) : esc(v);
 
 /* ---------- charts (SVG) ---------- */
+// Phones: charts are drawn at the screen's real width so their text stays full size
+const isNarrow = () => window.innerWidth < 700;
+const cw = (w) => isNarrow() ? Math.max(300, Math.min(w, window.innerWidth - 40)) : w;
 function hBars(items, { max, fmt = (v) => oddsTxt(v), color = () => 'var(--accent)', labelW = 150, rowH = 24, W = 600, logos = false } = {}) {
+  W = cw(W);
+  // Narrow screens show team codes instead of full names so the bars keep their room
+  if (isNarrow() && labelW > 90 && items.every((it) => it.code)) { items = items.map((it) => ({ ...it, label: it.code })); labelW = 52; rowH = Math.max(rowH, 28); }
   const mx = max ?? Math.max(1e-9, ...items.map((i) => i.v));
   const lw = labelW + (logos ? 26 : 0), plotW = W - lw - 58, H = items.length * rowH + 4;
   return `<svg viewBox="0 0 ${W} ${H}" role="img">${items.map((it, i) => {
@@ -290,6 +296,7 @@ function hBars(items, { max, fmt = (v) => oddsTxt(v), color = () => 'var(--accen
   }).join('')}</svg>`;
 }
 function lineChart(series, { W = 640, H = 220, yMax, yMin = 0, yFmt = (v) => v, xLabels = [], pad = { l: 44, r: 16, t: 12, b: 26 } } = {}) {
+  if (isNarrow()) { const w = cw(W); H = Math.round(H * Math.max(0.8, w / W)); W = w; }
   const n = Math.max(...series.map((s) => s.pts.length));
   const top = yMax ?? Math.max(1, ...series.flatMap((s) => s.pts)) * 1.05;
   const x = (i) => pad.l + (n <= 1 ? 0 : i / (n - 1)) * (W - pad.l - pad.r);
@@ -604,19 +611,20 @@ function gsaaChart(season) {
   const minMin = season === CUR ? 60 : 600;
   const rows = goalies(season).filter((g) => g.mins >= minMin).map((g) => ({ ...g, v: gsaa(g, season) })).sort((a, b) => b.v - a.v);
   if (!rows.length) return '<p class="empty-state">Inga målvakter med tillräckligt många minuter ännu.</p>';
-  const W = 640, rowH = 22, top = 26, left = 160, right = 46, plotW = W - left - right, H = top + rows.length * rowH + 8;
+  const W = cw(640), rowH = isNarrow() ? 28 : 22, top = 26, left = isNarrow() ? 140 : 160, right = 46, plotW = W - left - right, H = top + rows.length * rowH + 8;
   const ext = Math.max(1, ...rows.map((g) => Math.abs(g.v)));
   const step = ext > 20 ? 10 : ext > 8 ? 5 : ext > 4 ? 2 : 1, lim = Math.ceil(ext / step) * step;
   const x = (v) => left + (v + lim) / (2 * lim) * plotW;
   let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Räddade mål över genomsnittet, ${season}">`;
   for (let t = -lim; t <= lim; t += step) svg += `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 6}" y2="${H - 6}" style="stroke:var(--line)" stroke-width="${t === 0 ? 1.5 : 1}"/><text x="${x(t)}" y="${top - 12}" text-anchor="middle" font-size="11" style="fill:var(--muted)">${t > 0 ? '+' : ''}${t}</text>`;
+  const fs = isNarrow() ? 13.5 : 12.5, mid = rowH / 2; // text sits on the row's centre line
   rows.forEach((g, i) => {
     const y = top + i * rowH, v = g.v, x0 = x(0), x1 = x(v);
-    svg += `<a href="#/spelare/${encodeURIComponent(g.id)}"><text x="${left - 34}" y="${y + 15}" text-anchor="end" font-size="12.5" style="fill:var(--text)">${esc(g.name)}</text></a>`;
-    const badge = `<g ${LOGOS[g.team] ? 'style="opacity:0"' : ''}><rect x="${left - 29}" y="${y + 3}" width="24" height="16" rx="4" style="fill:${tColor(g.team)}"/><text x="${left - 17}" y="${y + 14.5}" text-anchor="middle" font-size="8.5" font-weight="700" style="fill:${(TC[g.team] || [0, '#fff'])[1]}">${esc(g.team)}</text></g>`;
-    svg += badge + (LOGOS[g.team] ? `<image href="${esc(LOGOS[g.team])}" x="${left - 27}" y="${y + 1}" width="20" height="20" onerror="this.previousElementSibling.style.opacity=1;this.remove()"/>` : '');
+    svg += `<a href="#/spelare/${encodeURIComponent(g.id)}"><text x="${left - 34}" y="${y + mid + 4.5}" text-anchor="end" font-size="${fs}" style="fill:var(--text)">${esc(g.name)}</text></a>`;
+    const badge = `<g ${LOGOS[g.team] ? 'style="opacity:0"' : ''}><rect x="${left - 29}" y="${y + mid - 8}" width="24" height="16" rx="4" style="fill:${tColor(g.team)}"/><text x="${left - 17}" y="${y + mid + 3.5}" text-anchor="middle" font-size="8.5" font-weight="700" style="fill:${(TC[g.team] || [0, '#fff'])[1]}">${esc(g.team)}</text></g>`;
+    svg += badge + (LOGOS[g.team] ? `<image href="${esc(LOGOS[g.team])}" x="${left - 27}" y="${y + mid - 10}" width="20" height="20" onerror="this.previousElementSibling.style.opacity=1;this.remove()"/>` : '');
     svg += `<rect x="${Math.min(x0, x1)}" y="${y + 4}" width="${Math.max(1, Math.abs(x1 - x0))}" height="${rowH - 8}" rx="3" style="fill:${v >= 0 ? 'var(--accent)' : 'var(--bad)'}"><title>${esc(g.name)}: ${dec(v)} GSAA, ${dec(g.svp, 2)} % räddningar, ${g.gpi} matcher</title></rect>`;
-    svg += `<text x="${v >= 0 ? x1 + 5 : x1 - 5}" y="${y + 15}" text-anchor="${v >= 0 ? 'start' : 'end'}" font-size="11.5" font-weight="600" style="fill:var(--muted)">${v > 0 ? '+' : ''}${dec(v)}</text>`;
+    svg += `<text x="${v >= 0 ? x1 + 5 : x1 - 5}" y="${y + mid + 4}" text-anchor="${v >= 0 ? 'start' : 'end'}" font-size="${fs - 0.5}" font-weight="600" style="fill:var(--muted)">${v > 0 ? '+' : ''}${dec(v)}</text>`;
   });
   return svg + '</svg>';
 }
@@ -1067,7 +1075,7 @@ function pageTable() {
       return `<td style="background:color-mix(in srgb, ${c} ${Math.round(Math.min(1, p * 2.2) * 75)}%, transparent);font-size:12.5px" title="${esc(r.code)} slutar ${i + 1}:a: ${pctTxt(p, 1)}">${p >= 0.005 ? Math.round(p * 100) : ''}</td>`;
     }).join('')}</tr>`;
   }).join('')}</tbody></table></div>`;
-  const W = 640, rowH = 26, left = 150, right = 20, top = 22;
+  const W = cw(640), rowH = isNarrow() ? 30 : 26, left = isNarrow() ? 84 : 150, right = 20, top = 22;
   const rows = [...TABLE].sort((a, b) => SIM[b.code].proj - SIM[a.code].proj);
   const lo = Math.min(...rows.map((r) => SIM[r.code].lo)), hi = Math.max(...rows.map((r) => SIM[r.code].hi));
   const minX = Math.floor(lo / 10) * 10, maxX = Math.ceil(hi / 10) * 10;
@@ -1076,7 +1084,7 @@ function pageTable() {
   for (let t = minX; t <= maxX; t += 10) range += `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 4}" y2="${top + rows.length * rowH}" style="stroke:var(--line)"/><text x="${x(t)}" y="${top - 8}" text-anchor="middle" font-size="11" style="fill:var(--faint)">${t}</text>`;
   rows.forEach((r, i) => {
     const s = SIM[r.code], y = top + i * rowH + rowH / 2;
-    range += `<text x="${left - 32}" y="${y + 4}" text-anchor="end" font-size="13" style="fill:var(--text);font-weight:${r.code === FAV ? 700 : 400}">${esc(tName(r.code))}</text>
+    range += `<text x="${left - 32}" y="${y + 4}" text-anchor="end" font-size="13.5" style="fill:var(--text);font-weight:${r.code === FAV ? 700 : 400}">${esc(isNarrow() ? r.code : tName(r.code))}</text>
       ${LOGOS[r.code] ? `<image href="${esc(LOGOS[r.code])}" x="${left - 26}" y="${y - 10}" width="20" height="20"/>` : ''}
       <line x1="${x(s.lo)}" x2="${x(s.hi)}" y1="${y}" y2="${y}" style="stroke:color-mix(in srgb, ${tColor(r.code)} 70%, var(--accent))" stroke-width="8" stroke-linecap="round" opacity=".55"/>
       <circle cx="${x(s.proj)}" cy="${y}" r="6" style="fill:var(--text)"><title>${esc(tName(r.code))}: ${dec(s.proj, 0)} poäng (${s.lo}–${s.hi})</title></circle>
@@ -1281,7 +1289,7 @@ function pageTeams() {
 function teamScatter(rows) {
   const pts = rows.filter((r) => r.gfpg != null);
   if (!pts.length) return '<p class="empty-state">Inga spelade matcher ännu.</p>';
-  const W = 560, H = 420, p = 44;
+  const W = cw(560), H = Math.round(W * 0.78), p = 44;
   const xs = pts.map((r) => r.gfpg), ys = pts.map((r) => r.gapg);
   const [x0, x1] = [Math.min(...xs) - 0.2, Math.max(...xs) + 0.2], [y0, y1] = [Math.min(...ys) - 0.2, Math.max(...ys) + 0.2];
   // Fewer goals conceded plots higher, so a good defence sits at the top
@@ -1304,14 +1312,14 @@ function teamScatter(rows) {
 function specialTeams(rows) {
   const list = rows.filter((r) => r.pp != null || r.pk != null).sort((a, b) => ((b.pp || 0) + (b.pk || 0)) - ((a.pp || 0) + (a.pk || 0)));
   if (!list.length) return '<p class="empty-state">Inga spelade matcher ännu.</p>';
-  const W = 560, rowH = 26, left = 150, mid = left + (W - left) / 2, half = (W - left) / 2 - 40, H = list.length * rowH + 28;
+  const W = cw(560), rowH = isNarrow() ? 30 : 26, left = isNarrow() ? 84 : 150, mid = left + (W - left) / 2, half = (W - left) / 2 - 30, H = list.length * rowH + 28;
   // Box play bars start at 50 %, since every team kills most penalties
   const pkW = (pk) => Math.max(0, (pk - 0.5) / 0.5) * half;
   let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Powerplay och boxplay">
     <text x="${mid - 8}" y="14" text-anchor="end" font-size="12" style="fill:var(--muted)">Powerplay %</text><text x="${mid + 8}" y="14" font-size="12" style="fill:var(--muted)">Boxplay %</text>`;
   list.forEach((r, i) => {
     const y = 24 + i * rowH, pp = r.pp || 0, pk = r.pk || 0;
-    svg += `<text x="${left - 32}" y="${y + 16}" text-anchor="end" font-size="13" style="fill:var(--text)">${esc(r.name)}</text>
+    svg += `<text x="${left - 32}" y="${y + 16}" text-anchor="end" font-size="13.5" style="fill:var(--text)">${esc(isNarrow() ? r.code : r.name)}</text>
       ${LOGOS[r.code] ? `<image href="${esc(LOGOS[r.code])}" x="${left - 26}" y="${y + 3}" width="20" height="20"/>` : ''}
       <rect x="${mid - 4 - pp * half}" y="${y + 5}" width="${pp * half}" height="${rowH - 10}" rx="3" style="fill:var(--accent)"><title>${esc(r.name)} powerplay ${pctTxt(pp, 1)}</title></rect>
       <text x="${mid - 8 - pp * half}" y="${y + 17}" text-anchor="end" font-size="11" style="fill:var(--muted)">${Math.round(pp * 100)}</text>
@@ -1374,7 +1382,7 @@ function teamOverview(code, teamGames) {
       <div class="legend"><span><i style="background:var(--accent)"></i>Slutspel</span><span><i style="background:color-mix(in srgb, var(--accent) 50%, var(--text))"></i>Topp 6</span><span><i style="background:var(--gold)"></i>SM-guld</span></div>`
     : `<p class="empty-state">Historiken byggs upp efter hand. Varje ny matchdag lägger till en punkt${days.length ? `, första punkten sparades ${fmtDate(days[0])}` : ''}.</p>`;
   const rankDist = `<div class="chart">${(() => {
-    const W = 560, H = 170, n = s.rank.length, bw = (W - 30) / n, mx = Math.max(...s.rank, 0.01);
+    const W = cw(560), H = 170, n = s.rank.length, bw = (W - 30) / n, mx = Math.max(...s.rank, 0.01);
     return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Slutplacering">${s.rank.map((p, i) => {
       const h = p / mx * (H - 44), x = 20 + i * bw, c = i < 6 ? 'var(--accent)' : i < 10 ? 'color-mix(in srgb, var(--accent) 50%, var(--faint))' : i >= n - 2 ? 'var(--bad)' : 'var(--faint)';
       return `<rect x="${x + 3}" y="${H - 22 - h}" width="${bw - 6}" height="${h}" rx="3" style="fill:${c}"><title>Plats ${i + 1}: ${pctTxt(p, 1)}</title></rect>
@@ -1432,12 +1440,12 @@ function teamRoster(code, roster) {
 function teamHistory(code) {
   const seasons = [...D.seasonOrder].reverse();
   const past = seasons.map((lab) => ({ lab, row: (D.pastStandings[lab] || []).find((x) => x.code === code) }));
-  const W = 560, H = 210, n = past.length, bw = (W - 40) / n, mx = Math.max(1, ...past.map((p) => p.row?.pts || 0));
+  const W = cw(560), H = 210, n = past.length, bw = (W - 40) / n, mx = Math.max(1, ...past.map((p) => p.row?.pts || 0));
   const chart = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Poäng per säsong">${past.map((p, i) => {
     const v = p.row?.pts || 0, h = v / mx * (H - 64), x = 20 + i * bw, curS = p.lab === CUR;
     return `<rect x="${x + 8}" y="${H - 38 - h}" width="${bw - 16}" height="${h}" rx="4" style="fill:${curS ? 'var(--accent)' : 'color-mix(in srgb, var(--accent) 45%, var(--faint))'}"><title>${p.lab}: ${v} poäng${p.row ? `, plats ${p.row.rank}` : ''}</title></rect>
       <text x="${x + bw / 2}" y="${H - 42 - h}" text-anchor="middle" font-size="13" font-weight="700" style="fill:var(--text)">${p.row ? v : '–'}</text>
-      <text x="${x + bw / 2}" y="${H - 20}" text-anchor="middle" font-size="12" style="fill:var(--muted)">${p.lab}${curS ? ' (hittills)' : ''}</text>
+      <text x="${x + bw / 2}" y="${H - 20}" text-anchor="middle" font-size="12" style="fill:var(--muted)">${p.lab}${curS && !isNarrow() ? ' (hittills)' : ''}</text>
       <text x="${x + bw / 2}" y="${H - 5}" text-anchor="middle" font-size="11" style="fill:var(--faint)">${p.row ? `plats ${p.row.rank}` : 'ej i SHL'}</text>`;
   }).join('')}</svg>`;
   const table = `<div class="tscroll"><table class="t"><thead><tr><th class="l">Säsong</th><th>Plats</th><th>SM</th><th>V</th><th>ÖV</th><th>ÖF</th><th>F</th><th>GM–IM</th><th>P</th></tr></thead><tbody>${past.slice().reverse().map((p) => p.row
@@ -1475,7 +1483,12 @@ let lastPath = '';
 async function route() {
   const path = decodeURIComponent(location.hash.replace(/^#/, '')) || '/';
   const seg = path.split('/')[1] || '';
-  document.querySelectorAll('nav.main a').forEach((a) => a.classList.toggle('on', a.dataset.nav === (NAV_OF[seg] ?? seg)));
+  document.querySelectorAll('nav.main a, .bottom-nav a').forEach((a) => {
+    const on = a.dataset.nav === (NAV_OF[seg] ?? seg);
+    a.classList.toggle('on', on);
+    if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  document.body.classList.remove('search-open');
   // Switching tabs within the same page keeps the scroll position near the tabs
   const samePage = lastPath && path.split('/').slice(0, 3).join('/') === lastPath.split('/').slice(0, 3).join('/');
   const keepY = samePage ? window.scrollY : 0;
@@ -1506,21 +1519,56 @@ async function boot() {
   TABLE = D.standings; SIM = D.sim; MODEL = D.model;
   if (FAV && !CODES.includes(FAV)) FAV = null;
   stampTxt = new Date(D.updated).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Stockholm' });
-  $('foot').innerHTML = `SHLstats är ett fristående fanprojekt utan koppling till SHL. Resultat, statistik, bilder och videor från shl.se. Uppdaterad ${esc(stampTxt)}. Prognoserna bygger på en egen modell och är inga garantier.`;
+  $('foot').innerHTML = `<p style="margin:0 0 8px">Uppdaterad ${esc(stampTxt)}. <button class="linkbtn" id="reload-data">Hämta senaste</button></p>
+    SHLstats är ett fristående fanprojekt utan koppling till SHL. Resultat, statistik, bilder och videor från shl.se. Prognoserna bygger på en egen modell och är inga garantier.`;
+  $('reload-data').onclick = () => location.reload();
   buildCards();
   setupLogo();
-  // Menu icons
+  // Menu icons (top menu on desktop, bottom bar on phones)
   const NAV_ICON = { '': 'home', matcher: 'calendar', tabell: 'table', statistik: 'user', lag: 'shield' };
-  document.querySelectorAll('nav.main a').forEach((a) => a.insertAdjacentHTML('afterbegin', icon(NAV_ICON[a.dataset.nav])));
+  document.querySelectorAll('nav.main a, .bottom-nav a').forEach((a) => a.insertAdjacentHTML('afterbegin', icon(NAV_ICON[a.dataset.nav])));
   app.removeAttribute('aria-busy');
   setupTheme();
   setupSearch();
+  setupMobileSearch();
   setupVideo();
   setupStripScrolling();
   renderStrip();
   renderFavLink();
   window.addEventListener('hashchange', route);
   route();
+  // Charts are drawn for the screen width, so redraw when crossing between phone and desktop layouts
+  let wasNarrow = isNarrow(), resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (isNarrow() !== wasNarrow) { wasNarrow = isNarrow(); route(); } }, 200);
+  });
+  setupAppMode();
+}
+
+// Phones: the search button opens a full-screen search sheet
+function setupMobileSearch() {
+  const open = () => { document.body.classList.add('search-open'); $('gsearch').focus(); };
+  const close = () => { document.body.classList.remove('search-open'); $('gsearch').value = ''; $('gsearch-results').hidden = true; };
+  $('search-open').onclick = open;
+  $('search-close').onclick = close;
+  $('gsearch').addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+}
+
+// Web app: works offline with the latest data, and refreshes when reopened after a while
+function setupAppMode() {
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+  let loadedAt = Date.now();
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState !== 'visible' || Date.now() - loadedAt < 5 * 60 * 1000) return;
+    loadedAt = Date.now();
+    try {
+      const fresh = await (await fetch(`data/core.json?check=${Date.now()}`, { cache: 'no-store' })).json();
+      if (fresh.updated !== D.updated) location.reload();
+    } catch { /* offline: keep showing what we have */ }
+  });
 }
 boot();
 })();

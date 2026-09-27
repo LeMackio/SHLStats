@@ -374,13 +374,14 @@ for (const d of Object.values(gameDetails)) {
     hl: slimClip(v?.hl) || null,
   });
 }
-for (const f of readdirSync('src')) cpSync(`src/${f}`, `site/${f}`);
+for (const f of readdirSync('src')) cpSync(`src/${f}`, `site/${f}`, { recursive: true });
 // Stamp every build with a version so browsers never mix a new page with an old cached stylesheet,
 // script or data file after an update
 const BUILD = Date.now().toString(36);
 writeFileSync('site/index.html', readFileSync('site/index.html', 'utf8')
   .replace('href="styles.css"', `href="styles.css?v=${BUILD}"`)
   .replace('<script src="app.js"></script>', `<script>window.SHL_BUILD = '${BUILD}';</script>\n<script src="app.js?v=${BUILD}"></script>`));
+writeFileSync('site/sw.js', readFileSync('site/sw.js', 'utf8').replaceAll('__BUILD__', BUILD));
 writeFileSync('site/.nojekyll', '');
 
 const rosterIds = new Set(Object.values(rosters).flat().map((p) => p.id));

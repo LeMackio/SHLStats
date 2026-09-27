@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SHLstats</title>
 <meta name="description" content="SHL-statistik: tabell, slutspelsodds, matcher, målvideor, spelar- och lagstatistik.">
+<!-- Saved to the home screen it opens full screen like an app -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#151a22" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#dbe2e9" media="(prefers-color-scheme: light)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SHLstats">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%238fb4dc'/%3E%3Cellipse cx='20' cy='24' rx='11' ry='4.5' fill='%23121820'/%3E%3Crect x='9' y='17' width='22' height='7' fill='%23121820'/%3E%3Cellipse cx='20' cy='17' rx='11' ry='4.5' fill='%238fb4dc' stroke='%23121820' stroke-width='1.6'/%3E%3C/svg%3E">
 <script>
   // Apply the saved theme before first paint
@@ -48,9 +57,11 @@
     <div class="top-tools">
       <a class="favlink" id="favlink" hidden></a>
       <div class="gsearch">
+        <button class="search-toggle" id="search-open" aria-label="Sök spelare eller lag"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input id="gsearch" type="search" placeholder="Sök spelare eller lag" autocomplete="off" aria-label="Sök spelare eller lag">
+        <input id="gsearch" type="search" placeholder="Sök spelare eller lag" autocomplete="off" aria-label="Sök spelare eller lag" enterkeyhint="search">
         <kbd class="kbd" aria-hidden="true">/</kbd>
+        <button class="search-cancel" id="search-close">Avbryt</button>
         <div class="results" id="gsearch-results" hidden></div>
       </div>
       <div class="theme-toggle" role="group" aria-label="Färgtema">
@@ -69,6 +80,15 @@
   </div>
 </main>
 <footer id="foot"></footer>
+
+<!-- Phones: main menu as a bottom bar (icons are added by app.js) -->
+<nav class="bottom-nav" aria-label="Meny">
+  <a href="#/" data-nav="">Översikt</a>
+  <a href="#/matcher" data-nav="matcher">Matcher</a>
+  <a href="#/tabell" data-nav="tabell">Tabell</a>
+  <a href="#/statistik" data-nav="statistik">Spelare</a>
+  <a href="#/lag" data-nav="lag">Lag</a>
+</nav>
 
 <dialog class="video" id="video" aria-label="Video">
   <div class="video-head"><b id="video-title"></b><button class="video-close" id="video-close" aria-label="Stäng video">✕</button></div>
