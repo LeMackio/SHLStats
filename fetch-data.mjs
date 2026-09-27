@@ -360,6 +360,8 @@ const core = {
   pastGames: SEASONS.slice(1).flatMap((s) => s.games.filter(isFinal).map((g) => [s.label, g.start.slice(0, 10), g.home, g.away, g.hs, g.as, g.ot || g.so ? 1 : 0])),
   recentClips: allClips.slice(0, 16),
   highlights,
+  // Site logo supplied by the owner in src/ (the page falls back to its built-in mark)
+  logo: ['logo.svg', 'logo.png'].find((f) => existsSync(`src/${f}`)) || null,
 };
 mkdirSync('site/data/games', { recursive: true });
 writeJson('site/data/core.json', core);

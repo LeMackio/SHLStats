@@ -12,7 +12,7 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -59,7 +59,13 @@
   </div>
 </header>
 
-<main id="app"><div class="loading"><span class="spinner"></span>Laddar SHL-data…</div></main>
+<main id="app" aria-busy="true">
+  <div class="skel-page" aria-label="Laddar SHL-data">
+    <div class="skel skel-title"></div>
+    <div class="skel skel-hero"></div>
+    <div class="skel-grid"><div class="skel skel-card"></div><div class="skel skel-card"></div></div>
+  </div>
+</main>
 <footer id="foot"></footer>
 
 <dialog class="video" id="video" aria-label="Video">

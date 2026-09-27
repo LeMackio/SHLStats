@@ -57,6 +57,55 @@ const TC = {
 };
 const tColor = (c) => (TC[c] || ['#5b6b7e'])[0];
 
+// Colour maths for picking a readable team accent against the current card colour
+const hexToRgb = (h) => {
+  let s = String(h).replace('#', '');
+  if (s.length === 3) s = [...s].map((c) => c + c).join('');
+  const n = parseInt(s, 16);
+  return [n >> 16 & 255, n >> 8 & 255, n & 255];
+};
+const lum = (h) => { const c = hexToRgb(h).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+const mixHex = (a, b, t) => '#' + hexToRgb(a).map((v, i) => Math.round(v + (hexToRgb(b)[i] - v) * t).toString(16).padStart(2, '0')).join('');
+function teamAccent(code) {
+  const [bg, fg] = TC[code] || [];
+  if (!bg) return null;
+  const panelColor = getComputedStyle(document.documentElement).getPropertyValue('--panel').trim() || '#212934';
+  const dark = lum(panelColor) < 0.2;
+  const options = dark ? [bg, fg, mixHex(bg, '#ffffff', 0.35), mixHex(bg, '#ffffff', 0.6)] : [bg, mixHex(bg, '#000000', 0.25), fg, mixHex(bg, '#000000', 0.5)];
+  const pick = options.find((c) => contrast(c, panelColor) >= 3) || options[options.length - 1];
+  return { accent: pick, ink: lum(pick) > 0.35 ? '#10151c' : '#ffffff' };
+}
+
+// Line icons (drawn for this site), rendered at the current text colour
+const ICONS = {
+  home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  table: '<rect x="3.5" y="4" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M3.5 14.5h17M9 4v16"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.4-3.6 4.3-5.5 7.5-5.5s6.1 1.9 7.5 5.5"/>',
+  users: '<circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20c1-3.4 3.6-5.3 6.5-5.3s5.5 1.9 6.5 5.3"/><path d="M15.5 5.2a3.4 3.4 0 0 1 0 6.6M17.5 14.9c1.9.6 3.3 2.2 4 4.6"/>',
+  shield: '<path d="M12 3.2 19.5 6v6c0 4.6-3.2 7.7-7.5 8.8C7.7 19.7 4.5 16.6 4.5 12V6z"/>',
+  play: '<path d="M8 5.5v13l10.5-6.5z"/>',
+  grid: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+  target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/>',
+  swap: '<path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  list: '<path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"/>',
+  chart: '<path d="M4 20v-8M10 20V5M16 20v-9M2.5 20h19"/>',
+  trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5.5a2.5 2.5 0 0 0 2.6 3.6M16 6h2.5a2.5 2.5 0 0 1-2.6 3.6M12 13v3.5M8.5 20h7M10 16.5h4"/>',
+};
+const icon = (n) => ICONS[n] ? `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>` : '';
+
+// Game start times are Stockholm local time; convert to a real timestamp (handles summer/winter time)
+const stockholmEpoch = (s) => {
+  const [d, tm = '00:00'] = s.split(' ');
+  const [y, m, dd] = d.split('-').map(Number), [h, mi] = tm.split(':').map(Number);
+  const guess = Date.UTC(y, m - 1, dd, h, mi);
+  const asStockholm = new Date(new Date(guess).toLocaleString('en-US', { timeZone: 'Europe/Stockholm' }));
+  const asUtc = new Date(new Date(guess).toLocaleString('en-US', { timeZone: 'UTC' }));
+  return guess - (asStockholm - asUtc);
+};
+
 /* =====================================================================
    Data
    ===================================================================== */
@@ -127,8 +176,12 @@ const panel = (title, body, { sub = '', more = '', foot = '', cls = '', id = '' 
   `<section class="panel ${cls}" ${id ? `id="${id}"` : ''}>${title ? `<div class="p-head"><h2>${title}</h2>${more}${sub ? `<p class="p-sub">${sub}</p>` : ''}</div>` : ''}<div class="p-body">${body}</div>${foot ? `<div class="p-foot">${foot}</div>` : ''}</section>`;
 const moreLink = (href, txt) => `<a class="more-link" href="${href}">${txt} ›</a>`;
 const board = (items, cls = '') => `<div class="board ${cls}">${items.filter(Boolean).join('')}</div>`;
-const tabs = (base, list, active) => `<nav class="tabs" aria-label="Flikar">${list.map(([key, label, count]) =>
-  `<a href="#${base}${key ? '/' + key : ''}" class="${key === active ? 'on' : ''}">${label}${count ? `<span class="count">${count}</span>` : ''}</a>`).join('')}</nav>`;
+const TAB_ICON = { '': 'grid', video: 'play', spelare: 'users', skott: 'target', uppstallning: 'users', inbordes: 'swap', trupp: 'users',
+  schema: 'calendar', historik: 'clock', karriar: 'chart', matchlogg: 'list', mal: 'play', spelade: 'list', alla: 'calendar' };
+// Tab entries are [key, label, count?, icon?]
+const tabs = (base, list, active) => `<nav class="tabs" aria-label="Flikar">${list.map(([key, label, count, ic]) =>
+  `<a href="#${base}${key ? '/' + key : ''}" class="${key === active ? 'on' : ''}" ${key === active ? 'aria-current="page"' : ''}>${icon(ic || TAB_ICON[key])}${label}${count ? `<span class="count">${count}</span>` : ''}</a>`).join('')}</nav>`;
+const skeleton = () => `<div class="skel-page" aria-label="Laddar"><div class="skel skel-hero"></div><div class="skel-grid"><div class="skel skel-card"></div><div class="skel skel-card"></div></div></div>`;
 
 // Each board item spans rows equal to its measured height, so shorter panels
 // slot into the shortest column and no holes are left between them.
@@ -137,7 +190,26 @@ const spanOf = (el) => { el.style.gridRowEnd = `span ${Math.max(1, Math.ceil((el
 const RO = new ResizeObserver((entries) => { for (const e of entries) spanOf(e.target); });
 function layoutBoards() {
   RO.disconnect();
-  document.querySelectorAll('.board > *').forEach((el) => { RO.observe(el); spanOf(el); });
+  document.querySelectorAll('.board').forEach((b) => [...b.children].forEach((el, i) => {
+    el.style.setProperty('--i', Math.min(i, 10)); // staggered fade-in
+    RO.observe(el); spanOf(el);
+  }));
+}
+// Stat numbers count up from zero when a page opens
+function countUp(root) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  root.querySelectorAll('.tile .v, .ltop .big').forEach((el) => {
+    const m = el.textContent.trim().match(/^([+<>]?)(-?\d+)(,\d+)?(\s?%?)$/);
+    if (!m) return; // times, ranges and dashes stay as they are
+    const decs = m[3] ? m[3].length - 1 : 0, target = parseFloat(m[2] + (m[3] ? '.' + m[3].slice(1) : ''));
+    const t0 = performance.now(), dur = 650;
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / dur), e = 1 - (1 - k) ** 3;
+      el.textContent = m[1] + (target * e).toFixed(decs).replace('.', ',') + m[4];
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
 }
 
 /* ---------- video ---------- */
@@ -341,22 +413,25 @@ function renderStrip() {
   let html = '';
   for (const d of dates) {
     const p = dateParts(d);
-    html += `<div class="s-date ${d === today ? 'today' : ''}" ${d === anchorDate ? 'id="strip-anchor"' : ''}><b>${DAYS[p.wd]}</b><span>${p.d}</span><b>${MONTHS[p.m - 1]}</b></div>`;
+    // Each day is its own group, so its date label sticks to the left while that day's games scroll past
+    html += `<div class="s-day" ${d === anchorDate ? 'id="strip-anchor"' : ''}><div class="s-date ${d === today ? 'today' : ''}"><b>${d === today ? 'idag' : DAYS[p.wd]}</b><span>${p.d}</span><b>${MONTHS[p.m - 1]}</b></div>`;
     for (const g of byDate.get(d).sort((a, b) => a.start.localeCompare(b.start))) {
-      const done = isFinal(g), fav = FAV && (g.home === FAV || g.away === FAV);
+      const done = isFinal(g), live = isLive(g), fav = FAV && (g.home === FAV || g.away === FAV);
       const row = (c, right, loser) => `<div class="s-row${loser ? ' loser' : ''}">${tb(c)}<span class="code">${esc(c)}</span>${right}</div>`;
-      const pill = (pp) => `<span class="wp num" style="${pillStyle(pp)}">${Math.round(pp * 100)}%</span><span></span>`;
-      const sc = (s) => `<span></span><span class="score">${s}</span>`;
-      html += `<a class="s-game ${fav ? 'fav' : ''}" href="#/match/${g.id}" draggable="false" title="${esc(tName(g.home))} – ${esc(tName(g.away))}"><div class="s-status ${isLive(g) ? 'live' : ''}">${statusTxt(g)}</div>${done || isLive(g)
+      const pill = (pp) => `<span class="wp num" style="${pillStyle(pp)}">${Math.round(pp * 100)}%</span>`;
+      const sc = (s) => `<span class="score">${s}</span>`;
+      html += `<a class="s-game ${fav ? 'fav' : ''}" href="#/match/${g.id}" draggable="false" title="${esc(tName(g.home))} – ${esc(tName(g.away))}">
+        <div class="s-status ${live ? 'live' : ''}"><span>${live ? 'Live' : statusTxt(g)}</span>${fav ? '<span class="star" title="Mitt lag">★</span>' : ''}</div>${done || live
         ? row(g.away, sc(g.as ?? ''), done && g.as < g.hs) + row(g.home, sc(g.hs ?? ''), done && g.hs < g.as)
         : row(g.away, pill(1 - g.ph)) + row(g.home, pill(g.ph))}</a>`;
     }
+    html += '</div>';
   }
   track.innerHTML = html;
   const toToday = (smooth) => {
     const anchor = $('strip-anchor'); if (!anchor) return;
     track.style.scrollBehavior = smooth ? 'smooth' : 'auto';
-    track.scrollLeft = Math.max(0, anchor.offsetLeft - track.offsetLeft - 40);
+    track.scrollLeft = Math.max(0, anchor.offsetLeft - track.offsetLeft - 8);
     track.style.scrollBehavior = '';
   };
   toToday(false);
@@ -391,22 +466,19 @@ function setupTheme() {
     const dark = root.dataset.theme ? root.dataset.theme === 'dark' : !matchMedia('(prefers-color-scheme: light)').matches;
     $('theme-dark').setAttribute('aria-pressed', dark); $('theme-light').setAttribute('aria-pressed', !dark);
   };
-  for (const t of ['dark', 'light']) $('theme-' + t).addEventListener('click', () => { root.dataset.theme = t; store.set('shlstats-theme', t); sync(); });
+  // Re-render after a theme switch so colours picked for contrast (team accents) are recalculated
+  for (const t of ['dark', 'light']) $('theme-' + t).addEventListener('click', () => { root.dataset.theme = t; store.set('shlstats-theme', t); sync(); route(); });
   sync();
 }
-// Uses src/logo.svg or src/logo.png when present; otherwise the built-in mark stays
+// Uses src/logo.svg or src/logo.png when the build found one; otherwise the built-in mark stays
 function setupLogo() {
-  const tryFile = (files) => {
-    if (!files.length) return;
-    const img = new Image();
-    img.onload = () => {
-      $('brand-mark').innerHTML = `<img src="${files[0]}" alt="">`;
-      $('favicon').href = files[0];
-    };
-    img.onerror = () => tryFile(files.slice(1));
-    img.src = files[0];
+  if (!D.logo) return;
+  const img = new Image();
+  img.onload = () => {
+    $('brand-mark').innerHTML = `<img src="${esc(D.logo)}" alt="">`;
+    $('favicon').href = D.logo;
   };
-  tryFile(['logo.svg', 'logo.png']);
+  img.src = D.logo;
 }
 let SEARCH_INDEX = [];
 function setupSearch() {
@@ -547,7 +619,7 @@ const clipSub = (c) => `${esc(c.team)} mot ${esc(c.opp)} · ${c.score[0]}–${c.
    Pages
    ===================================================================== */
 function setTitle(t) { document.title = t ? `${t} · SHLstats` : 'SHLstats'; }
-const render = (html) => { app.innerHTML = html; layoutBoards(); };
+const render = (html) => { app.innerHTML = html; layoutBoards(); countUp(app); };
 
 /* ---------- Översikt ---------- */
 function myTeamPanel() {
@@ -571,6 +643,50 @@ function myTeamPanel() {
       ${last ? `<div><span class="mini-lbl">Senaste match · ${fmtDay(last.start)}</span>${gameList([last])}</div>` : ''}
     </div>`, { foot: `<button class="more" data-fav="${c}">Sluta följa</button>` });
 }
+// The hero game: a live game if there is one, otherwise the closest and strongest matchup of the next game day
+function pickFeatured() {
+  const live = GAMES.filter(isLive);
+  if (live.length) return { g: live[0], kicker: 'Pågår nu' };
+  const up = GAMES.filter((g) => !isFinal(g));
+  if (!up.length) return null;
+  const date = up[0].start.slice(0, 10);
+  const strength = (c) => SIM[c]?.top6 ?? 0;
+  const interest = (g) => (1 - Math.abs((g.ph ?? 0.5) - 0.5) * 2) + (strength(g.home) + strength(g.away)) / 2;
+  const g = up.filter((x) => x.start.slice(0, 10) === date).sort((a, b) => interest(b) - interest(a))[0];
+  return { g, kicker: date === todayStr() ? 'Kvällens match' : 'Nästa toppmatch' };
+}
+const countdownTxt = (g) => {
+  if (!g) return '';
+  if (isLive(g)) return 'Live';
+  if (isFinal(g)) return 'Slut';
+  const ms = stockholmEpoch(g.start) - Date.now();
+  if (ms <= 0) return 'Nedsläpp strax';
+  const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+  return 'Nedsläpp om ' + (d ? `${d} d ${h} h` : h ? `${h} h ${mm} min` : `${mm} min`);
+};
+function matchdayHero() {
+  const f = pickFeatured();
+  if (!f) return '';
+  const { g } = f, live = isLive(g);
+  const rec = (c) => { const r = TABLE.find((t) => t.code === c); return r ? `Plats ${TABLE.indexOf(r) + 1} · ${r.pts} p` : ''; };
+  return `<section class="panel mday" style="--hc:${tColor(g.home)};--ac:${tColor(g.away)}">
+    <div class="band">
+      <div class="mday-top"><span class="kicker">${f.kicker}</span><span class="count" id="hero-count" data-gid="${g.id}">${countdownTxt(g)}</span></div>
+      <div class="mhead">
+        <a class="mteam home" href="#/lag/${g.home}">${tb(g.home, 'xl')}<b>${esc(tName(g.home))}</b><span>${rec(g.home)}</span></a>
+        <div class="mscore">${live ? `<div class="sc">${g.hs ?? 0}–${g.as ?? 0}</div><div class="st">Pågår</div>`
+          : `<div class="sc sm">${fmtTime(g.start)}</div><div class="st">${fmtDay(g.start)}</div>${oddsBar(g.ph ?? 0.5)}`}</div>
+        <a class="mteam away" href="#/lag/${g.away}">${tb(g.away, 'xl')}<b>${esc(tName(g.away))}</b><span>${rec(g.away)}</span></a>
+      </div>
+    </div>
+    <div class="mday-foot">
+      <a class="btn" href="#/match/${g.id}">${icon('grid')}${live ? 'Följ matchen' : 'Förhandstips'}</a>
+      <a class="btn ghost" href="#/match/${g.id}/uppstallning">${icon('users')}Uppställningar</a>
+      <a class="btn ghost" href="#/match/${g.id}/inbordes">${icon('swap')}Inbördes möten</a>
+    </div>
+  </section>`;
+}
+let heroTimer = null;
 function pageOverview() {
   setTitle('');
   const today = todayStr();
@@ -585,28 +701,35 @@ function pageOverview() {
   const gk = goalies().filter((g) => g.gpi >= gmin).sort((a, b) => b.svp - a.svp);
   const gold = CODES.map((c) => ({ label: tName(c), code: c, v: SIM[c].gold })).sort((a, b) => b.v - a.v);
   const race = CODES.map((c) => ({ label: tName(c), code: c, v: SIM[c].top10 })).sort((a, b) => b.v - a.v);
-  const clips = (D.recentClips || []).slice(0, 10);
   const hls = (D.highlights || []).slice(0, 6);
 
+  // Three sections in a fixed order: games first, then the table and odds, then players
   render(`
     <div class="page-head"><div><h1>SHL ${CUR.replace('-', '/')}</h1><p>Tabell, slutspelsodds, målvideor och statistik för hela SHL, uppdaterat flera gånger per dag.</p></div></div>
+    ${matchdayHero()}
+    <h2 class="section-title">${icon('calendar')}Matcher</h2>
     ${board([
       myTeamPanel(),
       panel(nextDate === today ? 'Dagens matcher' : 'Nästa matchdag', nextGames.length ? `<div class="day"><h3>${fmtDay(nextDate)}</h3>${nextGames.map((g) => gameRow(g)).join('')}</div>` : '<p class="empty-state">Inga fler matcher i grundserien.</p>',
         { more: moreLink('#/matcher', 'Alla matcher'), sub: 'Vinstchanser från SHLstats-modellen.' }),
       panel('Senaste resultat', lastGames.length ? `<div class="day"><h3>${fmtDay(lastDate)}</h3>${lastGames.map((g) => gameRow(g)).join('')}</div>` : '<p class="empty-state">Inga spelade matcher ännu.</p>',
         { more: moreLink('#/matcher/spelade', 'Alla resultat') }),
-      clips.length ? panel('Senaste målen', `<div class="clips row">${clips.map((c) => clipCard(c, clipTitle(c), clipSub(c))).join('')}</div>`, { cls: 'wide', sub: 'Klicka för att se målet.' }) : '',
+      hls.length ? panel('Matchsammandrag', `<div class="clips">${hls.map((h) => clipCard(h, `${esc(h.home)} ${h.hs}–${h.as} ${esc(h.away)}`, fmtDay(h.date))).join('')}</div>`) : '',
+    ])}
+    <h2 class="section-title">${icon('table')}Tabell & prognos</h2>
+    ${board([
       panel('Tabell & slutspelsodds', standingsTable({ compact: true }) + legendHtml, { more: moreLink('#/tabell', 'Hela tabellen'), foot: `<span class="stamp">Prognos uppdaterad ${esc(stampTxt)}</span>` }),
+      panel('Slutspelsstrecket', `<div class="chart">${hBars(race, { max: 1, labelW: 140, logos: true, color: (it) => it.v >= 0.5 ? 'var(--accent)' : 'var(--bad)' })}</div>`, { sub: 'Chans att sluta topp 10 och nå slutspel.' }),
+      panel('Chans till SM-guld', `<div class="chart">${hBars(gold, { labelW: 140, logos: true })}</div>`, { more: moreLink('#/tabell', 'Alla odds') }),
+    ])}
+    <h2 class="section-title">${icon('user')}Spelare</h2>
+    ${board([
+      panel('Poängliga', leaderList(sk, { val: (r) => r.pts }), { more: moreLink('#/statistik', 'Mer statistik') }),
+      panel('Räddningsprocent', leaderList(gk, { val: (r) => r.svp, fmt: (v) => dec(v, 2) }), { sub: `Minst ${gmin} matcher.`, more: moreLink('#/statistik', 'Målvakter') }),
       `<section class="panel"><div class="p-head"><h2>Spelarkort</h2><p class="p-sub">Percentiler från ett viktat urval av två säsonger.</p></div>
         <div class="p-body"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
           <input id="card-search" type="search" placeholder="Sök utespelare" autocomplete="off" aria-label="Sök utespelare"><div class="results" id="card-results" hidden></div></div>
           <div class="chips" id="card-picks"></div><div id="card-slot"></div></div></section>`,
-      panel('Poängliga', leaderList(sk, { val: (r) => r.pts }), { more: moreLink('#/statistik', 'Mer statistik') }),
-      panel('Räddningsprocent', leaderList(gk, { val: (r) => r.svp, fmt: (v) => dec(v, 2) }), { sub: `Minst ${gmin} matcher.`, more: moreLink('#/statistik', 'Målvakter') }),
-      hls.length ? panel('Matchsammandrag', `<div class="clips">${hls.map((h) => clipCard(h, `${esc(h.home)} ${h.hs}–${h.as} ${esc(h.away)}`, fmtDay(h.date))).join('')}</div>`) : '',
-      panel('Chans till SM-guld', `<div class="chart">${hBars(gold, { labelW: 140, logos: true })}</div>`, { more: moreLink('#/tabell', 'Alla odds') }),
-      panel('Slutspelsstrecket', `<div class="chart">${hBars(race, { max: 1, labelW: 140, logos: true, color: (it) => it.v >= 0.5 ? 'var(--accent)' : 'var(--bad)' })}</div>`, { sub: 'Chans att sluta topp 10 och nå slutspel.' }),
       panel('Målvakter: räddade mål över snittet', `<div class="chart">${gsaaChart(CUR)}</div>`, { sub: `Räddningar jämfört med en genomsnittlig SHL-målvakt på samma skott (${CUR}).`, more: moreLink('#/statistik', 'Mer') }),
     ])}`);
 
@@ -621,6 +744,13 @@ function pageOverview() {
   $('card-picks').onclick = (e) => { const b = e.target.closest('button'); if (b) show(CARD.get(b.dataset.id)); };
   bindSearch($('card-search'), $('card-results'), (it) => show(CARD.get(it.id)), (it) => it.type === 'p' && CARD.has(it.id));
   if (picks[0]) show(picks[0]);
+  // Keep the hero countdown current while the overview is open
+  clearInterval(heroTimer);
+  heroTimer = setInterval(() => {
+    const el = $('hero-count');
+    if (!el) { clearInterval(heroTimer); return; }
+    el.textContent = countdownTxt(GAMES_BY_ID[el.dataset.gid]);
+  }, 30000);
 }
 
 /* ---------- Matcher ---------- */
@@ -631,7 +761,7 @@ function pageGames(view = 'kommande') {
   gamesTeam = gamesTeam === 'ALL' && FAV && store.get('shlstats-gfilter') === 'fav' ? FAV : gamesTeam;
   render(`
     <div class="page-head"><div><h1>Matcher & resultat</h1><p>Hela grundseriens spelschema ${CUR.replace('-', '/')} med resultat, målvideor och vinstchanser.</p></div></div>
-    <section class="panel">${tabs('/matcher', [['', 'Kommande'], ['spelade', 'Spelade'], ['alla', 'Alla']], view === 'kommande' ? '' : view)}
+    <section class="panel">${tabs('/matcher', [['', 'Kommande', '', 'clock'], ['spelade', 'Spelade'], ['alla', 'Alla']], view === 'kommande' ? '' : view)}
       <div class="p-body" style="padding-top:16px">
         <div class="controls"><label class="field">Lag <select id="gt"><option value="ALL">Alla lag</option>${[...CODES].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => `<option value="${c}" ${gamesTeam === c ? 'selected' : ''}>${esc(tName(c))}${c === FAV ? ' (mitt lag)' : ''}</option>`).join('')}</select></label></div>
         <div id="glist" style="display:grid;gap:16px"></div>
@@ -655,6 +785,7 @@ async function pageMatch(id, tab = '') {
   setTitle(`${g.home}–${g.away}`);
   const done = isFinal(g), live = isLive(g);
   const rec = (c) => { const r = TABLE.find((t) => t.code === c); return r ? `${r.pts} p · plats ${TABLE.indexOf(r) + 1}` : ''; };
+  if ((done || live) && !(id in gameCache)) app.innerHTML = skeleton();
   const d = done || live ? await loadGame(id) : null;
   const base = `/match/${id}`;
   const tabList = done || live
@@ -662,8 +793,9 @@ async function pageMatch(id, tab = '') {
     : [['', 'Förhandstips'], ['uppstallning', 'Uppställningar'], ['inbordes', 'Inbördes möten']];
   if (!tabList.some(([k]) => k === tab)) tab = '';
   const meta = [`${fmtDay(g.start)} ${dateParts(g.start).y}, ${fmtTime(g.start)}`, d?.arena, d?.att ? `Publik ${d.att.toLocaleString('sv-SE')}` : ''].filter(Boolean);
-  const head = `<section class="panel mpanel" style="--tc:${tColor(g.home)}">
-    <div class="crumbs" style="padding:14px 20px 0"><a href="#/matcher">Matcher</a> / ${esc(tName(g.home))} – ${esc(tName(g.away))}</div>
+  const head = `<section class="panel mpanel" style="--hc:${tColor(g.home)};--ac:${tColor(g.away)}">
+    <div class="band">
+    <div class="crumbs" style="padding:16px 22px 0"><a href="#/matcher">Matcher</a> / ${esc(tName(g.home))} – ${esc(tName(g.away))}</div>
     <div class="mhead">
       <a class="mteam" href="#/lag/${g.home}">${tb(g.home, 'xl')}<b>${esc(tName(g.home))}</b><span>Hemma · ${rec(g.home)}</span></a>
       <div class="mscore">${done || live ? `<div class="sc">${g.hs}–${g.as}</div>` : `<div class="sc sm">${fmtTime(g.start)}</div>`}
@@ -671,7 +803,8 @@ async function pageMatch(id, tab = '') {
         ${done && d?.hl ? playBtn(d.hl, `${g.home}–${g.away} sammandrag`).replace('>Video<', '>Se sammandrag<') : ''}</div>
       <a class="mteam" href="#/lag/${g.away}">${tb(g.away, 'xl')}<b>${esc(tName(g.away))}</b><span>Borta · ${rec(g.away)}</span></a>
     </div>
-    <div class="mmeta">${meta.map((m) => `<span>${esc(m)}</span>`).join('')}</div>
+    </div>
+    <div class="mmeta" style="padding-top:14px">${meta.map((m) => `<span>${esc(m)}</span>`).join('')}</div>
     ${tabs(base, tabList, tab)}
   </section>`;
   let body;
@@ -987,7 +1120,7 @@ function pageStats() {
 
 /* ---------- Spelare ---------- */
 async function pagePlayer(id, tab = '') {
-  app.innerHTML = '<div class="loading"><span class="spinner"></span>Laddar spelare…</div>';
+  if (!PLAYERS) app.innerHTML = skeleton();
   const P = await loadPlayers();
   const bio = P.bios[id];
   if (!bio) return notFound('Spelaren hittades inte.');
@@ -1146,10 +1279,14 @@ function pageTeam(code, tab = '') {
   const tabList = [['', 'Översikt'], ['trupp', 'Trupp', roster.length || ''], ['schema', 'Schema'], ['historik', 'Historik']];
   if (!tabList.some(([k]) => k === tab)) tab = '';
   const isFav = FAV === code;
-  const hero = `<section class="panel" style="--tc:${tColor(code)}"><div class="hero team">${tb(code, 'xl')}
+  // Charts and highlights on this page use the club colour, picked to stay readable on the current theme
+  const ta = teamAccent(code);
+  if (ta) { app.style.setProperty('--accent', ta.accent); app.style.setProperty('--accent-ink', ta.ink); }
+  const [tbg, tfg] = TC[code] || ['#5b6b7e', '#fff'];
+  const hero = `<section class="panel" style="--tc:${tbg};--tt:${tfg}"><div class="hero team band">${tb(code, 'xl')}
     <div class="info"><div class="crumbs"><a href="#/lag">Lag</a> / ${esc(tName(code))}</div><h1>${esc(tName(code))}</h1>
       <div class="meta"><span>Plats <b>${rank}</b></span><span><b>${r.pts}</b> poäng på <b>${r.gp}</b> matcher</span><span>V–ÖV–ÖF–F <b>${r.w}–${r.otw}–${r.otl}–${r.l}</b></span><span>Mål <b>${r.gf}–${r.ga}</b></span></div>
-      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">${formChips(code)}<button class="favbtn" data-fav="${code}" aria-pressed="${isFav}">${isFav ? '★ Mitt lag' : '☆ Följ laget'}</button></div></div></div>
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">${formChips(code)}<button class="favbtn" data-fav="${code}" aria-pressed="${isFav}"><span>${isFav ? '★ Mitt lag' : '☆ Följ laget'}</span></button></div></div></div>
     <div class="p-body" style="padding-top:16px"><div class="tiles">
       <div class="tile"><span class="k">Proj. poäng</span><span class="v">${dec(s.proj, 0)}</span><span class="s">80 %: ${s.lo}–${s.hi}</span></div>
       <div class="tile"><span class="k">Topp 6</span><span class="v">${oddsTxt(s.top6)}</span><span class="s">direkt till kvartsfinal</span></div>
@@ -1290,6 +1427,8 @@ async function route() {
   const samePage = lastPath && path.split('/').slice(0, 3).join('/') === lastPath.split('/').slice(0, 3).join('/');
   const keepY = samePage ? window.scrollY : 0;
   lastPath = path;
+  // Team pages set their own accent colour; every other page uses the site's
+  app.style.removeProperty('--accent'); app.style.removeProperty('--accent-ink');
   for (const [re, fn] of ROUTES) {
     const m = path.match(re);
     if (m) {
@@ -1302,7 +1441,6 @@ async function route() {
 }
 
 async function boot() {
-  setupLogo();
   try {
     D = await (await fetch('data/core.json')).json();
   } catch (e) {
@@ -1317,6 +1455,11 @@ async function boot() {
   stampTxt = new Date(D.updated).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Stockholm' });
   $('foot').innerHTML = `SHLstats är ett fristående fanprojekt utan koppling till SHL. Resultat, statistik, bilder och videor från shl.se. Uppdaterad ${esc(stampTxt)}. Prognoserna bygger på en egen modell och är inga garantier.`;
   buildCards();
+  setupLogo();
+  // Menu icons
+  const NAV_ICON = { '': 'home', matcher: 'calendar', tabell: 'table', statistik: 'user', lag: 'shield' };
+  document.querySelectorAll('nav.main a').forEach((a) => a.insertAdjacentHTML('afterbegin', icon(NAV_ICON[a.dataset.nav])));
+  app.removeAttribute('aria-busy');
   setupTheme();
   setupSearch();
   setupVideo();
