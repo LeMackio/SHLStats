@@ -113,10 +113,12 @@ let D, CUR, PREV, TEAMS, LOGOS, HS, GAMES, GAMES_BY_ID, TABLE, SIM, MODEL, CODES
 let PLAYERS = null; // players.json, loaded on demand
 let FAV = store.get('shlstats-fav');
 const gameCache = {};
-const loadPlayers = async () => PLAYERS ??= await (await fetch('data/players.json')).json();
+// Data URLs carry the build version so an update is never mixed with old cached data
+const dataUrl = (path) => `data/${path}?v=${window.SHL_BUILD || ''}`;
+const loadPlayers = async () => PLAYERS ??= await (await fetch(dataUrl('players.json'))).json();
 const loadGame = async (id) => {
   if (id in gameCache) return gameCache[id];
-  try { const r = await fetch(`data/games/${encodeURIComponent(id)}.json`); gameCache[id] = r.ok ? await r.json() : null; }
+  try { const r = await fetch(dataUrl(`games/${encodeURIComponent(id)}.json`)); gameCache[id] = r.ok ? await r.json() : null; }
   catch { gameCache[id] = null; }
   return gameCache[id];
 };
@@ -1494,7 +1496,7 @@ async function route() {
 
 async function boot() {
   try {
-    D = await (await fetch('data/core.json')).json();
+    D = await (await fetch(dataUrl('core.json'))).json();
   } catch (e) {
     app.innerHTML = panel('Kunde inte ladda data', '<p>SHL-datan kunde inte hämtas. Ladda om sidan om en stund.</p>');
     return;
