@@ -1060,16 +1060,13 @@ function lineupHtml(code) {
 /* ---------- Tabell ---------- */
 // Tabell: one page with three tabs, the table, team stats and odds
 function pageTable(tab = '') {
-  if (!['', 'lagstatistik', 'odds'].includes(tab)) tab = '';
+  if (tab === 'lagstatistik') tab = ''; // old address for the table tab
+  if (!['', 'odds'].includes(tab)) tab = '';
   setTitle('Tabell');
   const head = `<div class="page-head"><div><h1>Tabell</h1><p>SHL ${CUR.replace('-', '/')}. Tryck på ett lag för trupp, schema och odds.</p></div></div>
-    <section class="panel tabs-only">${tabs('/tabell', [['', 'Tabell', '', 'table'], ['lagstatistik', 'Lagstatistik', '', 'chart'], ['odds', 'Odds', '', 'trophy']], tab)}</section>`;
+    <section class="panel tabs-only">${tabs('/tabell', [['', 'Tabell', '', 'table'], ['odds', 'Odds', '', 'trophy']], tab)}</section>`;
   const foot = `<span class="stamp">Uppdaterad ${esc(stampTxt)}</span>`;
-  if (tab === 'lagstatistik') return teamStatsTab(head);
-  if (tab === '') {
-    render(`${head}${board([panel('Tabell', standingsTable({ mode: 'stats' }) + legendHtml, { cls: 'wide', foot })])}`);
-    return;
-  }
+  if (tab === '') return teamStatsTab(head);
   const heat =`<div class="tscroll"><table class="t stick" style="min-width:760px"><thead><tr><th class="l">Lag</th>${CODES.map((_, i) => `<th>${i + 1}</th>`).join('')}</tr></thead><tbody>${TABLE.map((r) => {
     const s = SIM[r.code];
     return `<tr class="${r.code === FAV ? 'fav' : ''}"><td class="l">${teamLink(r.code, { name: true })}</td>${s.rank.map((p, i) => {
@@ -1108,29 +1105,65 @@ function pageTable(tab = '') {
 
 /* ---------- Statistik ---------- */
 let statsState = { kind: 'skaters', season: null, team: 'ALL', pos: 'ALL', minGp: 0, q: '' };
+// A leader section: tabs for each stat, the leader with a full headshot, and the top 10 beside them
+const LEADER_SECTIONS = () => {
+  const sk = skaters(), gmin = goalieMinGp(CUR);
+  const skStats = [
+    { k: 'pts', label: 'Poäng', v: (p) => p.pts, tie: (p) => p.g },
+    { k: 'g', label: 'Mål', v: (p) => p.g, tie: (p) => p.pts },
+    { k: 'a', label: 'Assist', v: (p) => p.a, tie: (p) => p.pts },
+    { k: 'pm', label: '+/-', v: (p) => p.pm, tie: (p) => p.pts, f: signed },
+  ];
+  return [
+    { id: 'sk', title: 'Spelare', rows: sk, stats: skStats, all: { kind: 'skaters', pos: 'ALL' } },
+    { id: 'gk', title: 'Målvakter', note: `Minst ${gmin} ${gmin === 1 ? 'match' : 'matcher'}`, rows: goalies().filter((g) => g.gpi >= gmin), all: { kind: 'goalies', pos: 'ALL' },
+      stats: [
+        { k: 'svp', label: 'Rädd%', v: (g) => g.svp, f: (x) => dec(x, 2) },
+        { k: 'gaa', label: 'GAA', v: (g) => g.gaa, asc: true, f: (x) => dec(x, 2) },
+        { k: 'so', label: 'Nollor', v: (g) => g.so, tie: (g) => g.svp },
+        { k: 'gsaa', label: 'GSAA', v: (g) => gsaa(g, CUR), f: (x) => (x > 0 ? '+' : '') + dec(x) },
+      ] },
+    { id: 'df', title: 'Backar', rows: sk.filter((p) => posGroup(p.pos) === 'D'), stats: skStats.slice(0, 3), all: { kind: 'skaters', pos: 'D' } },
+    { id: 'rk', title: 'Nykomlingar', note: 'Första SHL-säsongen', rows: sk.filter((p) => p.rk), stats: skStats.slice(0, 3), all: { kind: 'skaters', pos: 'ALL' } },
+  ];
+};
+function leaderBody(sec, stat) {
+  const fmt = stat.f || ((x) => x);
+  const sorted = [...sec.rows].sort((a, b) => (stat.asc ? stat.v(a) - stat.v(b) : stat.v(b) - stat.v(a)) || ((stat.tie ? stat.tie(b) - stat.tie(a) : 0)));
+  const top = sorted.slice(0, 10);
+  if (!top.length) return '<p class="empty-state">Ingen statistik ännu.</p>';
+  // Players with the same value share a rank, shown as T7.
+  const shown = top.map((p) => fmt(stat.v(p)));
+  const rankOf = (i) => shown.indexOf(shown[i]) + 1;
+  const tied = (i) => shown.filter((x) => x === shown[i]).length > 1;
+  const L = top[0];
+  const [first, ...rest] = String(L.name).split(' ');
+  return `<div class="lsec-grid">
+    <div class="lfeat" style="--tc:${tColor(L.team)}">
+      ${portrait(L.id, L.name, L.team, 'feat')}
+      <div class="lfeat-info">
+        <a class="lfeat-name" href="#/spelare/${encodeURIComponent(L.id)}">${esc(first)}<br>${esc(rest.join(' '))}</a>
+        <div class="lfeat-meta">${tb(L.team)}<span>${esc(L.team)} · #${esc(L.num ?? '–')} · ${POS_SHORT[L.pos] || 'F'}</span></div>
+        <div class="lfeat-lbl">${stat.label}</div>
+        <div class="lfeat-val num">${fmt(stat.v(L))}</div>
+      </div>
+    </div>
+    <ol class="ltop10">${top.map((p, i) => `<li class="${i === 0 ? 'first' : ''}"><span class="r num">${tied(i) ? 'T' : ''}${rankOf(i)}.</span>${tb(p.team)}${pLink(p.id, p.name)}<b class="num">${shown[i]}</b></li>`).join('')}</ol>
+  </div>`;
+}
 function pageStats() {
   setTitle('Statistik');
   statsState.season ??= CUR;
-  const sk = skaters(), gmin = goalieMinGp(CUR);
-  const by = (arr, f, min = 0, key = 'gp') => arr.filter((p) => (p[key] || 0) >= min).sort((a, b) => f(b) - f(a));
-  const minToi = Math.max(1, Math.round(Math.max(0, ...sk.map((p) => p.gp)) * 0.3));
-  const gk = goalies();
-  const tiles = [
-    leaderTile('Poäng', by(sk, (p) => p.pts + p.g / 100), { val: (p) => p.pts }),
-    leaderTile('Mål', by(sk, (p) => p.g + p.pts / 1000), { val: (p) => p.g }),
-    leaderTile('Assist', by(sk, (p) => p.a + p.pts / 1000), { val: (p) => p.a }),
-    leaderTile('Plus/minus', by(sk, (p) => p.pm), { val: (p) => p.pm, fmt: signed }),
-    leaderTile('Powerplaymål', by(sk, (p) => p.ppg + p.g / 1000), { val: (p) => p.ppg }),
-    leaderTile('Skott', by(sk, (p) => p.sog), { val: (p) => p.sog }),
-    leaderTile('Istid per match', by(sk, (p) => p.toi, minToi), { val: (p) => p.toi, fmt: mmss }),
-    leaderTile('Räddningsprocent', by(gk, (p) => p.svp, gmin, 'gpi'), { val: (p) => p.svp, fmt: (v) => dec(v, 2) }),
-    leaderTile('Insläppta per match', by(gk, (p) => -p.gaa, gmin, 'gpi'), { val: (p) => p.gaa, fmt: (v) => dec(v, 2) }),
-    leaderTile('Hållna nollor', by(gk, (p) => p.so + p.svp / 1000, 1, 'gpi'), { val: (p) => p.so }),
-  ];
+  const sections = LEADER_SECTIONS();
   render(`
     <div class="page-head"><div><h1>Statistik</h1><p>Topplistor och fullständig statistik för alla SHL-spelare. Tryck på en spelare för hela profilen.</p></div></div>
-    ${board(tiles, 'narrow')}
-    <section class="panel"><div class="p-head"><h2>Alla spelare</h2></div><div class="p-body">
+    <div class="lsec-row">${sections.map((s) => `<section class="panel lsec">
+      <div class="p-head"><h2>${s.title}</h2>${s.note ? `<span class="stamp">${esc(s.note)}</span>` : ''}</div>
+      <div class="utabs" id="lt-${s.id}" role="tablist">${s.stats.map((st, i) => `<button role="tab" data-k="${st.k}" aria-selected="${i === 0}">${st.label}</button>`).join('')}</div>
+      <div class="p-body" id="lb-${s.id}">${leaderBody(s, s.stats[0])}</div>
+      <div class="p-foot"><button class="more" data-all="${s.id}">Alla ${s.title.toLowerCase()} ›</button></div>
+    </section>`).join('')}</div>
+    <section class="panel" id="alla"><div class="p-head"><h2>Alla spelare</h2></div><div class="p-body">
       <div class="controls">
         <div class="seg" id="sk">${[['skaters', 'Spelare'], ['goalies', 'Målvakter']].map(([v, l]) => `<button data-v="${v}" aria-pressed="${statsState.kind === v}">${l}</button>`).join('')}</div>
         <label class="field">Säsong <select id="ss">${[CUR, PREV].map((s) => `<option ${s === statsState.season ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
@@ -1161,13 +1194,14 @@ function pageStats() {
       { k: 'ppg', label: 'PPM', title: 'Powerplaymål' }, { k: 'gwg', label: 'GWG', title: 'Matchvinnande mål' }, { k: 'sog', label: 'Skott' },
       { k: 'shp', label: 'Sk%', title: 'Skotteffektivitet', f: (v) => dec(v * 100, 1) }, { k: 'toi', label: 'Istid', title: 'Istid per match', f: mmss },
       { k: 'hits', label: 'Tackl.' }, { k: 'blk', label: 'Block' },
-    ], rows, { key: 'pts', limit: 50 });
+    ], rows, { key: S.sortKey || 'pts', limit: 50 });
     else sortable($('stable'), [nameCol,
       { k: 'gpi', label: 'SM', title: 'Spelade matcher' }, { k: 'w_', label: 'V', title: 'Vinster' }, { k: 'l', label: 'F', title: 'Förluster' },
       { k: 'sv', label: 'Räddn.' }, { k: 'ga', label: 'Insl.', asc: true }, { k: 'svp', label: 'Rädd%', f: (v) => dec(v, 2) },
       { k: 'gaa', label: 'GAA', title: 'Insläppta mål per 60 minuter', asc: true, f: (v) => dec(v, 2) }, { k: 'so', label: 'Nollor' },
       { k: 'gsaa', label: 'GSAA', title: 'Räddade mål över snittet', f: (v) => (v > 0 ? '+' : '') + dec(v) }, { k: 'mins', label: 'Minuter', f: (v) => Math.round(v) },
-    ], rows, { key: 'svp', limit: 50 });
+    ], rows, { key: S.sortKey || 'svp', limit: 50, desc: !['gaa', 'ga'].includes(S.sortKey) });
+    S.sortKey = null; // only the first draw after "Alla" uses the chosen stat
   };
   const bindSeg = (id, key, after) => $(id).onclick = (e) => { const b = e.target.closest('button'); if (!b) return; statsState[key] = b.dataset.v; [...$(id).children].forEach((c) => c.setAttribute('aria-pressed', c === b)); after?.(); draw(); };
   bindSeg('sk', 'kind', teamOpts);
@@ -1178,6 +1212,26 @@ function pageStats() {
   $('sq').oninput = (e) => { statsState.q = e.target.value; draw(); };
   $('gs').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; [...$('gs').children].forEach((c) => c.setAttribute('aria-pressed', c === b)); $('gchart').innerHTML = gsaaChart(b.dataset.v); };
   teamOpts(); draw();
+
+  // Leader sections: switch stat, or jump to the full table sorted by that stat
+  const active = {};
+  for (const s of sections) {
+    active[s.id] = s.stats[0];
+    $(`lt-${s.id}`).onclick = (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      [...$(`lt-${s.id}`).children].forEach((c) => c.setAttribute('aria-selected', c === b));
+      active[s.id] = s.stats.find((st) => st.k === b.dataset.k);
+      $(`lb-${s.id}`).innerHTML = leaderBody(s, active[s.id]);
+    };
+  }
+  app.querySelectorAll('[data-all]').forEach((b) => b.onclick = () => {
+    const s = sections.find((x) => x.id === b.dataset.all);
+    Object.assign(statsState, s.all, { season: CUR, team: 'ALL', q: '', sortKey: active[s.id].k });
+    [...$('sk').children].forEach((c) => c.setAttribute('aria-pressed', c.dataset.v === statsState.kind));
+    $('ss').value = CUR; $('sp').value = statsState.pos; $('sq').value = '';
+    teamOpts(); draw();
+    $('alla').scrollIntoView({ behavior: 'smooth' });
+  });
 }
 
 /* ---------- Spelare ---------- */
@@ -1258,6 +1312,7 @@ function teamStatsTab(head) {
   const rows = TABLE.map((r) => {
     const T = D.teamStats[r.code] || {}, gp = r.gp || 0, tg = T.gp || 0;
     return {
+      rank: TABLE.indexOf(r) + 1,
       code: r.code, team: r.code, name: tName(r.code), gp, w: r.w, otw: r.otw, otl: r.otl, l: r.l, gf: r.gf, ga: r.ga, diff: r.gf - r.ga, pts: r.pts,
       ppm: gp ? r.pts / gp : null, gfpg: gp ? r.gf / gp : null, gapg: gp ? r.ga / gp : null,
       sog: tg ? T.sog / tg : null, sa: tg ? T.sa / tg : null, pp: T.ppo ? T.ppg / T.ppo : null, pk: T.pko ? 1 - T.ppga / T.pko : null,
@@ -1266,11 +1321,15 @@ function teamStatsTab(head) {
   });
   render(`${head}
     ${board([
-      panel('Lagstatistik', '<div class="tscroll"><table class="t stick" id="ttable" style="min-width:1000px"></table></div>', { sub: 'Skott, powerplay, boxplay, tekningar och tacklingar räknas från matchdata.', cls: 'wide' }),
+      panel('Tabell', `<div class="tscroll"><table class="t stick" id="ttable" style="min-width:1040px"></table></div>${legendHtml}`,
+        { sub: 'Tryck på en kolumnrubrik för att sortera. Skott, powerplay, boxplay, tekningar och tacklingar räknas från matchdata.', cls: 'wide', foot: `<span class="stamp">Uppdaterad ${esc(stampTxt)}</span>` }),
       panel('Anfall mot försvar', `<div class="chart">${teamScatter(rows)}</div>`, { sub: 'Gjorda och insläppta mål per match. Bäst är uppe till höger.' }),
       panel('Specialteam', `<div class="chart">${specialTeams(rows)}</div>`, { sub: 'Powerplay och boxplay i procent.' }),
     ])}`);
   sortable($('ttable'), [
+    { k: 'rank', label: '#', asc: true, h: (r) => {
+      const z = r.rank <= 6 ? 'var(--accent)' : r.rank <= 10 ? 'color-mix(in srgb, var(--accent) 60%, var(--muted))' : r.rank >= 13 ? 'var(--bad)' : 'var(--faint)';
+      return `<span class="rank" style="--zone:${z}">${r.rank}</span>`; } },
     { k: 'name', label: 'Lag', l: true, asc: true, h: (r) => `<a class="teamcell" href="#/lag/${r.code}">${tb(r.code, 'md')}<div class="nm"><b>${esc(r.name)}</b><span>${esc(r.code)}</span></div></a>` },
     { k: 'gp', label: 'SM' }, { k: 'w', label: 'V' }, { k: 'otw', label: 'ÖV' }, { k: 'otl', label: 'ÖF' }, { k: 'l', label: 'F', asc: true },
     { k: 'gf', label: 'GM', title: 'Gjorda mål' }, { k: 'ga', label: 'IM', title: 'Insläppta mål', asc: true }, { k: 'diff', label: '+/-', f: signed },
@@ -1278,7 +1337,7 @@ function teamStatsTab(head) {
     { k: 'gapg', label: 'IM/M', asc: true, f: (v) => dec(v, 2) }, { k: 'sog', label: 'Skott/M', f: (v) => dec(v, 1) }, { k: 'sa', label: 'Skott mot/M', asc: true, f: (v) => dec(v, 1) },
     { k: 'pp', label: 'PP%', f: (v) => dec(v * 100, 1) }, { k: 'pk', label: 'BP%', f: (v) => dec(v * 100, 1) }, { k: 'fo', label: 'Tekn%', f: (v) => dec(v * 100, 1) },
     { k: 'hits', label: 'Tackl/M', f: (v) => dec(v, 1) }, { k: 'pim', label: 'Utv/M', asc: true, f: (v) => dec(v, 1) }, { k: 'proj', label: 'Proj. P', f: (v) => dec(v, 0) },
-  ], rows, { key: 'pts' });
+  ], rows, { key: 'rank', desc: false });
   layoutBoards();
 }
 function teamScatter(rows) {
@@ -1472,7 +1531,7 @@ function notFound(msg) {
 const ROUTES = [
   [/^\/?$/, pageOverview], [/^\/matcher(?:\/([^/]+))?$/, pageGames], [/^\/match\/([^/]+)(?:\/([^/]+))?$/, pageMatch], [/^\/tabell(?:\/([^/]+))?$/, pageTable],
   [/^\/statistik$/, pageStats], [/^\/spelare\/([^/]+)(?:\/([^/]+))?$/, pagePlayer],
-  [/^\/lag$/, () => pageTable('lagstatistik')], // old link, now a tab on Tabell
+  [/^\/lag$/, () => pageTable('')], // old link to the teams page, now the Tabell page
   [/^\/lag\/([^/]+)(?:\/([^/]+))?$/, pageTeam],
 ];
 const NAV_OF = { match: 'matcher', spelare: 'statistik', lag: 'tabell' };

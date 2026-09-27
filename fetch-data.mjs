@@ -346,6 +346,13 @@ const highlights = detailsByDate.filter((d) => videos[d.id]?.hl).reverse().slice
 
 // ---------- write site ----------
 const strip = (rows) => rows.map(({ ms, ...r }) => r);
+// Rookies: no SHL games in the earlier loaded seasons, and at most 25 when the season starts
+const seenBefore = new Set(SEASONS.slice(1).flatMap((s) => [...s.skaters, ...s.goalies].map((p) => p.id)));
+const seasonStartYear = Number(cur.code);
+const markRookies = (rows) => rows.map((p) => {
+  const age = p.born ? seasonStartYear - Number(p.born.slice(0, 4)) : 99;
+  return !seenBefore.has(p.id) && age <= 25 ? { ...p, rk: 1 } : p;
+});
 const core = {
   updated: new Date().toISOString(),
   seasonOrder: SEASONS.map((s) => s.label),
@@ -354,7 +361,7 @@ const core = {
   currentTeams: codes,
   games, standings: cur.standings, sim, model,
   history: history.days,
-  seasons: { [cur.label]: { skaters: strip(cur.skaters), goalies: strip(cur.goalies) }, [prev.label]: { skaters: strip(prev.skaters), goalies: strip(prev.goalies) } },
+  seasons: { [cur.label]: { skaters: markRookies(strip(cur.skaters)), goalies: markRookies(strip(cur.goalies)) }, [prev.label]: { skaters: strip(prev.skaters), goalies: strip(prev.goalies) } },
   teamStats, lineups, rosters, headshots,
   pastStandings: Object.fromEntries(SEASONS.map((s) => [s.label, s.standings])),
   pastGames: SEASONS.slice(1).flatMap((s) => s.games.filter(isFinal).map((g) => [s.label, g.start.slice(0, 10), g.home, g.away, g.hs, g.as, g.ot || g.so ? 1 : 0])),
