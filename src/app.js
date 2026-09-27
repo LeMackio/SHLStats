@@ -129,7 +129,7 @@ const loadTeams = async () => TEAMDATA ??= await (await fetch(dataUrl('teams.jso
 // shl.se's API can't be read directly from another website, so live scores come through a small relay
 // (live-relay/worker.js, a free Cloudflare Worker). Without it the site shows the score from the latest
 // data refresh. Locally the relay can run on port 8787.
-const LIVE_API = location.hostname === 'localhost' ? 'http://localhost:8787' : '';
+const LIVE_API = location.hostname === 'localhost' ? 'http://localhost:8787' : 'https://shlstats-live.marcuskbroman.workers.dev';
 const LIVE = {}; // game id → { at, data } from the relay
 let liveTimer = null, liveSig = '';
 // Local testing only: ?livetest=<game id> shows a finished game as if it were being played
