@@ -1,0 +1,777 @@
+<title>Isstats SHL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0b1622;
+  --bg-2: #0f1c2b;
+  --panel: #122233;
+  --panel-2: #182c40;
+  --line: #22384e;
+  --text: #e7eef6;
+  --muted: #8ea3b8;
+  --faint: #5f7589;
+  --accent: #58b4ff;
+  --accent-ink: #06121e;
+  --good: #37b97a;
+  --bad: #e0566e;
+  --gold: #e8b949;
+  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px rgba(0,0,0,.25);
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #e9eff5; --bg-2: #dfe7ef; --panel: #ffffff; --panel-2: #f2f6fa; --line: #d3dde8;
+    --text: #0e1c2b; --muted: #54687d; --faint: #8395a8; --accent: #0a6fd1; --accent-ink: #ffffff;
+    --good: #1c9a5e; --bad: #cc3550; --gold: #b8860b;
+    --shadow: 0 1px 2px rgba(14,28,43,.06), 0 6px 18px rgba(14,28,43,.06);
+  }
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #e9eff5; --bg-2: #dfe7ef; --panel: #ffffff; --panel-2: #f2f6fa; --line: #d3dde8;
+  --text: #0e1c2b; --muted: #54687d; --faint: #8395a8; --accent: #0a6fd1; --accent-ink: #ffffff;
+  --good: #1c9a5e; --bad: #cc3550; --gold: #b8860b;
+  --shadow: 0 1px 2px rgba(14,28,43,.06), 0 6px 18px rgba(14,28,43,.06);
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font: 15px/1.45 var(--body); }
+button, input, select { font: inherit; color: inherit; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- score strip ---------- */
+.strip { background: var(--bg-2); border-bottom: 1px solid var(--line); display: flex; align-items: stretch; }
+.strip-btn { flex: 0 0 36px; background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 20px; }
+.strip-btn:hover { color: var(--text); }
+.strip-track { flex: 1; display: flex; overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none; }
+.strip-track::-webkit-scrollbar { display: none; }
+.s-date { flex: 0 0 64px; display: grid; place-content: center; text-align: center; border-left: 1px solid var(--line); background: var(--panel); }
+.s-date b { font: 600 13px var(--display); letter-spacing: .08em; color: var(--accent); }
+.s-date span { font: 700 26px/1 var(--display); }
+.s-game { flex: 0 0 176px; padding: 8px 14px; border-left: 1px solid var(--line); display: grid; gap: 4px; }
+.s-status { font: 600 12px var(--display); letter-spacing: .08em; color: var(--muted); text-align: center; }
+.s-row { display: grid; grid-template-columns: 26px 1fr auto auto; align-items: center; gap: 8px; }
+.s-row .code { font: 700 17px var(--display); letter-spacing: .02em; }
+.s-row.loser .code, .s-row.loser .score { color: var(--muted); }
+.score { font: 700 20px var(--display); min-width: 14px; text-align: right; }
+.wp { font: 600 12px var(--display); padding: 1px 6px; border-radius: 4px; min-width: 38px; text-align: center; }
+
+/* team badge */
+.tb { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; background: var(--tc); color: var(--tt, #fff);
+  font: 700 9.5px/1 var(--display); letter-spacing: .02em; flex: none; box-shadow: 0 0 0 1px rgba(255,255,255,.08) inset; }
+.tb.lg { width: 40px; height: 40px; font-size: 13px; border-radius: 9px; }
+
+/* ---------- header ---------- */
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.top-in { max-width: 1280px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+.brand svg { width: 34px; height: 34px; }
+.brand-word { font: 700 italic 26px/1 var(--display); letter-spacing: .03em; text-transform: uppercase; }
+.brand-word em { color: var(--accent); font-style: inherit; }
+nav.main { display: flex; gap: 4px; flex: 1; overflow-x: auto; scrollbar-width: none; }
+nav.main a { color: var(--muted); text-decoration: none; font: 600 15px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 6px 10px; border-radius: 6px; white-space: nowrap; }
+nav.main a:hover { color: var(--text); background: var(--panel); }
+.theme-toggle { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
+.theme-toggle button { border: 0; background: none; width: 30px; height: 26px; border-radius: 999px; cursor: pointer; color: var(--muted); display: grid; place-items: center; }
+.theme-toggle button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.theme-toggle svg { width: 15px; height: 15px; }
+
+/* ---------- layout ---------- */
+main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 540px), 1fr)); align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); min-width: 0; display: flex; flex-direction: column; }
+.panel.wide { grid-column: 1 / -1; }
+.p-head { padding: 18px 20px 12px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; }
+.p-head h2 { margin: 0; font: 700 26px/1.05 var(--display); letter-spacing: .01em; text-transform: uppercase; text-wrap: balance; }
+.p-sub { margin: 0; color: var(--muted); font-size: 14px; flex-basis: 100%; }
+.p-body { padding: 0 20px 18px; display: grid; gap: 14px; }
+.p-foot { margin-top: auto; border-top: 1px solid var(--line); padding: 10px 20px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.p-foot a { text-decoration: none; font-weight: 600; }
+.stamp { font-size: 12.5px; color: var(--faint); }
+
+/* controls */
+.controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+.seg button { border: 0; background: none; padding: 5px 11px; border-radius: 6px; cursor: pointer; color: var(--muted); font: 600 14px var(--display); letter-spacing: .05em; text-transform: uppercase; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.field { display: inline-flex; align-items: center; gap: 6px; font: 600 13px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.field select, .field input { background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px; padding: 4px 8px; font: 500 14px var(--body); text-transform: none; letter-spacing: 0; color: var(--text); }
+.field input[type=number] { width: 60px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: none; border-radius: 999px; padding: 3px 11px; cursor: pointer; color: var(--muted); font: 600 13.5px var(--display); letter-spacing: .05em; text-transform: uppercase; }
+.chip:hover { color: var(--text); }
+.chip[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+/* ---------- player card ---------- */
+.search { position: relative; }
+.search input { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px 9px 36px; font-size: 15px; }
+.search svg { position: absolute; left: 11px; top: 50%; translate: 0 -50%; width: 16px; height: 16px; color: var(--muted); }
+.results { position: absolute; left: 0; right: 0; top: calc(100% + 4px); background: var(--panel); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--shadow); z-index: 5; max-height: 280px; overflow-y: auto; padding: 4px; }
+.results button { display: flex; width: 100%; align-items: center; gap: 10px; border: 0; background: none; padding: 6px 8px; border-radius: 6px; cursor: pointer; text-align: left; }
+.results button:hover, .results button.on { background: var(--panel-2); }
+.results small { color: var(--muted); margin-left: auto; }
+
+.pcard { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg-2); }
+.pc-top { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 16px 18px; position: relative;
+  background: linear-gradient(115deg, color-mix(in srgb, var(--tc) 38%, var(--bg-2)) 0%, var(--bg-2) 62%); }
+.pc-name { font: 700 30px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; margin: 0 0 8px; text-wrap: balance; }
+.pc-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13.5px; color: var(--muted); }
+.pc-meta b { color: var(--text); font-weight: 600; }
+.pc-war { text-align: center; display: grid; justify-items: center; align-content: start; }
+.pc-war .lbl { font: 600 12px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.pc-war .big { font: 700 44px/1 var(--display); }
+.pc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 6px 22px; padding: 14px 18px; }
+.metric { display: grid; grid-template-columns: 1fr 82px 38px; align-items: center; gap: 8px; font-size: 13.5px; }
+.metric .bar { height: 8px; border-radius: 4px; background: var(--panel-2); overflow: hidden; }
+.metric .bar i { display: block; height: 100%; border-radius: 4px; }
+.metric .pct { font: 700 15px var(--display); text-align: right; }
+.pc-seasons { padding: 0 18px 14px; overflow-x: auto; }
+.pc-seasons table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.pc-seasons th { font: 600 12px var(--display); letter-spacing: .08em; color: var(--muted); text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.pc-seasons td { text-align: right; padding: 5px 6px; border-bottom: 1px solid var(--line); }
+.pc-seasons th:first-child, .pc-seasons td:first-child { text-align: left; }
+.pc-foot { padding: 10px 18px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--faint); }
+.pc-foot .mark { font: 700 italic 14px var(--display); letter-spacing: .05em; color: var(--muted); }
+.small-sample { color: var(--gold); }
+
+/* ---------- tables ---------- */
+.tscroll { overflow-x: auto; margin: 0 -20px; padding: 0 20px; }
+table.std { width: 100%; border-collapse: collapse; min-width: 620px; }
+table.std th { font: 600 12.5px/1.15 var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 6px 8px; vertical-align: bottom; }
+table.std th small { display: block; font-weight: 500; color: var(--faint); letter-spacing: .04em; }
+table.std td { padding: 6px 8px; text-align: right; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+table.std td.team { text-align: left; }
+table.std th.team { text-align: left; }
+.teamcell { display: flex; align-items: center; gap: 10px; }
+.teamcell .nm { display: grid; line-height: 1.1; }
+.teamcell .nm b { font: 700 16px var(--display); letter-spacing: .02em; }
+.teamcell .nm span { font-size: 12.5px; color: var(--muted); }
+.rank { font: 700 15px var(--display); color: var(--muted); width: 28px; text-align: left !important; border-left: 3px solid var(--zone, transparent); }
+.odds { font: 700 15px var(--display); }
+.odds span { display: inline-block; min-width: 50px; padding: 3px 6px; border-radius: 5px; text-align: center; }
+tr.cut td { border-top: 2px solid var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+/* ---------- leaderboard ---------- */
+.lead-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; }
+@media (max-width: 620px) { .lead-wrap { grid-template-columns: 1fr; } }
+.leader { border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: var(--bg-2); display: grid; gap: 10px; align-content: start;
+  background-image: linear-gradient(160deg, color-mix(in srgb, var(--tc) 30%, transparent), transparent 60%); }
+.leader .nm { font: 700 26px/1 var(--display); text-transform: uppercase; text-wrap: balance; }
+.leader .sub { color: var(--muted); font-size: 13.5px; }
+.leader .val { font: 700 64px/0.9 var(--display); }
+.leader .lbl { font: 600 13px var(--display); letter-spacing: .1em; color: var(--muted); text-transform: uppercase; }
+ol.lb { list-style: none; margin: 0; padding: 0; display: grid; }
+ol.lb li { display: grid; grid-template-columns: 30px 26px 1fr auto; gap: 10px; align-items: center; padding: 5px 4px; border-top: 1px solid var(--line); }
+ol.lb li:first-child { border-top: 0; }
+ol.lb .r { font: 600 14px var(--display); color: var(--muted); }
+ol.lb .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+ol.lb .n button { all: unset; cursor: pointer; }
+ol.lb .n button:hover { color: var(--accent); }
+ol.lb .v { font: 700 17px var(--display); font-variant-numeric: tabular-nums; }
+.more { justify-self: start; border: 0; background: none; color: var(--accent); cursor: pointer; font: 600 14px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 4px 0; }
+
+/* ---------- goalies ---------- */
+.gchart svg { width: 100%; height: auto; display: block; }
+.gchart text { font-family: var(--body); }
+
+/* ---------- method ---------- */
+.method { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 18px 28px; }
+.method h3 { margin: 0 0 6px; font: 700 18px var(--display); text-transform: uppercase; letter-spacing: .03em; }
+.method p { margin: 0; color: var(--muted); font-size: 14px; max-width: 62ch; }
+
+footer { max-width: 1280px; margin: 0 auto; padding: 0 16px 40px; color: var(--faint); font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) { .strip-track { scroll-behavior: auto; } }
+</style>
+
+<div class="strip" aria-label="Scores and upcoming games">
+  <button class="strip-btn" id="strip-prev" aria-label="Scroll games left">‹</button>
+  <div class="strip-track" id="strip"></div>
+  <button class="strip-btn" id="strip-next" aria-label="Scroll games right">›</button>
+</div>
+
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="#standings" aria-label="Isstats home">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <rect x="1" y="1" width="38" height="38" rx="10" style="fill:var(--accent)"/>
+        <ellipse cx="20" cy="26" rx="11" ry="4.2" style="fill:var(--accent-ink)"/>
+        <rect x="9" y="19" width="22" height="7" style="fill:var(--accent-ink)"/>
+        <ellipse cx="20" cy="19" rx="11" ry="4.2" style="fill:var(--accent)" stroke-width="1.6" stroke="currentColor" color="var(--accent-ink)"/>
+        <path d="M20 5v8M16.5 7l3.5 3 3.5-3" style="fill:none;stroke:var(--accent-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="brand-word">Is<em>stats</em></span>
+    </a>
+    <nav class="main" aria-label="Sections">
+      <a href="#standings">Tabellen</a>
+      <a href="#leaders">Leaders</a>
+      <a href="#cards">Player Cards</a>
+      <a href="#goalies">Goalies</a>
+      <a href="#method">Method</a>
+    </nav>
+    <div class="theme-toggle" role="group" aria-label="Color theme">
+      <button id="theme-dark" aria-label="Dark theme" aria-pressed="false"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg></button>
+      <button id="theme-light" aria-label="Light theme" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="panel" id="cards">
+    <div class="p-head">
+      <h2>Player Cards</h2>
+      <p class="p-sub">Percentile ranks from a weighted two-season sample of SHL box-score data.</p>
+    </div>
+    <div class="p-body">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="player-search" type="search" placeholder="Search skaters, e.g. Elvenes" autocomplete="off" aria-label="Search skaters">
+        <div class="results" id="player-results" hidden></div>
+      </div>
+      <div class="chips" id="card-picks" aria-label="Top impact players"></div>
+      <div id="player-card"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="standings">
+    <div class="p-head">
+      <h2>Standings &amp; Playoff Odds</h2>
+      <p class="p-sub">Current SHL table with 10,000 simulations of the remaining regular season and playoffs.</p>
+    </div>
+    <div class="p-body">
+      <div class="tscroll"><table class="std" id="standings-table"></table></div>
+      <div class="legend">
+        <span><i style="background:var(--accent)"></i>Quarterfinal (1–6)</span>
+        <span><i style="background:color-mix(in srgb, var(--accent) 45%, transparent)"></i>Play-in (7–10)</span>
+        <span><i style="background:var(--bad)"></i>Relegation playoff (13–14)</span>
+      </div>
+    </div>
+    <div class="p-foot"><span class="stamp" id="proj-stamp"></span><a href="#method">About projections</a></div>
+  </section>
+
+  <section class="panel" id="leaders">
+    <div class="p-head">
+      <h2>SHL Stats Leaderboard</h2>
+    </div>
+    <div class="p-body">
+      <div class="controls">
+        <div class="seg" id="lb-kind"><button data-v="skaters" aria-pressed="true">Skaters</button><button data-v="goalies" aria-pressed="false">Goalies</button></div>
+        <label class="field">Season <select id="lb-season"></select></label>
+        <label class="field">Min GP <input id="lb-mingp" type="number" min="0" value="0"></label>
+        <label class="field">Team <select id="lb-team"></select></label>
+      </div>
+      <div class="controls">
+        <div class="chips" id="lb-stats"></div>
+        <div class="seg" id="lb-mode"><button data-v="tot" aria-pressed="true">Totals</button><button data-v="p52" aria-pressed="false">Per 52</button></div>
+      </div>
+      <div class="lead-wrap">
+        <div class="leader" id="lb-leader"></div>
+        <div style="display:grid;gap:6px;align-content:start">
+          <ol class="lb" id="lb-list"></ol>
+          <button class="more" id="lb-more">Show top 25</button>
+        </div>
+      </div>
+    </div>
+    <div class="p-foot"><span>Box stats from shl.se</span><a href="#method">About the stats</a></div>
+  </section>
+
+  <section class="panel" id="goalies">
+    <div class="p-head">
+      <h2>Goalies · Goals Saved Above Average</h2>
+      <p class="p-sub">Saves beyond what a league-average goalie would have made on the same shots.</p>
+    </div>
+    <div class="p-body">
+      <div class="controls">
+        <div class="seg" id="g-season"></div>
+        <span class="stamp" id="g-note"></span>
+      </div>
+      <div class="gchart" id="g-chart"></div>
+    </div>
+    <div class="p-foot"><a href="#method">About GSAA</a></div>
+  </section>
+
+  <section class="panel wide" id="method">
+    <div class="p-head"><h2>How the numbers work</h2></div>
+    <div class="p-body method">
+      <div>
+        <h3>Team ratings</h3>
+        <p>Each team gets an attack and a defence rating from goals for and against per game. Last season's rates, pulled 40% toward the league average, count as 15 games of evidence. This season's results are added on top, so the ratings shift more with every game played. A newly promoted team starts slightly below average.</p>
+      </div>
+      <div>
+        <h3>Season simulation</h3>
+        <p>Every remaining game is played out with Poisson-distributed goals and a small home-ice edge. Ties go to overtime, won in proportion to team strength. Points follow SHL rules: 3 for a regulation win, 2 for an OT or shootout win, 1 for an OT or shootout loss. After 52 games, 1–6 go to the quarterfinals, 7–10 play best-of-three play-ins, and 13–14 face the relegation playoff.</p>
+      </div>
+      <div>
+        <h3>Gold odds</h3>
+        <p>The playoffs are simulated too. Play-in winners meet seeds 1 and 2, the bracket reseeds after each round, and every series from the quarterfinals on is best of seven. Gold % is the share of simulations a team wins the final.</p>
+      </div>
+      <div>
+        <h3>Impact rating</h3>
+        <p>The SHL doesn't publish shot-location or on-ice data, so this isn't WAR. It's a weighted blend of percentile ranks in points/60, ice time, plus-minus, shots, finishing, power-play goals, hits, blocks and penalty minutes, compared within forwards or defencemen. This season's games count 1.5× as much as last season's.</p>
+      </div>
+      <div>
+        <h3>GSAA</h3>
+        <p>Goals saved above average = saves − shots faced × league save %. It doesn't adjust for shot quality, so a goalie behind a leaky defence can look worse than they are.</p>
+      </div>
+      <div>
+        <h3>Data</h3>
+        <p>Scores, standings and box stats come from shl.se's public stats feeds. Team colours are approximations used for the badges. Isstats is an independent fan project with no connection to the SHL or its clubs.</p>
+      </div>
+    </div>
+  </section>
+</main>
+<footer id="data-stamp"></footer>
+
+<script>
+/*__DATA__*/
+</script>
+<script>
+(() => {
+const D = window.SHL_DATA;
+const SEASON_GAMES = 52;
+const [CUR, PREV] = D.seasonOrder;
+const CODE_FIX = { 'ÖRE': 'OHK', 'SKE': 'SAIK' };
+const fix = (c) => CODE_FIX[c] || c;
+const TEAMS = { ...D.prevTeams, ...D.teams };
+// Approximate club colours for badges: [background, text]
+const TC = {
+  BIF: ['#c8202f', '#fff'], DIF: ['#0b2d6b', '#fff'], FBK: ['#f3c316', '#10220f'], FHC: ['#0f6b3f', '#fff'],
+  HV71: ['#1545a3', '#ffd400'], IFB: ['#11804a', '#fff'], LHC: ['#0a5bb4', '#fff'], LHF: ['#b3122f', '#fff'],
+  MIF: ['#d31c35', '#fff'], OHK: ['#1d2330', '#fff'], RBK: ['#1a8a3e', '#fff'], SAIK: ['#1b1b1b', '#f5c400'],
+  TIK: ['#b8233a', '#fff'], VLH: ['#c21f2e', '#fff'], LIF: ['#1a4fa0', '#fff'],
+};
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const tb = (code, lg) => { const [bg, fg] = TC[code] || ['#4a5b6e', '#fff']; return `<span class="tb${lg ? ' lg' : ''}" style="--tc:${bg};--tt:${fg}">${esc(code)}</span>`; };
+const tColor = (code) => (TC[code] || ['#4a5b6e'])[0];
+const tName = (code) => TEAMS[code]?.name || code;
+const $ = (id) => document.getElementById(id);
+const pct = (x, d = 0) => (x * 100).toFixed(d) + '%';
+const fmtOdds = (p) => p >= 0.995 ? '>99%' : p <= 0 ? '–' : p < 0.005 ? '<1%' : pct(p);
+const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+
+/* ---------- theme ---------- */
+const root = document.documentElement;
+const storedTheme = (() => { try { return localStorage.getItem('isstats-theme'); } catch { return null; } })();
+if (storedTheme) root.dataset.theme = storedTheme;
+const syncThemeButtons = () => {
+  const dark = root.dataset.theme ? root.dataset.theme === 'dark' : !matchMedia('(prefers-color-scheme: light)').matches;
+  $('theme-dark').setAttribute('aria-pressed', dark); $('theme-light').setAttribute('aria-pressed', !dark);
+};
+for (const t of ['dark', 'light']) $('theme-' + t).addEventListener('click', () => {
+  root.dataset.theme = t; try { localStorage.setItem('isstats-theme', t); } catch {}
+  syncThemeButtons(); renderGoalies();
+});
+syncThemeButtons();
+
+/* ---------- team ratings ---------- */
+const played = D.games.filter((g) => g.state === 'post-game' && typeof g.hs === 'number');
+const remaining = D.games.filter((g) => !(g.state === 'post-game' && typeof g.hs === 'number'));
+const totals = (games) => {
+  const t = {};
+  for (const g of games) for (const [c, f, a] of [[g.home, g.hs, g.as], [g.away, g.as, g.hs]]) {
+    const r = (t[c] ??= { gp: 0, gf: 0, ga: 0 }); r.gp++; r.gf += f; r.ga += a;
+  }
+  return t;
+};
+const prevT = totals(D.prevGames), curT = totals(played);
+const allGoals = [...D.prevGames, ...played].reduce((s, g) => s + g.hs + g.as, 0);
+const L = allGoals / (2 * (D.prevGames.length + played.length));
+const PRIOR_W = 15, REGRESS = 0.6, HOME = 1.05, AWAY = 0.96;
+const codes = Object.keys(D.teams);
+const rating = {};
+for (const c of codes) {
+  const p = prevT[c];
+  const pgf = p ? L + (p.gf / p.gp - L) * REGRESS : L * 0.93;
+  const pga = p ? L + (p.ga / p.gp - L) * REGRESS : L * 1.07;
+  const cu = curT[c] || { gp: 0, gf: 0, ga: 0 };
+  rating[c] = {
+    att: (pgf * PRIOR_W + cu.gf) / (PRIOR_W + cu.gp) / L,
+    def: (pga * PRIOR_W + cu.ga) / (PRIOR_W + cu.gp) / L,
+  };
+}
+const lambdas = (h, a) => [L * rating[h].att * rating[a].def * HOME, L * rating[a].att * rating[h].def * AWAY];
+const poisPmf = (l) => { const out = []; let p = Math.exp(-l); for (let k = 0; k < 15; k++) { out.push(p); p *= l / (k + 1); } return out; };
+const winProb = (h, a) => {
+  const [lh, la] = lambdas(h, a), ph = poisPmf(lh), pa = poisPmf(la);
+  let hw = 0, tie = 0;
+  for (let i = 0; i < 15; i++) for (let j = 0; j < 15; j++) { const p = ph[i] * pa[j]; if (i > j) hw += p; else if (i === j) tie += p; }
+  const norm = 1 / ph.reduce((s, x) => s + x, 0) / pa.reduce((s, x) => s + x, 0);
+  return (hw + tie * (lh / (lh + la))) * norm;
+};
+const poisSample = (l) => { const lim = Math.exp(-l); let k = 0, p = Math.random(); while (p > lim) { k++; p *= Math.random(); } return k; };
+
+/* ---------- simulation ---------- */
+const table = D.standings.rows.map((r) => ({ ...r, code: fix(r.code) }));
+const N_SIMS = 10000;
+function simulate() {
+  const idx = Object.fromEntries(codes.map((c, i) => [c, i]));
+  const n = codes.length;
+  const basePts = new Float64Array(n), baseGd = new Float64Array(n);
+  for (const r of table) if (idx[r.code] != null) { basePts[idx[r.code]] = r.pts; baseGd[idx[r.code]] = r.gf - r.ga; }
+  const rem = remaining.map((g) => { const [lh, la] = lambdas(g.home, g.away); return [idx[g.home], idx[g.away], lh, la, lh / (lh + la)]; });
+  const neutral = codes.map((a) => codes.map((b) => a === b ? 0.5 : (winProb(a, b) + 1 - winProb(b, a)) / 2));
+  const acc = codes.map(() => ({ pts: 0, top6: 0, top10: 0, rel: 0, gold: 0, final: 0 }));
+  const pts = new Float64Array(n), gd = new Float64Array(n), tie = new Float64Array(n);
+  const series = (a, b, bestOf) => {
+    const need = (bestOf + 1) / 2, p = neutral[a][b]; let wa = 0, wb = 0;
+    while (wa < need && wb < need) Math.random() < p ? wa++ : wb++;
+    return wa === need ? a : b;
+  };
+  for (let s = 0; s < N_SIMS; s++) {
+    pts.set(basePts); gd.set(baseGd);
+    for (const [h, a, lh, la, pOT] of rem) {
+      const hg = poisSample(lh), ag = poisSample(la);
+      gd[h] += hg - ag; gd[a] += ag - hg;
+      if (hg > ag) pts[h] += 3; else if (ag > hg) pts[a] += 3;
+      else if (Math.random() < pOT) { pts[h] += 2; pts[a] += 1; gd[h]++; gd[a]--; }
+      else { pts[a] += 2; pts[h] += 1; gd[a]++; gd[h]--; }
+    }
+    for (let i = 0; i < n; i++) tie[i] = Math.random();
+    const order = [...Array(n).keys()].sort((x, y) => pts[y] - pts[x] || gd[y] - gd[x] || tie[y] - tie[x]);
+    order.forEach((t, rank) => {
+      acc[t].pts += pts[t];
+      if (rank < 6) acc[t].top6++;
+      if (rank < 10) acc[t].top10++;
+      if (rank >= 12) acc[t].rel++;
+    });
+    // Playoffs: seed 7 v 10 and 8 v 9 (best of 3), then reseeded best-of-7 rounds.
+    const seedOf = new Map(order.map((t, i) => [t, i]));
+    const pi1 = series(order[6], order[9], 3), pi2 = series(order[7], order[8], 3);
+    let alive = [...order.slice(0, 6), pi1, pi2];
+    while (alive.length > 1) {
+      alive.sort((x, y) => seedOf.get(x) - seedOf.get(y));
+      if (alive.length === 2) {
+        const w = series(alive[0], alive[1], 7);
+        acc[alive[0]].final++; acc[alive[1]].final++; acc[w].gold++;
+        break;
+      }
+      const next = [];
+      for (let i = 0; i < alive.length / 2; i++) next.push(series(alive[i], alive[alive.length - 1 - i], 7));
+      alive = next;
+    }
+  }
+  return Object.fromEntries(codes.map((c, i) => [c, {
+    proj: acc[i].pts / N_SIMS, top6: acc[i].top6 / N_SIMS, top10: acc[i].top10 / N_SIMS,
+    rel: acc[i].rel / N_SIMS, gold: acc[i].gold / N_SIMS, final: acc[i].final / N_SIMS,
+  }]));
+}
+
+/* ---------- score strip ---------- */
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+function renderStrip() {
+  const byDate = new Map();
+  for (const g of D.games) { const d = g.start.slice(0, 10); if (!byDate.has(d)) byDate.set(d, []); byDate.get(d).push(g); }
+  const dates = [...byDate.keys()].sort();
+  const firstUpcoming = dates.findIndex((d) => byDate.get(d).some((g) => g.state !== 'post-game'));
+  const start = Math.max(0, (firstUpcoming < 0 ? dates.length : firstUpcoming) - 2);
+  const shown = dates.slice(start, start + 6);
+  let html = '', anchor = null;
+  for (const d of shown) {
+    const [, m, day] = d.split('-');
+    html += `<div class="s-date" ${d === dates[firstUpcoming] ? 'id="strip-anchor"' : ''}><b>${MONTHS[+m - 1]}</b><span>${+day}</span></div>`;
+    for (const g of byDate.get(d).sort((a, b) => a.start.localeCompare(b.start))) {
+      const done = g.state === 'post-game' && typeof g.hs === 'number';
+      if (done) {
+        const tag = g.so ? 'FINAL/SO' : g.ot ? 'FINAL/OT' : 'FINAL';
+        const row = (c, s, o) => `<div class="s-row${s < o ? ' loser' : ''}">${tb(c)}<span class="code">${esc(c)}</span><span></span><span class="score">${s}</span></div>`;
+        html += `<div class="s-game"><div class="s-status">${tag}</div>${row(g.away, g.as, g.hs)}${row(g.home, g.hs, g.as)}</div>`;
+      } else {
+        const ph = winProb(g.home, g.away);
+        const pill = (p) => `<span class="wp num" style="${pillStyle(p)}">${pct(p)}</span>`;
+        const row = (c, p) => `<div class="s-row">${tb(c)}<span class="code">${esc(c)}</span>${pill(p)}<span class="score"></span></div>`;
+        const status = g.state === 'pre-game' ? g.start.slice(11, 16) : 'LIVE';
+        html += `<div class="s-game"><div class="s-status">${status}</div>${row(g.away, 1 - ph)}${row(g.home, ph)}</div>`;
+      }
+    }
+  }
+  $('strip').innerHTML = html;
+  anchor = $('strip-anchor');
+  if (anchor) $('strip').scrollLeft = Math.max(0, anchor.offsetLeft - $('strip').offsetLeft - 120);
+  $('strip-prev').onclick = () => $('strip').scrollBy({ left: -360 });
+  $('strip-next').onclick = () => $('strip').scrollBy({ left: 360 });
+}
+const pillStyle = (p) => {
+  const hue = p >= 0.5 ? 'var(--accent)' : 'var(--bad)';
+  const amt = Math.round(18 + Math.abs(p - 0.5) * 90);
+  return `background:color-mix(in srgb, ${hue} ${amt}%, transparent)`;
+};
+
+/* ---------- standings ---------- */
+function renderStandings(sim) {
+  const zone = (rank) => rank <= 6 ? 'var(--accent)' : rank <= 10 ? 'color-mix(in srgb, var(--accent) 45%, transparent)' : rank >= 13 ? 'var(--bad)' : 'transparent';
+  const shade = (p, color = 'var(--accent)') => p <= 0.005 ? '' : `background:color-mix(in srgb, ${color} ${Math.round(8 + p * 62)}%, transparent)`;
+  let html = `<thead><tr><th class="rank">#</th><th class="team">Team</th><th>GP</th><th>PTS</th><th>PTS<small>Pace</small></th><th>PTS<small>Proj.</small></th>
+    <th>Top 6<small>Direct QF</small></th><th>Playoffs<small>Top 10</small></th><th>Relegation<small>Playoff</small></th><th>Gold<small>SM</small></th></tr></thead><tbody>`;
+  table.forEach((r, i) => {
+    const s = sim[r.code] || {}, rank = i + 1;
+    const pace = r.gp ? Math.round(r.pts / r.gp * SEASON_GAMES) : '–';
+    html += `<tr class="${[6, 10, 12].includes(i) ? 'cut' : ''}"><td class="rank" style="--zone:${zone(rank)}">${rank}</td>
+      <td class="team"><div class="teamcell">${tb(r.code)}<div class="nm"><b>${esc(r.code)}</b><span>${esc(tName(r.code))}</span></div></div></td>
+      <td>${r.gp}</td><td><b>${r.pts}</b></td><td>${pace}</td><td><b>${Number.isFinite(s.proj) ? Math.round(s.proj) : '…'}</b></td>
+      <td class="odds"><span style="${shade(s.top6)}">${fmtOdds(s.top6)}</span></td>
+      <td class="odds"><span style="${shade(s.top10)}">${fmtOdds(s.top10)}</span></td>
+      <td class="odds"><span style="${shade(s.rel, 'var(--bad)')}">${fmtOdds(s.rel)}</span></td>
+      <td class="odds"><span style="${shade(Math.min(1, s.gold * 3), 'var(--gold)')}">${fmtOdds(s.gold)}</span></td></tr>`;
+  });
+  $('standings-table').innerHTML = html + '</tbody>';
+}
+
+/* ---------- players ---------- */
+const posGroup = (p) => p === 'D' ? 'D' : 'F';
+const METRICS = [
+  { k: 'p60', label: 'Points / 60', f: (x) => x.pts / x.hrs },
+  { k: 'g60', label: 'Goals / 60', f: (x) => x.g / x.hrs },
+  { k: 'a60', label: 'Assists / 60', f: (x) => x.a / x.hrs },
+  { k: 's60', label: 'Shots / 60', f: (x) => x.sog / x.hrs },
+  { k: 'fin', label: 'Finishing', f: (x) => (x.g + 0.1 * 25) / (x.sog + 25) },
+  { k: 'pp', label: 'Power-play goals', f: (x) => x.ppg / x.gp },
+  { k: 'pm', label: 'Plus-minus', f: (x) => x.pm / x.gp },
+  { k: 'toi', label: 'Ice time', f: (x) => x.toiSec / x.gp },
+  { k: 'hit', label: 'Hits', f: (x) => x.hits / x.gp },
+  { k: 'blk', label: 'Shot blocks', f: (x) => x.blk / x.gp },
+  { k: 'dis', label: 'Discipline', f: (x) => -x.pim / x.gp },
+];
+const IMPACT_W = {
+  F: { p60: .30, toi: .20, pm: .15, s60: .10, fin: .05, pp: .05, dis: .05, hit: .05, blk: .05 },
+  D: { p60: .20, toi: .25, pm: .20, s60: .05, blk: .10, hit: .05, dis: .05, pp: .05, fin: .05 },
+};
+const SEASON_W = { [PREV]: 1, [CUR]: 1.5 };
+const MIN_GP = 10;
+const players = new Map();
+for (const season of [PREV, CUR]) for (const p of D.seasons[season].skaters) {
+  if (p.pos === 'GK' || !p.pos || !p.gp) continue;
+  const w = SEASON_W[season];
+  const x = players.get(p.id) || { id: p.id, name: p.name, born: p.born, nat: p.nat, splits: [], gp: 0, g: 0, a: 0, pts: 0, sog: 0, ppg: 0, pm: 0, hits: 0, blk: 0, pim: 0, toiSec: 0 };
+  x.pos = p.pos; x.grp = posGroup(p.pos); x.team = p.team; x.num = p.num;
+  x.splits.push({ season, ...p });
+  x.gp += p.gp * w;
+  for (const k of ['g', 'a', 'pts', 'sog', 'ppg', 'pm', 'hits', 'blk', 'pim']) x[k] += (p[k] || 0) * w;
+  x.toiSec += p.toi * p.gp * w;
+  players.set(p.id, x);
+}
+const cardPlayers = [...players.values()].filter((x) => x.toiSec > 0);
+for (const x of cardPlayers) { x.hrs = x.toiSec / 3600; x.vals = Object.fromEntries(METRICS.map((m) => [m.k, m.f(x)])); }
+const percentileOf = (sorted, v) => {
+  let lo = 0, hi = sorted.length; while (lo < hi) { const mid = (lo + hi) >> 1; sorted[mid] < v ? lo = mid + 1 : hi = mid; }
+  let eq = lo; while (eq < sorted.length && sorted[eq] === v) eq++;
+  return (lo + (eq - lo) / 2) / sorted.length;
+};
+for (const grp of ['F', 'D']) {
+  const pool = cardPlayers.filter((x) => x.grp === grp && x.gp >= MIN_GP);
+  const sortedBy = Object.fromEntries(METRICS.map((m) => [m.k, pool.map((x) => x.vals[m.k]).sort((a, b) => a - b)]));
+  const members = cardPlayers.filter((x) => x.grp === grp);
+  for (const x of members) {
+    x.pct = Object.fromEntries(METRICS.map((m) => [m.k, percentileOf(sortedBy[m.k], x.vals[m.k])]));
+    x.composite = Object.entries(IMPACT_W[grp]).reduce((s, [k, w]) => s + w * x.pct[k], 0);
+  }
+  const comp = pool.map((x) => x.composite).sort((a, b) => a - b);
+  for (const x of members) x.impact = percentileOf(comp, x.composite);
+}
+// Role from ice time rank within current team
+const byTeam = {};
+for (const x of cardPlayers) (byTeam[x.team + x.grp] ??= []).push(x);
+for (const list of Object.values(byTeam)) {
+  list.filter((x) => x.gp >= 3).sort((a, b) => b.vals.toi - a.vals.toi).forEach((x, i) => {
+    x.role = x.grp === 'F' ? ['1st line', '2nd line', '3rd line', 'Depth'][Math.min(3, Math.floor(i / 3))] : ['Top pair', '2nd pair', '3rd pair'][Math.min(2, Math.floor(i / 2))];
+  });
+}
+const ageOf = (born) => { if (!born) return '–'; const b = new Date(born), n = new Date(); let a = n.getFullYear() - b.getFullYear(); if (n < new Date(n.getFullYear(), b.getMonth(), b.getDate())) a--; return a; };
+
+// Percentile colour: red (low) → slate (mid) → blue (high)
+const LOW = [217, 72, 95], MID = [124, 138, 156], HIGH = [47, 140, 224];
+const pColor = (p) => {
+  const [a, b, t] = p < 0.5 ? [LOW, MID, p / 0.5] : [MID, HIGH, (p - 0.5) / 0.5];
+  return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',')})`;
+};
+
+function renderCard(x) {
+  const grpName = x.grp === 'D' ? 'defencemen' : 'forwards';
+  const metricRows = METRICS.map((m) => {
+    const p = x.pct[m.k];
+    return `<div class="metric"><span>${m.label}</span><span class="bar"><i style="width:${Math.max(3, p * 100)}%;background:${pColor(p)}"></i></span><span class="pct num" style="color:${pColor(p)}">${Math.round(p * 100)}%</span></div>`;
+  }).join('');
+  const splits = x.splits.map((s) => `<tr><td>${s.season} · ${esc(s.team)}</td><td>${s.gp}</td><td>${s.g}</td><td>${s.a}</td><td><b>${s.pts}</b></td><td>${s.pm > 0 ? '+' : ''}${s.pm}</td><td>${s.toi ? mmss(s.toi) : '–'}</td></tr>`).join('');
+  const small = x.gp < MIN_GP ? `<span class="small-sample">Small sample (${Math.round(x.gp)} weighted GP). Treat these ranks loosely.</span>` : '';
+  $('player-card').innerHTML = `<article class="pcard" style="--tc:${tColor(x.team)}">
+    <div class="pc-top">
+      <div>
+        <h3 class="pc-name">${esc(x.name)}</h3>
+        <div class="pc-meta">
+          <span>${tb(x.team)} <b>${esc(tName(x.team))}</b></span>
+          <span>#<b>${esc(x.num ?? '–')}</b></span>
+          <span>Pos <b>${x.grp === 'D' ? 'D' : x.pos === 'CE' ? 'C' : 'F'}</b></span>
+          <span>Age <b>${ageOf(x.born)}</b></span>
+          <span>Role <b>${x.role || '–'}</b></span>
+          <span>Nat <b>${esc(x.nat || '–')}</b></span>
+        </div>
+      </div>
+      <div class="pc-war"><span class="lbl">Impact</span><span class="big num" style="color:${pColor(x.impact)}">${Math.round(x.impact * 100)}%</span></div>
+    </div>
+    <div class="pc-grid">${metricRows}</div>
+    <div class="pc-seasons"><table><thead><tr><th>Season</th><th>GP</th><th>G</th><th>A</th><th>P</th><th>+/-</th><th>TOI/GP</th></tr></thead><tbody>${splits}</tbody></table></div>
+    <div class="pc-foot"><span>Weighted ${PREV} + ${CUR} sample, percentile among SHL ${grpName} (min ${MIN_GP} GP). ${small}</span><span class="mark">ISSTATS</span></div>
+  </article>`;
+}
+
+function setupCards() {
+  const eligible = cardPlayers.filter((x) => x.gp >= MIN_GP);
+  const top = (grp, n) => eligible.filter((x) => x.grp === grp).sort((a, b) => b.composite - a.composite).slice(0, n);
+  const picks = [...top('F', 4), ...top('D', 2)];
+  const renderPicks = (active) => {
+    $('card-picks').innerHTML = picks.map((x) => `<button class="chip" data-id="${esc(x.id)}" aria-pressed="${x.id === active}">${esc(x.name)}</button>`).join('');
+  };
+  const show = (x) => { renderCard(x); renderPicks(x.id); };
+  $('card-picks').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) show(players.get(b.dataset.id)); });
+  const input = $('player-search'), res = $('player-results');
+  let hits = [], sel = 0;
+  const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const draw = () => {
+    res.innerHTML = hits.map((x, i) => `<button data-id="${esc(x.id)}" class="${i === sel ? 'on' : ''}">${tb(x.team)} ${esc(x.name)} <small>${x.grp === 'D' ? 'D' : 'F'} · ${Math.round(x.gp)} wGP</small></button>`).join('')
+      || '<div style="padding:8px;color:var(--muted)">No skater matches that name.</div>';
+    res.hidden = false;
+  };
+  input.addEventListener('input', () => {
+    const q = norm(input.value.trim());
+    if (!q) { res.hidden = true; return; }
+    hits = cardPlayers.filter((x) => norm(x.name).includes(q)).sort((a, b) => b.gp - a.gp).slice(0, 8); sel = 0; draw();
+  });
+  input.addEventListener('keydown', (e) => {
+    if (res.hidden || !hits.length) return;
+    if (e.key === 'ArrowDown') { sel = (sel + 1) % hits.length; draw(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { sel = (sel - 1 + hits.length) % hits.length; draw(); e.preventDefault(); }
+    else if (e.key === 'Enter') { pick(hits[sel]); }
+    else if (e.key === 'Escape') res.hidden = true;
+  });
+  const pick = (x) => { show(x); input.value = ''; res.hidden = true; };
+  res.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) pick(players.get(b.dataset.id)); });
+  document.addEventListener('click', (e) => { if (!e.target.closest('.search')) res.hidden = true; });
+  window.showPlayer = (id) => { const x = players.get(id); if (x && x.toiSec > 0) { show(x); $('cards').scrollIntoView({ behavior: 'smooth' }); } };
+  show(picks[0]);
+}
+
+/* ---------- leaderboard ---------- */
+const SK_STATS = [
+  { k: 'pts', label: 'Points' }, { k: 'g', label: 'Goals' }, { k: 'a', label: 'Assists' }, { k: 'pm', label: '+/-' },
+  { k: 'sog', label: 'Shots' }, { k: 'ppg', label: 'PP Goals' }, { k: 'hits', label: 'Hits' }, { k: 'blk', label: 'Blocks' },
+];
+const GK_STATS = [
+  { k: 'svp', label: 'SV%', fmt: (v) => v.toFixed(2) + '%' }, { k: 'gaa', label: 'GAA', asc: true, fmt: (v) => v.toFixed(2) },
+  { k: 'gsaa', label: 'GSAA', fmt: (v) => (v > 0 ? '+' : '') + v.toFixed(1) }, { k: 'w', label: 'Wins' }, { k: 'so', label: 'Shutouts' },
+];
+const lgSv = (season) => { const gs = D.seasons[season].goalies; const sv = gs.reduce((s, g) => s + g.sv, 0), ga = gs.reduce((s, g) => s + g.ga, 0); return sv / (sv + ga); };
+for (const season of [PREV, CUR]) { const lg = lgSv(season); for (const g of D.seasons[season].goalies) g.gsaa = g.sv - (g.sv + g.ga) * lg; }
+const lb = { kind: 'skaters', season: CUR, minGp: 0, team: 'ALL', stat: 'pts', mode: 'tot', n: 10 };
+function setupLeaders() {
+  $('lb-season').innerHTML = [CUR, PREV].map((s) => `<option value="${s}">${s}</option>`).join('');
+  const teamOpts = () => {
+    const ts = [...new Set(D.seasons[lb.season][lb.kind].map((p) => p.team))].sort();
+    $('lb-team').innerHTML = ['ALL', ...ts].map((t) => `<option ${t === lb.team ? 'selected' : ''}>${esc(t)}</option>`).join('');
+    if (!ts.includes(lb.team)) lb.team = 'ALL';
+  };
+  const bindSeg = (id, key, after) => $(id).addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    lb[key] = b.dataset.v; [...$(id).children].forEach((c) => c.setAttribute('aria-pressed', c === b)); after?.(); renderLeaders();
+  });
+  bindSeg('lb-kind', 'kind', () => { lb.stat = lb.kind === 'skaters' ? 'pts' : 'svp'; $('lb-mode').hidden = lb.kind === 'goalies'; teamOpts(); });
+  bindSeg('lb-mode', 'mode');
+  $('lb-season').onchange = (e) => { lb.season = e.target.value; teamOpts(); renderLeaders(); };
+  $('lb-team').onchange = (e) => { lb.team = e.target.value; renderLeaders(); };
+  $('lb-mingp').oninput = (e) => { lb.minGp = +e.target.value || 0; renderLeaders(); };
+  $('lb-stats').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { lb.stat = b.dataset.k; renderLeaders(); } });
+  $('lb-more').onclick = () => { lb.n = lb.n === 10 ? 25 : 10; renderLeaders(); };
+  teamOpts(); renderLeaders();
+}
+function renderLeaders() {
+  const sk = lb.kind === 'skaters', defs = sk ? SK_STATS : GK_STATS;
+  const def = defs.find((d) => d.k === lb.stat) || defs[0];
+  $('lb-stats').innerHTML = defs.map((d) => `<button class="chip" data-k="${d.k}" aria-pressed="${d.k === def.k}">${d.label}</button>`).join('');
+  const gpKey = sk ? 'gp' : 'gpi';
+  // Rate stats for goalies need a floor so one-game backups don't top the list.
+  const autoMin = !sk && (def.k === 'svp' || def.k === 'gaa') ? Math.max(1, Math.round(Math.max(...D.seasons[lb.season].goalies.map((g) => g.gpi)) * 0.3)) : 0;
+  const minGp = Math.max(lb.minGp, autoMin);
+  const per52 = sk && lb.mode === 'p52';
+  const val = (p) => per52 ? p[def.k] / p.gp * SEASON_GAMES : p[def.k];
+  const rows = D.seasons[lb.season][lb.kind]
+    .filter((p) => (p[gpKey] || 0) >= Math.max(minGp, per52 ? 1 : 0) && (lb.team === 'ALL' || p.team === lb.team) && (sk ? p.pos !== 'GK' : true))
+    .map((p) => ({ p, v: val(p) }))
+    .sort((a, b) => def.asc ? a.v - b.v : b.v - a.v);
+  const fmt = (v) => def.fmt ? def.fmt(v) : per52 ? v.toFixed(1) : (def.k === 'pm' && v > 0 ? '+' : '') + Math.round(v);
+  // Ties share a rank, shown with a T prefix
+  let prevV = null, prevRank = 0;
+  const ranked = rows.map((r, i) => { const same = fmt(r.v) === prevV; const rank = same ? prevRank : i + 1; prevV = fmt(r.v); prevRank = rank; return { ...r, rank }; });
+  ranked.forEach((r, i) => { r.tied = (ranked[i - 1]?.rank === r.rank) || (ranked[i + 1]?.rank === r.rank); });
+  const top = ranked[0];
+  if (!top) {
+    $('lb-leader').innerHTML = '<div class="sub">No players match these filters. Lower the minimum GP or pick another team.</div>';
+    $('lb-list').innerHTML = ''; $('lb-more').hidden = true; return;
+  }
+  const tp = top.p;
+  const posTxt = sk ? (tp.pos === 'D' ? 'D' : tp.pos === 'CE' ? 'C' : 'F') : 'G';
+  $('lb-leader').style.setProperty('--tc', tColor(tp.team));
+  $('lb-leader').innerHTML = `<div style="display:flex;gap:10px;align-items:center">${tb(tp.team, true)}<div><div class="nm">${esc(tp.name)}</div>
+    <div class="sub">${esc(tp.team)} · #${esc(tp.num ?? '–')} · ${posTxt} · ${tp[gpKey]} GP</div></div></div>
+    <div><div class="val num">${fmt(top.v)}</div><div class="lbl">${def.label}${per52 ? ' per 52' : ''}</div></div>`;
+  $('lb-list').innerHTML = ranked.slice(0, lb.n).map((r) => `<li><span class="r num">${r.tied ? 'T' : ''}${r.rank}.</span>${tb(r.p.team)}
+    <span class="n">${sk && players.get(r.p.id)?.toiSec ? `<button onclick="showPlayer('${esc(r.p.id)}')">${esc(r.p.name)}</button>` : esc(r.p.name)}</span><span class="v">${fmt(r.v)}</span></li>`).join('');
+  $('lb-more').hidden = ranked.length <= 10;
+  $('lb-more').textContent = lb.n === 10 ? 'Show top 25' : 'Show top 10';
+}
+
+/* ---------- goalies chart ---------- */
+let gSeason = PREV;
+function setupGoalies() {
+  $('g-season').innerHTML = [PREV, CUR].map((s) => `<button data-v="${s}" aria-pressed="${s === gSeason}">${s}</button>`).join('');
+  $('g-season').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; gSeason = b.dataset.v;
+    [...$('g-season').children].forEach((c) => c.setAttribute('aria-pressed', c === b)); renderGoalies(); });
+  renderGoalies();
+}
+function renderGoalies() {
+  const gs = D.seasons[gSeason].goalies;
+  const minMin = gSeason === CUR ? 60 : 600;
+  const rows = gs.filter((g) => g.mins >= minMin).sort((a, b) => b.gsaa - a.gsaa);
+  $('g-note').textContent = `League SV% ${(lgSv(gSeason) * 100).toFixed(2)}% · min ${minMin} minutes · ${rows.length} goalies`;
+  const W = 640, rowH = 22, top = 26, left = 150, right = 44, plotW = W - left - right;
+  const H = top + rows.length * rowH + 8;
+  const ext = Math.max(1, ...rows.map((g) => Math.abs(g.gsaa)));
+  const step = ext > 20 ? 10 : ext > 8 ? 5 : ext > 4 ? 2 : 1;
+  const lim = Math.ceil(ext / step) * step;
+  const x = (v) => left + (v + lim) / (2 * lim) * plotW;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Goals saved above average by goalie, ${gSeason}">`;
+  for (let t = -lim; t <= lim; t += step) {
+    svg += `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 6}" y2="${H - 6}" style="stroke:var(--line)" stroke-width="${t === 0 ? 1.5 : 1}"/>`;
+    svg += `<text x="${x(t)}" y="${top - 12}" text-anchor="middle" font-size="11" style="fill:var(--muted)">${t > 0 ? '+' : ''}${t}</text>`;
+  }
+  rows.forEach((g, i) => {
+    const y = top + i * rowH, v = g.gsaa, x0 = x(0), x1 = x(v);
+    svg += `<text x="${left - 36}" y="${y + 15}" text-anchor="end" font-size="12.5" style="fill:var(--text)">${esc(g.name)}</text>`;
+    svg += `<rect x="${left - 30}" y="${y + 3}" width="26" height="16" rx="4" style="fill:${tColor(g.team)}"/>`;
+    svg += `<text x="${left - 17}" y="${y + 14.5}" text-anchor="middle" font-size="8.5" font-weight="700" style="fill:${(TC[g.team] || [0, '#fff'])[1]}">${esc(g.team)}</text>`;
+    svg += `<rect x="${Math.min(x0, x1)}" y="${y + 4}" width="${Math.max(1, Math.abs(x1 - x0))}" height="${rowH - 8}" rx="3" style="fill:${v >= 0 ? 'var(--accent)' : 'var(--bad)'}"><title>${esc(g.name)}: ${v.toFixed(1)} GSAA, ${g.svp.toFixed(2)}% SV, ${g.gpi} GP</title></rect>`;
+    svg += `<text x="${v >= 0 ? x1 + 5 : x1 - 5}" y="${y + 15}" text-anchor="${v >= 0 ? 'start' : 'end'}" font-size="11.5" font-weight="600" style="fill:var(--muted)">${v > 0 ? '+' : ''}${v.toFixed(1)}</text>`;
+  });
+  $('g-chart').innerHTML = svg + '</svg>';
+}
+
+/* ---------- boot ---------- */
+const updated = new Date(D.updated);
+const stampTxt = updated.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Stockholm' }) + ' Stockholm time';
+$('proj-stamp').textContent = `Projections last updated ${stampTxt}`;
+$('data-stamp').textContent = `Isstats is an independent fan project, not affiliated with the SHL. Data from shl.se, updated ${stampTxt}.`;
+renderStrip();
+setupCards();
+setupLeaders();
+setupGoalies();
+renderStandings(Object.fromEntries(codes.map((c) => [c, { proj: NaN, top6: 0, top10: 0, rel: 0, gold: 0 }])));
+setTimeout(() => renderStandings(simulate()), 30);
+})();
+</script>
