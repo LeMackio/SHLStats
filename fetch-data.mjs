@@ -462,8 +462,6 @@ const core = {
   recentClips: allClips.slice(0, 16),
   highlights,
   news,
-  // Site logo supplied by the owner in src/ (the page falls back to its built-in mark)
-  logo: ['logo.svg', 'logo.png'].find((f) => existsSync(`src/${f}`)) || null,
 };
 mkdirSync('site/data/games', { recursive: true });
 writeJson('site/data/core.json', core);

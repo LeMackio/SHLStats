@@ -479,15 +479,6 @@ function setupTheme() {
   for (const t of ['dark', 'light']) $('theme-' + t).addEventListener('click', () => { root.dataset.theme = t; store.set('shlstats-theme', t); sync(); route(); });
   sync();
 }
-// Uses src/logo.svg or src/logo.png when the build found one; otherwise the built-in mark stays
-function setupLogo() {
-  if (!D.logo) return;
-  const img = new Image();
-  img.onload = () => {
-    $('brand-mark').innerHTML = `<img src="${esc(D.logo)}" alt="">`;
-  };
-  img.src = D.logo;
-}
 let SEARCH_INDEX = [];
 function setupSearch() {
   const seen = new Set();
@@ -1816,7 +1807,6 @@ async function boot() {
     SHLstats är ett fristående fanprojekt utan koppling till SHL. Resultat, statistik, bilder och videor från shl.se. Prognoserna bygger på en egen modell och är inga garantier.`;
   $('reload-data').onclick = () => location.reload();
   buildCards();
-  setupLogo();
   // Menu icons (top menu on desktop, bottom bar on phones)
   const NAV_ICON = { '': 'home', statistik: 'chart', tabell: 'table', matcher: 'calendar', avancerat: 'target' };
   document.querySelectorAll('nav.main a, .bottom-nav a').forEach((a) => a.insertAdjacentHTML('afterbegin', icon(NAV_ICON[a.dataset.nav])));
