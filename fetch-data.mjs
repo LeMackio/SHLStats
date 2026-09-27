@@ -9,6 +9,7 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { buildRatings, simulate, winProb } from './model.mjs';
+import { processShots, trainXG, zoneOf } from './edge.mjs';
 
 const API = 'https://www.shl.se/api';
 const N_SEASONS = 5; // current + 4 previous, for career stats, past standings and head-to-head
@@ -219,6 +220,76 @@ await inBatches(cur.games.filter(isFinal), 4, async (g) => {
 const clipOf = (d, goal) => videos[d.id]?.clips.find((c) => c.tags.includes(`goal.${goal.score[0]}-${goal.score[1]}`));
 const slimClip = (c) => c && { id: c.id, thumb: c.thumb, embed: c.embed, dur: c.dur };
 
+// ---------- shot data and xG (Avancerat page) ----------
+// Every shot on goal from this season and last season, with shooter, goalie and context.
+// Finished games never change, so each is fetched once and cached in cache/shots/.
+const shotGames = {}; // game id → { season, home, away, start, shots }
+let shotFails = 0, strAgree = 0, strChecked = 0;
+const shotTodo = [];
+for (const s of [cur, prev]) for (const g of s.games.filter(isFinal)) {
+  const file = `cache/shots/${g.id}.json`;
+  const cached = readJson(file, null);
+  if (cached) shotGames[g.id] = { ...cached, season: s.label };
+  else shotTodo.push([s, g]);
+}
+await inBatches(shotTodo, 4, async ([s, g]) => {
+  try {
+    const { shots, strengthCheck } = processShots(await get(`/gameday/play-by-play/${g.id}`));
+    const entry = { home: g.home, away: g.away, start: g.start, shots, strengthCheck };
+    writeJson(`cache/shots/${g.id}.json`, entry);
+    shotGames[g.id] = { ...entry, season: s.label };
+  } catch (e) { shotFails++; }
+});
+for (const sg of Object.values(shotGames)) { strAgree += sg.strengthCheck?.[0] || 0; strChecked += sg.strengthCheck?.[1] || 0; }
+const allShots = Object.values(shotGames).flatMap((sg) => sg.shots);
+const xgModel = trainXG(allShots);
+
+// Current-season aggregates for players, goalies and teams
+const edgeIds = [], edgeIdx = new Map();
+const idIndex = (id) => { if (!edgeIdx.has(id)) { edgeIdx.set(id, edgeIds.length); edgeIds.push(id); } return edgeIdx.get(id); };
+const eSk = {}, eGk = {}, eTeam = {}, eShots = [];
+const league = { sa: 0, ga: 0, xga: 0, hd: [0, 0], md: [0, 0], ld: [0, 0] };
+for (const [gid, sg] of Object.entries(shotGames)) {
+  if (sg.season !== cur.label) continue;
+  for (const code of [sg.home, sg.away]) (eTeam[code] ??= { gp: 0, sf: 0, gf: 0, xgf: 0, sa: 0, ga: 0, xga: 0, hdf: 0, hda: 0 }).gp++;
+  for (const sh of sg.shots) {
+    if (sh.p >= 5 || sh.ps) continue;
+    const team = sg[sh.side], opp = sh.side === 'home' ? sg.away : sg.home;
+    const xg = xgModel.predict(sh), zone = zoneOf(xg);
+    const shooter = sh.shooter ? refFor(sh.shooter, team, sh.num).id : null;
+    const goalieId = sh.goalie && !sh.en ? refFor(sh.goalie, opp).id : null;
+    const T = eTeam[team], O = eTeam[opp];
+    T.sf++; T.gf += sh.g; T.xgf += xg; O.sa++; O.ga += sh.g; O.xga += xg;
+    if (zone === 'hd') { T.hdf++; O.hda++; }
+    if (shooter) {
+      const P = (eSk[shooter] ??= { sog: 0, g: 0, xg: 0, hd: 0, hdg: 0, dist: 0, long: 0 });
+      P.sog++; P.g += sh.g; P.xg += xg; P.dist += sh.d;
+      if (zone === 'hd') { P.hd++; P.hdg += sh.g; }
+      if (sh.g && !sh.en) P.long = Math.max(P.long, sh.d);
+    }
+    if (!sh.en) { // goalie numbers only count shots with a goalie in net
+      league.sa++; league.ga += sh.g; league.xga += xg; league[zone][0]++; league[zone][1] += sh.g;
+      if (goalieId) {
+        const G = (eGk[goalieId] ??= { sa: 0, ga: 0, xga: 0, hd: [0, 0], md: [0, 0], ld: [0, 0] });
+        G.sa++; G.ga += sh.g; G.xga += xg; G[zone][0]++; G[zone][1] += sh.g;
+      }
+    }
+    // Compact shot list for the shot maps: shooter, goalie, x, y, goal, xG in thousandths, shooting team, empty net
+    eShots.push([shooter ? idIndex(shooter) : -1, goalieId ? idIndex(goalieId) : -1, sh.x, sh.y, sh.g, Math.round(xg * 1000), team, sh.en]);
+  }
+}
+const r3 = (x) => Math.round(x * 1000) / 1000;
+const edge = {
+  updated: new Date().toISOString(), season: cur.label,
+  model: { ...xgModel.report, coef: xgModel.coef, zones: { hd: 0.15, md: 0.07 }, trainedOn: [cur.label, prev.label] },
+  league: { ...league, xga: r3(league.xga) },
+  ids: edgeIds,
+  skaters: Object.fromEntries(Object.entries(eSk).map(([id, P]) => [id, [P.sog, P.g, r3(P.xg), P.hd, P.hdg, r3(P.dist / P.sog), r3(P.long)]])),
+  goalies: Object.fromEntries(Object.entries(eGk).map(([id, G]) => [id, [G.sa, G.ga, r3(G.xga), ...G.hd, ...G.md, ...G.ld]])),
+  teams: Object.fromEntries(Object.entries(eTeam).map(([c, T]) => [c, [T.gp, T.sf, T.gf, r3(T.xgf), T.sa, T.ga, r3(T.xga), T.hdf, T.hda]])),
+  shots: eShots,
+};
+
 // ---------- model ----------
 const played = cur.games.filter(isFinal);
 const prevPlayed = prev.games.filter(isFinal);
@@ -373,6 +444,7 @@ const core = {
 mkdirSync('site/data/games', { recursive: true });
 writeJson('site/data/core.json', core);
 writeJson('site/data/players.json', { bios, career, goalieCareer, gamelogs, goalieLogs, goalClips });
+writeJson('site/data/edge.json', edge);
 for (const d of Object.values(gameDetails)) {
   const v = videos[d.id];
   writeJson(`site/data/games/${d.id}.json`, {
@@ -398,5 +470,9 @@ console.log([
   `Games: ${games.length}, played ${played.length}, details ${Object.keys(gameDetails).length} (${toFetch.length} fetched, ${gameFails} failed)`,
   `Videos: ${Object.keys(videos).length} games, ${allClips.length} goal clips, ${highlights.length} highlight packages (${vidFails} failed)`,
   `Headshots: ${Object.keys(headshots).length} (${todo.length} looked up, ${hsFails} failed); roster ids matching stats: ${matched}/${cur.skaters.length}`,
+  `Shots: ${allShots.length} from ${Object.keys(shotGames).length} games (${shotTodo.length} fetched, ${shotFails} failed); strength from penalty timeline matches ${strAgree}/${strChecked} official goal strengths`,
+  `xG model: ${JSON.stringify(xgModel.report)}`,
+  `xG weights: ${xgModel.coef.map((c) => `${c.name} ${c.weight}`).join(', ')}`,
+  `Edge (${cur.label}): ${Object.keys(eSk).length} skaters, ${Object.keys(eGk).length} goalies, ${eShots.length} shots; unmatched shooters ${eShots.filter((s) => s[0] < 0).length}, unmatched goalies ${eShots.filter((s) => s[1] < 0 && !s[7]).length}`,
   `Unmatched game players: ${Object.values(gameDetails).flatMap((d) => [...d.box.home, ...d.box.away]).filter((r) => !r.id).length}`,
 ].join('\n'));
