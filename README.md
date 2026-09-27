@@ -1,4 +1,4 @@
-# Isstats SHL
+# SHLstats
 
 An independent SHL stats site with standings, simulated playoff and gold odds, player percentile cards, leaderboards and goalie GSAA. It isn't affiliated with the SHL.
 
@@ -18,9 +18,9 @@ Then open `site/index.html` in a browser.
 
 ## Hosting (free)
 
-1. Create a **public** repository on GitHub named `isstats-shl`.
+1. Create a **public** repository on GitHub named `SHLstats`.
 2. Upload these files, keeping the `.github/workflows` folder structure.
 3. In the repository, go to **Settings → Pages** and set **Source** to **GitHub Actions**.
 4. Go to **Actions → Refresh SHL data and deploy → Run workflow**.
 
-The site is published at `https://<your-username>.github.io/isstats-shl/`.
+The site is published at `https://<your-username>.github.io/SHLstats/`.
