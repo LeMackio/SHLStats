@@ -485,7 +485,6 @@ function setupLogo() {
   const img = new Image();
   img.onload = () => {
     $('brand-mark').innerHTML = `<img src="${esc(D.logo)}" alt="">`;
-    $('favicon').href = D.logo;
   };
   img.src = D.logo;
 }
