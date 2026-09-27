@@ -1,3 +1,4 @@
+name: Refresh SHL data and deploy
 
 on:
   schedule:
