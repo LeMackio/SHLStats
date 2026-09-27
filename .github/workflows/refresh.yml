@@ -29,29 +29,33 @@ jobs:
         with:
           node-version: 22
 
-      # Keeps resolved headshot links between runs so only new players are looked up
+      # Keeps finished seasons, finished games and headshot links between runs,
+      # so each is only fetched from shl.se once
       - uses: actions/cache@v4
         with:
           path: cache
-          key: headshots-${{ github.run_id }}
-          restore-keys: headshots-
+          key: shl-cache-${{ github.run_id }}
+          restore-keys: |
+            shl-cache-
+            headshots-
 
       - name: Fetch SHL data and build site
         run: node fetch-data.mjs
 
-      # GitHub pauses scheduled workflows after 60 days without repository
-      # activity. Committing a tiny heartbeat file once a month keeps it alive
-      # through the off-season.
-      - name: Monthly keepalive commit
-        if: github.event_name == 'schedule'
+      # Saves the playoff odds history to the repository whenever new results
+      # have come in. A monthly heartbeat commit also stops GitHub from pausing
+      # the schedule during the off-season (it pauses after 60 quiet days).
+      - name: Save odds history
+        if: github.event_name != 'pull_request'
         run: |
           month=$(date -u +%Y-%m)
-          if [ "$(cat .keepalive 2>/dev/null)" != "$month" ]; then
-            echo "$month" > .keepalive
+          if [ "$(cat .keepalive 2>/dev/null)" != "$month" ]; then echo "$month" > .keepalive; fi
+          git add history/odds.json .keepalive
+          if ! git diff --cached --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
-            git add .keepalive
-            git commit -m "Keepalive $month"
+            git commit -m "Update odds history"
+            git pull --rebase --quiet
             git push
           fi
 
