@@ -122,6 +122,103 @@ const loadGame = async (id) => {
   catch { gameCache[id] = null; }
   return gameCache[id];
 };
+let TEAMDATA = null; // teams.json: game-by-game logs and club news, loaded on demand
+const loadTeams = async () => TEAMDATA ??= await (await fetch(dataUrl('teams.json'))).json();
+
+/* ---------- Live ---------- */
+// shl.se's API can't be read directly from another website, so live scores come through a small relay
+// (live-relay/worker.js, a free Cloudflare Worker). Without it the site shows the score from the latest
+// data refresh. Locally the relay can run on port 8787.
+const LIVE_API = location.hostname === 'localhost' ? 'http://localhost:8787' : '';
+const LIVE = {}; // game id → { at, data } from the relay
+let liveTimer = null, liveSig = '';
+// Local testing only: ?livetest=<game id> shows a finished game as if it were being played
+const LIVE_TEST = LIVE_API && location.hostname === 'localhost' ? new URLSearchParams(location.search).get('livetest') : null;
+const liveDue = () => GAMES.filter((g) => {
+  if (g.id === LIVE_TEST) return true;
+  if (isFinal(g)) return false;
+  const t = stockholmEpoch(g.start), now = Date.now();
+  return now > t - 10 * 60e3 && now < t + 5 * 3600e3; // from 10 minutes before face-off until it must be over
+});
+async function loadLive(id, maxAge = 15000) {
+  const c = LIVE[id];
+  if (c && Date.now() - c.at < maxAge) return c.data;
+  try {
+    const r = await fetch(`${LIVE_API}/game/${encodeURIComponent(id)}`);
+    if (!r.ok) throw new Error(r.status);
+    LIVE[id] = { at: Date.now(), data: await r.json() };
+  } catch { /* keep the last answer if there is one */ }
+  return LIVE[id]?.data ?? null;
+}
+const PERIOD_NAME = (p) => p === 4 ? 'Förlängning' : p >= 5 ? 'Straffar' : `Period ${p}`;
+// "Period 2 · 12:34", or a pause between periods
+const liveClock = (L) => {
+  if (!L || !L.p) return 'Pågår';
+  const st = String(L.state || '');
+  if (/end/i.test(st) && L.t === '20:00' && L.p < 3) return `Paus efter period ${L.p}`;
+  if (/intermission|break|pause/i.test(st)) return `Paus efter period ${L.p}`;
+  return `${PERIOD_NAME(L.p)} · ${L.t}`;
+};
+// The relay's events in the same shape as a finished game's data, so the match page can show them
+function liveDetails(g, L, base) {
+  const people = [...skaters(), ...goalies()];
+  const ref = (name, side) => {
+    if (!name) return null;
+    const n = normName(name), code = g[side];
+    const p = people.find((x) => x.team === code && normName(x.name) === n) || people.find((x) => normName(x.name) === n);
+    return { id: p?.id || null, name };
+  };
+  const ev = L.events || [], byTime = (a, b) => a.p - b.p || a.t.localeCompare(b.t);
+  const goals = ev.filter((e) => e.type === 'goal').map((e) => ({ p: e.p, t: e.t, team: e.side, scorer: ref(e.player, e.side), a1: ref(e.a1, e.side), a2: ref(e.a2, e.side), str: e.str, en: e.en, ps: e.ps, score: e.score })).sort(byTime);
+  const pens = ev.filter((e) => e.type === 'penalty').map((e) => ({ p: e.p, t: e.t, team: e.side, player: ref(e.player, e.side), desc: e.desc, off: e.off })).sort(byTime);
+  const sog = (side, p) => ev.filter((e) => (e.type === 'shot' || (e.type === 'goal' && !e.en)) && e.side === side && (p == null || e.p === p)).length;
+  const periods = [];
+  for (let p = 1; p <= Math.max(L.p || 1, ...goals.map((x) => x.p)); p++) {
+    periods.push({ p, h: goals.filter((x) => x.p === p && x.team === 'home').length, a: goals.filter((x) => x.p === p && x.team === 'away').length, hs: sog('home', p), as: sog('away', p) });
+  }
+  const pim = (side) => sum(pens.filter((x) => x.team === side).map((x) => parseInt(x.desc) || 0));
+  const team = (side) => ({ SOG: sog(side), PIM: pim(side), PPG: goals.filter((x) => x.team === side && /^PP/.test(x.str || '')).length, NumPP: pens.filter((x) => x.team !== side && /^2/.test(x.desc)).length });
+  return {
+    ...(base || { box: { home: [], away: [] }, gk: { home: [], away: [] }, shots: [] }),
+    id: g.id, home: g.home, away: g.away, hs: L.hs, as: L.as, arena: L.arena || base?.arena, att: L.att || base?.att,
+    goals, pens, periods, team: { home: team('home'), away: team('away') }, live: L,
+  };
+}
+function startLive() {
+  if (!LIVE_API) return;
+  if (LIVE_TEST && GAMES_BY_ID[LIVE_TEST]) { GAMES_BY_ID[LIVE_TEST].state = 'live'; renderStrip(); }
+  const tick = async () => {
+    clearTimeout(liveTimer);
+    const due = liveDue();
+    if (due.length && !document.hidden) {
+      let changed = false;
+      try {
+        const r = await fetch(`${LIVE_API}/today?season=${D.live.season}&series=${D.live.series}&type=${D.live.type}`);
+        for (const x of (await r.json()).games || []) {
+          const g = GAMES_BY_ID[x.id];
+          if (!g || x.id === LIVE_TEST) continue;
+          for (const k of ['state', 'hs', 'as', 'ot', 'so']) if (x[k] != null && g[k] !== x[k]) { g[k] = x[k]; changed = true; }
+        }
+      } catch { /* relay unreachable: try again next time */ }
+      if (LIVE_TEST) {
+        const g = GAMES_BY_ID[LIVE_TEST], L = await loadLive(LIVE_TEST, 0);
+        if (g && L && (g.hs !== L.hs || g.as !== L.as)) { g.hs = L.hs; g.as = L.as; changed = true; }
+      }
+      if (changed) renderStrip(true);
+      // An open match page of a game being played follows along
+      const m = location.hash.match(/^#\/match\/([^/?]+)/), g = m && GAMES_BY_ID[decodeURIComponent(m[1])];
+      if (g && isLive(g)) {
+        const L = await loadLive(g.id, 0);
+        const sig = L ? `${g.id}|${L.hs}|${L.as}|${L.events.length}|${L.state}|${L.p}|${L.t}` : '';
+        if (L && (L.hs !== g.hs || L.as !== g.as)) { g.hs = L.hs; g.as = L.as; renderStrip(true); }
+        if (sig && sig !== liveSig) { liveSig = sig; route(); }
+      } else if (changed && /^#\/(match|matcher)/.test(location.hash)) route();
+    }
+    liveTimer = setTimeout(tick, due.length ? 20000 : 5 * 60e3);
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+  tick();
+}
 
 /* =====================================================================
    Components
@@ -179,7 +276,7 @@ const panel = (title, body, { sub = '', more = '', foot = '', cls = '', id = '' 
 const moreLink = (href, txt) => `<a class="more-link" href="${href}">${txt} ›</a>`;
 const board = (items, cls = '') => `<div class="board ${cls}">${items.filter(Boolean).join('')}</div>`;
 const TAB_ICON = { '': 'grid', video: 'play', spelare: 'users', skott: 'target', uppstallning: 'users', inbordes: 'swap', trupp: 'users',
-  schema: 'calendar', historik: 'clock', karriar: 'chart', matchlogg: 'list', mal: 'play', spelade: 'list', alla: 'calendar' };
+  schema: 'calendar', historik: 'clock', karriar: 'chart', form: 'chart', matchlogg: 'list', mal: 'play', spelade: 'list', alla: 'calendar' };
 // Tab entries are [key, label, count?, icon?]
 const tabs = (base, list, active) => `<nav class="tabs" aria-label="Flikar">${list.map(([key, label, count, ic]) =>
   `<a href="#${base}${key ? '/' + key : ''}" class="${key === active ? 'on' : ''}" ${key === active ? 'aria-current="page"' : ''}>${icon(ic || TAB_ICON[key])}${label}${count ? `<span class="count">${count}</span>` : ''}</a>`).join('')}</nav>`;
@@ -413,8 +510,8 @@ function cardHtml(x, { link = true } = {}) {
 /* =====================================================================
    Score strip
    ===================================================================== */
-function renderStrip() {
-  const track = $('strip');
+function renderStrip(keepScroll = false) {
+  const track = $('strip'), keepLeft = track.scrollLeft;
   const byDate = new Map();
   for (const g of GAMES) { const d = g.start.slice(0, 10); if (!byDate.has(d)) byDate.set(d, []); byDate.get(d).push(g); }
   const dates = [...byDate.keys()].sort();
@@ -443,7 +540,7 @@ function renderStrip() {
     track.scrollLeft = Math.max(0, anchor.offsetLeft - track.offsetLeft - 20);
     track.style.scrollBehavior = '';
   };
-  toToday(false);
+  if (keepScroll) track.scrollLeft = keepLeft; else toToday(false);
   $('strip-today').onclick = () => toToday(true);
   $('strip-prev').onclick = () => track.scrollBy({ left: -track.clientWidth * 0.8 });
   $('strip-next').onclick = () => track.scrollBy({ left: track.clientWidth * 0.8 });
@@ -859,7 +956,15 @@ async function pageMatch(id, tab = '') {
   const done = isFinal(g), live = isLive(g);
   const rec = (c) => { const r = TABLE.find((t) => t.code === c); return r ? `${r.pts} p · plats ${TABLE.indexOf(r) + 1}` : ''; };
   if ((done || live) && !(id in gameCache)) app.innerHTML = skeleton();
-  const d = done || live ? await loadGame(id) : null;
+  let d = done || live ? await loadGame(id) : null;
+  if (live && LIVE_API) {
+    const L = await loadLive(id);
+    if (L) {
+      d = liveDetails(g, L, d);
+      liveSig = `${g.id}|${L.hs}|${L.as}|${L.events.length}|${L.state}|${L.p}|${L.t}`;
+      g.hs = L.hs; g.as = L.as;
+    }
+  }
   const base = `/match/${id}`;
   const tabList = done || live
     ? [['', 'Översikt'], ['video', 'Video', d ? d.goals.filter((x) => x.clip).length + (d.hl ? 1 : 0) || '' : ''], ['spelare', 'Spelare'], ['skott', 'Skott & utvisningar']]
@@ -872,7 +977,7 @@ async function pageMatch(id, tab = '') {
     <div class="mhead">
       <a class="mteam" href="#/lag/${g.home}">${tb(g.home, 'xl')}<b>${esc(tName(g.home))}</b><span>Hemma · ${rec(g.home)}</span></a>
       <div class="mscore">${done || live ? `<div class="sc">${g.hs}–${g.as}</div>` : `<div class="sc sm">${fmtTime(g.start)}</div>`}
-        <div class="st ${live ? 'live' : ''}">${done ? statusTxt(g) : live ? 'Pågår' : fmtDay(g.start)}</div>
+        <div class="st ${live ? 'live' : ''}">${done ? statusTxt(g) : live ? `<i class="live-dot"></i>${esc(liveClock(d?.live))}` : fmtDay(g.start)}</div>
         ${done && d?.hl ? playBtn(d.hl, `${g.home}–${g.away} sammandrag`).replace('>Video<', '>Se sammandrag<') : ''}</div>
       <a class="mteam" href="#/lag/${g.away}">${tb(g.away, 'xl')}<b>${esc(tName(g.away))}</b><span>Borta · ${rec(g.away)}</span></a>
     </div>
@@ -883,7 +988,7 @@ async function pageMatch(id, tab = '') {
   let body;
   if (done || live) {
     if (!d) body = panel('Matchfakta', '<p class="empty-state">Detaljerad matchdata finns inte för den här matchen ännu. Den hämtas vid nästa uppdatering.</p>');
-    else body = tab === 'video' ? matchVideo(d) : tab === 'spelare' ? matchPlayers(d) : tab === 'skott' ? matchEvents(d) : matchSummary(d);
+    else body = tab === 'video' ? matchVideo(d) : tab === 'spelare' ? matchPlayers(d) : tab === 'skott' ? matchEvents(d) : matchSummary(d, done);
   } else {
     body = tab === 'uppstallning' ? board([panel(`Projicerad uppställning: ${esc(tName(g.home))}`, lineupHtml(g.home)), panel(`Projicerad uppställning: ${esc(tName(g.away))}`, lineupHtml(g.away))])
       : tab === 'inbordes' ? matchH2H(g) : matchPreview(g);
@@ -905,6 +1010,7 @@ function goalEvents(d, { compact = false } = {}) {
 }
 function teamCompare(d) {
   const H = d.team.home || {}, A = d.team.away || {};
+  const has = (k) => H[k] != null || A[k] != null; // live games only have some of the numbers
   const row = (label, h, a, hv = h, av = a) => {
     const tot = (hv || 0) + (av || 0), hp = tot ? hv / tot * 100 : 50;
     return `<div class="cmp-row"><span class="v">${h}</span><div class="mid"><span class="lbl">${label}</span><div class="cmp-bar"><i style="width:${hp}%"></i><i style="width:${100 - hp}%"></i></div></div><span class="v">${a}</span></div>`;
@@ -913,25 +1019,165 @@ function teamCompare(d) {
     <div class="cmp-row cmp-head"><span class="v">${tb(d.home, 'md')}</span><span></span><span class="v">${tb(d.away, 'md')}</span></div>
     ${row('Skott på mål', H.SOG ?? 0, A.SOG ?? 0)}
     ${row('Powerplay', `${H.PPG ?? 0}/${H.NumPP ?? 0}`, `${A.PPG ?? 0}/${A.NumPP ?? 0}`, H.PPG || 0, A.PPG || 0)}
-    ${row('Vunna tekningar', H.FOW ?? 0, A.FOW ?? 0)}
-    ${row('Tacklingar', H.Hits ?? 0, A.Hits ?? 0)}
-    ${row('Blockerade skott', H.BkS ?? 0, A.BkS ?? 0)}
+    ${has('FOW') ? row('Vunna tekningar', H.FOW ?? 0, A.FOW ?? 0) : ''}
+    ${has('Hits') ? row('Tacklingar', H.Hits ?? 0, A.Hits ?? 0) : ''}
+    ${has('BkS') ? row('Blockerade skott', H.BkS ?? 0, A.BkS ?? 0) : ''}
     ${row('Utvisningsminuter', H.PIM ?? 0, A.PIM ?? 0)}
-    ${row('Räddningar', H.Saves ?? 0, A.Saves ?? 0)}
+    ${has('Saves') ? row('Räddningar', H.Saves ?? 0, A.Saves ?? 0) : ''}
   </div>`;
 }
-function matchSummary(d) {
+function matchSummary(d, done = true) {
   const per = d.periods.length ? `<div class="tscroll"><table class="t"><thead><tr><th class="l">Lag</th>${d.periods.map((p) => `<th>${p.p <= 3 ? p.p : p.p === 4 ? 'ÖT' : 'STR'}</th>`).join('')}<th>Mål</th><th>Skott</th></tr></thead><tbody>
     ${['home', 'away'].map((s) => `<tr><td class="l">${teamLink(d[s], { name: true })}</td>${d.periods.map((p) => `<td>${s === 'home' ? p.h : p.a}</td>`).join('')}<td class="hl">${s === 'home' ? d.hs : d.as}</td><td>${d.team[s].SOG ?? '–'}</td></tr>`).join('')}</tbody></table></div>` : '';
-  const stars = [...d.box.home.map((r) => ({ ...r, team: d.home })), ...d.box.away.map((r) => ({ ...r, team: d.away }))]
-    .map((r) => ({ ...r, score: (r.g * 3 + r.a * 2 + r.pm * 0.5) })).sort((a, b) => b.score - a.score).slice(0, 3).filter((r) => r.g + r.a > 0);
   return board([
+    done ? matchRecap(d) : d.live ? liveBanner(d) : '',
     d.hl ? panel('Sammandrag', clipCard(d.hl, `${esc(tName(d.home))} ${d.hs}–${d.as} ${esc(tName(d.away))}`, 'Matchens höjdpunkter', true)) : '',
     panel('Mål', goalEvents(d)),
-    per ? panel('Periodresultat', per) : '',
     panel('Lagstatistik', teamCompare(d)),
-    stars.length ? panel('Matchens poängplockare', `<ol class="lb">${stars.map((r, i) => `<li><span class="r">${i + 1}.</span>${tb(r.team)}${avatar(r.id, r.name, r.team)}<span class="n">${pLink(r.id, r.name)}</span><span class="v">${r.g}+${r.a}</span></li>`).join('')}</ol>`) : '',
+    per ? panel('Periodresultat', per) : '',
   ]);
+}
+
+// A game being played: the clock, shots and the latest goal, refreshed automatically
+function liveBanner(d) {
+  const L = d.live, last = d.goals[d.goals.length - 1];
+  return `<section class="panel wide live-card" style="--hc:${tColor(d.home)};--ac:${tColor(d.away)}"><div class="p-body">
+    <div class="live-top"><span class="live-badge"><i class="live-dot"></i>Live</span><b>${esc(liveClock(L))}</b><span class="faint">Uppdateras automatiskt</span></div>
+    <div class="live-nums">
+      <div><span class="k">Skott på mål</span><span class="v num">${d.team.home.SOG}–${d.team.away.SOG}</span></div>
+      <div><span class="k">Utvisningsminuter</span><span class="v num">${d.team.home.PIM}–${d.team.away.PIM}</span></div>
+      <div><span class="k">Senaste mål</span><span class="v sm">${last ? `${esc(last.scorer?.name || 'Mål')} <span class="faint">${esc(d[last.team])} · ${esc(PERIOD_NAME(last.p).toLowerCase())} ${esc(last.t)}</span>` : 'Inga mål ännu'}</span></div>
+    </div></div></section>`;
+}
+
+/* ---------- Match report: summary text, three stars, xG and key moments (finished games) ---------- */
+const clockSec = (x) => { const [m, s] = String(x.t || '0:0').split(':').map(Number); return (x.p - 1) * 1200 + m * 60 + s; };
+const whenTxt = (x) => x.p === 4 ? `i förlängningen (${x.t})` : x.p >= 5 ? 'i straffläggningen' : `i ${['första', 'andra', 'tredje'][x.p - 1]} perioden (${x.t})`;
+// Swedish genitive: Växjö Lakers, Örebro Hockeys, Frölunda HC:s, HV71:s
+const gen = (n) => /[sxz]$/.test(n) ? n : /[A-ZÅÄÖ0-9]$/.test(n) ? n + ':s' : n + 's';
+const countTxt = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+function recapFacts(d) {
+  const winSide = d.hs > d.as ? 'home' : 'away', loseSide = winSide === 'home' ? 'away' : 'home';
+  const w = Math.max(d.hs, d.as), l = Math.min(d.hs, d.as);
+  const goals = d.goals.filter((x) => x.p < 5), so = d.goals.filter((x) => x.p >= 5);
+  // Score progression, seen from the winner
+  let worst = 0, worstAt = null, changes = 0, leader = null, alwaysAhead = true;
+  for (const x of goals) {
+    const [h, a] = x.score, diff = winSide === 'home' ? h - a : a - h;
+    if (-diff > worst) { worst = -diff; worstAt = x.score; }
+    if (diff <= 0) alwaysAhead = false;
+    const now = h > a ? 'home' : a > h ? 'away' : null;
+    if (now && leader && now !== leader) changes++;
+    if (now) leader = now;
+  }
+  // Game-winning goal: the winner's goal that put them one ahead of the loser's final total
+  let n = 0, gwg = null;
+  for (const x of goals) if (x.team === winSide && ++n === l + 1) gwg = x;
+  if (d.so) gwg = [...so].reverse().find((x) => x.team === winSide) || null;
+  const box = (side) => (d.box[side] || []).map((r) => ({ ...r, side, team: d[side] }));
+  const sk = [...box('home'), ...box('away')];
+  const gks = ['home', 'away'].flatMap((side) => (d.gk[side] || []).filter((r) => r.soga > 0).map((r) => ({ ...r, side, team: d[side] })));
+  return { winSide, loseSide, W: d[winSide], L: d[loseSide], w, l, goals, so, worst, worstAt, changes, alwaysAhead, gwg, sk, gks };
+}
+function threeStars(d, F) {
+  const rated = [
+    ...F.sk.map((r) => ({ ...r, kind: 'sk', score: r.g * 3 + r.a * 2 + (r.pm || 0) * 0.5 + (r.sog || 0) * 0.15 + (F.gwg?.scorer?.id && F.gwg.scorer.id === r.id ? 1 : 0) })),
+    ...F.gks.map((r) => ({ ...r, kind: 'gk', score: (r.svs - r.soga * 0.9) * 1.5 + (r.ga === 0 && r.soga >= 15 ? 3 : 0) + (r.side === F.winSide ? 1 : 0) })),
+  ].filter((r) => r.name).sort((a, b) => b.score - a.score);
+  return rated.slice(0, 3).map((r) => ({
+    ...r,
+    line: r.kind === 'gk'
+      ? `${r.svs} räddningar · ${dec(r.svs / r.soga * 100, 1)} %${r.ga === 0 ? ' · nolla' : ''}`
+      : [r.g ? countTxt(r.g, 'mål', 'mål') : '', r.a ? countTxt(r.a, 'assist', 'assist') : ''].filter(Boolean).join(', ') || `${r.sog || 0} skott, ${signed(r.pm || 0)}`,
+  }));
+}
+function recapText(d, F) {
+  const nm = tName, where = F.winSide === 'home' ? 'hemma' : 'borta';
+  const s = [];
+  // 1. The result
+  if (d.so || d.ot) s.push(`${nm(F.W)} vann ${where} mot ${nm(F.L)} med ${F.w}–${F.l} efter ${d.so ? 'straffläggning' : 'förlängning'}.`);
+  else if (F.w - F.l >= 3) s.push(`${nm(F.W)} tog en klar ${where}seger mot ${nm(F.L)} och vann med ${F.w}–${F.l}.`);
+  else s.push(`${nm(F.W)} vann ${where} mot ${nm(F.L)} med ${F.w}–${F.l}${F.w + F.l >= 9 ? ' i en målrik match' : F.w - F.l === 1 ? ' efter en jämn match' : ''}.`);
+  // 2. How it went
+  if (F.worst >= 2) s.push(`${nm(F.W)} låg under med ${F.winSide === 'home' ? F.worstAt.join('–') : [...F.worstAt].reverse().join('–')} men vände matchen.`);
+  else if (F.changes >= 2) s.push(`Ledningen bytte lag ${F.changes} gånger.`);
+  else if (F.alwaysAhead && F.goals.length && F.goals[0].team === F.winSide && F.w - F.l >= 2) s.push(`${nm(F.W)} gjorde första målet ${whenTxt(F.goals[0])} och släppte aldrig ledningen.`);
+  // 3. The decider, told together with a late equaliser from the losing side when there was one
+  const who = F.gwg?.scorer?.name;
+  const lateTie = [...F.goals].reverse().find((x) => x.p === 3 && x.team === F.loseSide && x.score[0] === x.score[1]);
+  if (d.so) s.push(who ? `${who} satte det avgörande straffslaget.` : 'Matchen avgjordes i straffläggningen.');
+  else if (who && lateTie && clockSec(lateTie) < clockSec(F.gwg)) {
+    const gap = clockSec(F.gwg) - clockSec(lateTie);
+    const later = F.gwg.p !== lateTie.p ? whenTxt(F.gwg) : gap < 60 ? `bara ${gap} sekunder senare` : gap < 90 ? 'en minut senare' : `${Math.round(gap / 60)} minuter senare`;
+    s.push(`${nm(F.L)} kvitterade till ${lateTie.score.join('–')} ${whenTxt(lateTie)}, men ${who} avgjorde ${later}.`);
+  }
+  else if (d.ot && who) s.push(`${who} avgjorde ${whenTxt(F.gwg)}.`);
+  else if (who && F.w - F.l <= 2) s.push(`Det matchavgörande målet gjorde ${who} ${whenTxt(F.gwg)}.`);
+  // 4. Standout skaters: hat-tricks, then the top point scorer
+  const hat = F.sk.filter((r) => r.g >= 3);
+  for (const r of hat) s.push(`${r.name} gjorde ${r.g === 3 ? 'hattrick' : `${r.g} mål`} för ${nm(r.team)}${r.a ? ` och hade dessutom ${countTxt(r.a, 'assist', 'assist')}` : ''}.`);
+  const top = [...F.sk].sort((a, b) => (b.g + b.a) - (a.g + a.a) || b.g - a.g)[0];
+  if (top && !hat.includes(top) && top.g + top.a >= 3) s.push(`${top.name} var matchens poängkung med ${[top.g ? countTxt(top.g, 'mål', 'mål') : '', top.a ? countTxt(top.a, 'assist', 'assist') : ''].filter(Boolean).join(' och ')}.`);
+  // 5. Chances (xG)
+  if (d.xg) {
+    const xw = d.xg[F.winSide === 'home' ? 0 : 1], xl = d.xg[F.winSide === 'home' ? 1 : 0];
+    if (Math.abs(xw - xl) < 0.3) s.push(`Chanserna var jämnt fördelade enligt xG, ${dec(xw, 1)}–${dec(xl, 1)}.`);
+    else if (xw > xl) s.push(`${nm(F.W)} skapade också de farligaste chanserna, ${dec(xw, 1)}–${dec(xl, 1)} i xG.`);
+    else s.push(`${nm(F.L)} skapade egentligen mer enligt xG (${dec(xl, 1)}–${dec(xw, 1)}), men ${nm(F.W)} var effektivare framför mål.`);
+  }
+  // 6. Goalie
+  // The winning goalie when he stood out; the losing one only after a big night in a close game
+  const gk = [...F.gks].filter((r) => r.soga >= 15 && (r.side === F.winSide ? r.ga === 0 || r.svs / r.soga >= 0.93 : r.soga >= 30 && r.svs / r.soga >= 0.95 && F.w - F.l <= 1))
+    .sort((a, b) => (b.side === F.winSide) - (a.side === F.winSide) || (b.svs / b.soga) - (a.svs / a.soga))[0];
+  if (gk) s.push(`${gk.name} i ${gen(nm(gk.team))} mål räddade ${gk.svs} av ${gk.soga} skott${gk.ga === 0 ? ' och höll nollan' : ''}.`);
+  return s;
+}
+function keyMoments(d, F) {
+  const m = new Map(); // goal → labels
+  const add = (x, label) => { if (!x) return; const e = m.get(x) || []; if (!e.includes(label)) e.push(label); m.set(x, e); };
+  if (F.goals[0]) add(F.goals[0], 'Första målet');
+  const tally = {};
+  for (const [i, x] of F.goals.entries()) {
+    const [h, a] = x.score;
+    if (h === a && x.p >= 3) add(x, 'Kvittering');
+    const who = x.scorer?.name;
+    if (who && (tally[who] = (tally[who] || 0) + 1) === 3) add(x, 'Hattrick');
+    const prev = F.goals[i - 1];
+    if (prev && prev.team === x.team && clockSec(x) - clockSec(prev) <= 60) add(x, `Två mål på ${clockSec(x) - clockSec(prev)} sek`);
+  }
+  if (F.worst >= 2) { // the goal that started the comeback
+    const low = F.goals.findIndex((y) => y.score === F.worstAt);
+    add(F.goals.slice(low + 1).find((x) => x.team === F.winSide), 'Vändningen börjar');
+  }
+  if (d.so) add(F.gwg, 'Avgörande straff');
+  else if (d.ot) add(F.gwg, 'Avgjorde i förlängningen');
+  else add(F.gwg, 'Matchavgörande');
+  return [...m].sort((a, b) => clockSec(a[0]) - clockSec(b[0])).slice(-6);
+}
+function matchRecap(d) {
+  if (!d.goals.length || d.hs === d.as) return '';
+  const F = recapFacts(d), text = recapText(d, F), stars = threeStars(d, F), moments = keyMoments(d, F);
+  const xg = d.xg ? (() => {
+    const [xh, xa, hdh, hda, sh, sa] = d.xg, hp = xh + xa ? xh / (xh + xa) * 100 : 50, win = xh >= xa ? d.home : d.away;
+    return `<div class="rx" style="--hc:${tColor(d.home)};--ac:${tColor(d.away)}">
+      <div class="rx-head"><h3>Förväntade mål (xG)</h3><span class="rx-win">${tb(win)}${esc(tName(win))} vann chanskampen</span></div>
+      <div class="rx-bar"><span class="num">${dec(xh, 2)}</span><div class="rx-track"><i style="width:${hp}%"></i><i style="width:${100 - hp}%"></i></div><span class="num">${dec(xa, 2)}</span></div>
+      <div class="rx-sub"><span>${tb(d.home)}${d.hs} mål</span><span>Farliga chanser ${hdh}–${hda} · Skott på mål ${sh}–${sa}</span><span>${d.as} mål${tb(d.away)}</span></div>
+    </div>`;
+  })() : '';
+  const starHtml = stars.length ? `<div class="rstars"><h3>Matchens tre stjärnor</h3><ol>${stars.map((r, i) => `<li>
+      <span class="rs-n">${'★'.repeat(3 - i)}</span>${avatar(r.id, r.name, r.team, 'md')}
+      <div class="rs-who">${r.id ? pLink(r.id, r.name) : `<b>${esc(r.name)}</b>`}<small>${tb(r.team)}${esc(r.line)}</small></div></li>`).join('')}</ol></div>` : '';
+  const momentHtml = moments.length ? `<div class="rmoments"><h3>Nyckelögonblick</h3><ol>${moments.map(([x, labels]) => `<li>
+      <span class="rm-t num">${x.p <= 3 ? `P${x.p}` : x.p === 4 ? 'ÖT' : 'STR'} ${x.p >= 5 ? '' : esc(x.t)}</span>
+      <span class="rm-dot" style="background:${tColor(d[x.team])}"></span>
+      <div class="rm-what"><span class="rm-tags">${labels.map((t) => `<span class="rm-tag">${esc(t)}</span>`).join('')}</span><span>${x.scorer?.id ? pLink(x.scorer.id, x.scorer.name) : esc(x.scorer?.name || 'Mål')} <span class="faint">${esc(d[x.team])}</span></span></div>
+      <span class="rm-sc num">${x.score[0]}–${x.score[1]}</span></li>`).join('')}</ol></div>` : '';
+  return `<section class="panel wide recap"><div class="p-head"><h2>Matchrapport</h2></div><div class="p-body">
+    <div class="recap-grid">
+      <div class="recap-main"><p class="recap-lead">${esc(text[0])}</p>${text.length > 1 ? `<p class="recap-text">${esc(text.slice(1).join(' '))}</p>` : ''}${xg}</div>
+      ${starHtml}
+    </div>${momentHtml}</div></section>`;
 }
 function matchVideo(d) {
   const clips = d.goals.filter((x) => x.clip);
@@ -1652,14 +1898,16 @@ function specialTeams(rows) {
 }
 
 /* ---------- Lag (enskilt) ---------- */
-function pageTeam(code, tab = '') {
+async function pageTeam(code, tab = '') {
   if (!TEAMS[code]) return notFound('Laget hittades inte.');
   setTitle(tName(code));
   const s = SIM[code], r = TABLE.find((t) => t.code === code), rank = TABLE.indexOf(r) + 1, T = D.teamStats[code] || {};
   if (!s || !r) return notFound(`${tName(code)} spelar inte i SHL den här säsongen.`);
   const teamGames = GAMES.filter((g) => g.home === code || g.away === code);
   const roster = D.rosters[code] || [];
-  const tabList = [['', 'Översikt'], ['trupp', 'Trupp', roster.length || ''], ['schema', 'Schema'], ['historik', 'Historik']];
+  const tabList = [['', 'Översikt'], ['form', 'Form & statistik'], ['trupp', 'Trupp', roster.length || ''], ['schema', 'Schema'], ['historik', 'Historik']];
+  let TD = { logs: {}, news: {} };
+  try { if (!TEAMDATA) app.innerHTML = skeleton(); TD = await loadTeams(); } catch { /* the page works without it */ }
   if (!tabList.some(([k]) => k === tab)) tab = '';
   const isFav = FAV === code;
   // Charts and highlights on this page use the club colour, picked to stay readable on the current theme
@@ -1689,10 +1937,11 @@ function pageTeam(code, tab = '') {
       panel(`Spelade matcher (${done.length})`, done.length ? gameList(done, { dated: true }) : '<p class="empty-state">Inga spelade matcher ännu.</p>'),
     ]);
   } else if (tab === 'historik') body = teamHistory(code);
-  else body = teamOverview(code, teamGames);
+  else if (tab === 'form') body = teamForm(code, TD.logs[code] || []);
+  else body = teamOverview(code, teamGames, TD.news[code] || []);
   render(hero + body);
 }
-function teamOverview(code, teamGames) {
+function teamOverview(code, teamGames, news = []) {
   const s = SIM[code], T = D.teamStats[code] || {};
   const days = Object.keys(D.history).sort().filter((d) => D.history[d].t[code]);
   const hist = days.length >= 2
@@ -1737,6 +1986,7 @@ function teamOverview(code, teamGames) {
     panel('Kommande matcher', next.length ? gameList(next, { dated: true }) : '<p class="empty-state">Inga fler matcher.</p>', { more: moreLink(`#/lag/${code}/schema`, 'Hela schemat') }),
     panel('Senaste resultat', last.length ? gameList(last, { dated: true }) : '<p class="empty-state">Inga spelade matcher ännu.</p>'),
     panel('Poängliga', leaderList(sk, { val: (p) => p.pts, n: 8 }), { more: moreLink(`#/lag/${code}/trupp`, 'Hela truppen') }),
+    teamNewsPanel(code, news),
     clips.length ? panel('Senaste målen', `<div class="clips">${clips.map((c) => clipCard(c, clipTitle(c), clipSub(c))).join('')}</div>`) : '',
     panel('Slutspelsodds över tid', hist),
     panel('Slutplacering', rankDist, { sub: 'Chans att sluta på varje placering efter grundserien.' }),
@@ -1744,6 +1994,103 @@ function teamOverview(code, teamGames) {
     panel('Trolig kvartsfinalmotståndare', `<div class="chart">${qfHtml}</div>`, { sub: 'Om laget når kvartsfinal: andel av simuleringarna mot varje lag.' }),
   ]);
 }
+// News about the team: the club's own site plus SHL articles that name the team; each opens at the source
+function teamNewsPanel(code, news) {
+  const cards = news.map((n) => {
+    const u = safeUrl(n.url); if (!u) return '';
+    return `<a class="tnews" href="${esc(u)}" target="_blank" rel="noopener">
+      <span class="tn-img">${n.img ? `<img src="${esc(n.img)}" alt="" loading="lazy" onerror="this.remove()">` : tb(code, 'xl')}</span>
+      <span class="tn-body"><span class="tn-meta">${esc(n.src)} · ${fmtDay(n.date)}</span><b>${esc(n.title)}</b><span class="tn-intro">${esc(n.intro)}</span></span></a>`;
+  }).join('');
+  if (!cards) return '';
+  return panel(`Nyheter om ${esc(tName(code))}`, `<div class="tnews-row">${cards}</div>`, { cls: 'wide', sub: 'Från klubbens egen sajt och shl.se. Artiklarna öppnas hos källan.' });
+}
+
+// One column per game: a bar up (for) and a bar down (against), optional dots for the actual outcome
+const RES_COLOR = { V: 'var(--accent)', 'ÖV': 'color-mix(in srgb, var(--accent) 55%, var(--faint))', 'ÖF': 'color-mix(in srgb, var(--bad) 45%, var(--faint))', F: 'var(--bad)' };
+function mirrorChart(rows, { up, down, upDot, downDot, chip = false, fmt = (v) => v, tip }) {
+  const n = rows.length, left = 34, right = 8, top = chip ? 30 : 12, bottom = 34, H = 220;
+  const W = Math.max(cw(640), left + right + n * 24), step = (W - left - right) / n, bw = Math.max(6, Math.min(18, step - 6));
+  const half = (H - top - bottom) / 2 - 4, mid = top + (H - top - bottom) / 2;
+  const mx = Math.max(1, ...rows.flatMap((r) => [up(r), down(r), upDot ? upDot(r) : 0, downDot ? downDot(r) : 0]));
+  const s = (v) => Math.max(0, v) / mx * half;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" style="min-width:${Math.min(W, left + right + n * 24)}px">
+    <line x1="${left}" x2="${W - right}" y1="${mid}" y2="${mid}" style="stroke:var(--line)" stroke-width="1.5"/>
+    <line x1="${left}" x2="${W - right}" y1="${mid - half}" y2="${mid - half}" style="stroke:var(--line)" stroke-dasharray="3 4"/>
+    <line x1="${left}" x2="${W - right}" y1="${mid + half}" y2="${mid + half}" style="stroke:var(--line)" stroke-dasharray="3 4"/>
+    <text x="${left - 6}" y="${mid - half + 4}" text-anchor="end" font-size="11" style="fill:var(--faint)">${fmt(mx)}</text>
+    <text x="${left - 6}" y="${mid + half + 4}" text-anchor="end" font-size="11" style="fill:var(--faint)">${fmt(mx)}</text>`;
+  rows.forEach((r, i) => {
+    const x = left + i * step + step / 2, u = up(r), dn = down(r);
+    svg += `<a href="#/match/${esc(r.id)}"><g class="mc-col"><rect x="${x - step / 2}" y="${top - (chip ? 26 : 0)}" width="${step}" height="${H - top - bottom + (chip ? 26 : 0) + 30}" style="fill:transparent"/>
+      <rect x="${x - bw / 2}" y="${mid - s(u)}" width="${bw}" height="${s(u)}" rx="2" style="fill:${chip ? RES_COLOR[r.res] : 'var(--accent)'}"/>
+      <rect x="${x - bw / 2}" y="${mid}" width="${bw}" height="${s(dn)}" rx="2" style="fill:${chip ? 'color-mix(in srgb, var(--text) 22%, transparent)' : 'color-mix(in srgb, var(--bad) 80%, transparent)'}"/>
+      ${upDot ? `<circle cx="${x}" cy="${mid - s(upDot(r))}" r="3.4" style="fill:var(--text);stroke:var(--panel)" stroke-width="1.5"/>` : ''}
+      ${downDot ? `<circle cx="${x}" cy="${mid + s(downDot(r))}" r="3.4" style="fill:var(--text);stroke:var(--panel)" stroke-width="1.5"/>` : ''}
+      ${chip ? `<rect x="${x - Math.max(bw, 18) / 2 - 2}" y="${top - 26}" width="${Math.max(bw, 18) + 4}" height="17" rx="4" style="fill:${RES_COLOR[r.res]}"/><text x="${x}" y="${top - 13.5}" text-anchor="middle" font-size="9.5" font-weight="700" style="fill:var(--accent-ink)">${r.res}</text>` : ''}
+      <text x="${x}" y="${H - 18}" text-anchor="middle" font-size="10" style="fill:var(--muted)">${esc(r.opp)}</text>
+      <text x="${x}" y="${H - 5}" text-anchor="middle" font-size="9.5" style="fill:var(--faint)">${r.home ? 'H' : 'B'}</text>
+      <title>${esc(tip(r))}</title></g></a>`;
+  });
+  return `<div class="mchart">${svg}</svg></div>`;
+}
+
+function teamForm(code, logs) {
+  const rows = logs.map((r) => {
+    const g = GAMES_BY_ID[r[0]]; if (!g) return null;
+    const win = r[2] > r[3], ex = g.ot || g.so;
+    return { g, id: r[0], home: !!r[1], opp: r[1] ? g.away : g.home, gf: r[2], ga: r[3], xgf: r[4], xga: r[5], ppg: r[6], ppo: r[7], ppga: r[8], pko: r[9],
+      res: win ? (ex ? 'ÖV' : 'V') : (ex ? 'ÖF' : 'F'), pts: win ? (ex ? 2 : 3) : (ex ? 1 : 0) };
+  }).filter(Boolean).sort((a, b) => a.g.start.localeCompare(b.g.start));
+  if (!rows.length) return panel('Form & statistik', '<p class="empty-state">Statistiken visas efter lagets första match.</p>');
+
+  const pct = (a, b) => b ? a / b : null;
+  const agg = (list) => {
+    const n = (k) => list.filter((r) => r.res === k).length, t = (k) => sum(list.map((r) => r[k] || 0));
+    const xgf = sum(list.map((r) => r.xgf ?? 0)), xga = sum(list.map((r) => r.xga ?? 0));
+    return { gp: list.length, V: n('V'), 'ÖV': n('ÖV'), 'ÖF': n('ÖF'), F: n('F'), gf: t('gf'), ga: t('ga'), pts: t('pts'),
+      pp: pct(t('ppg'), t('ppo')), pk: t('pko') ? 1 - t('ppga') / t('pko') : null, xgp: xgf + xga ? xgf / (xgf + xga) : null, xgf, xga };
+  };
+  const all = agg(rows), home = agg(rows.filter((r) => r.home)), away = agg(rows.filter((r) => !r.home)), last5 = agg(rows.slice(-5));
+  // Current streak
+  const lastWin = rows[rows.length - 1].pts >= 2;
+  let streak = 0; for (let i = rows.length - 1; i >= 0 && (rows[i].pts >= 2) === lastWin; i--) streak++;
+  const t = (k, v, sub) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span>${sub ? `<span class="s">${sub}</span>` : ''}</div>`;
+  const tiles = `<div class="tiles">
+    ${t('Senaste 5', `${last5.pts} p`, rows.slice(-5).map((r) => r.res).join(' '))}
+    ${t('Svit', `${streak} ${lastWin ? (streak === 1 ? 'vinst' : 'vinster') : (streak === 1 ? 'förlust' : 'förluster')}`, 'i rad')}
+    ${t('Poäng/match hemma', home.gp ? dec(home.pts / home.gp, 2) : '–', `${home.gp} matcher`)}
+    ${t('Poäng/match borta', away.gp ? dec(away.pts / away.gp, 2) : '–', `${away.gp} matcher`)}
+    ${t('xG-andel', all.xgp != null ? pctTxt(all.xgp, 1) : '–', 'av matchernas chanser')}
+    ${t('Mål över xG', all.xgp != null ? (all.gf - all.xgf > 0 ? '+' : '') + dec(all.gf - all.xgf, 1) : '–', 'avslutsskärpa')}
+  </div>`;
+
+  const resChart = mirrorChart(rows, { up: (r) => r.gf, down: (r) => r.ga, chip: true,
+    tip: (r) => `${r.res} ${r.gf}–${r.ga} ${r.home ? 'hemma mot' : 'borta mot'} ${tName(r.opp)}, ${fmtDay(r.g.start)}` });
+  const hasXg = rows.some((r) => r.xgf != null);
+  const xgChart = hasXg ? mirrorChart(rows, { up: (r) => r.xgf ?? 0, down: (r) => r.xga ?? 0, upDot: (r) => r.gf, downDot: (r) => r.ga, fmt: (v) => dec(v, 1),
+    tip: (r) => `xG ${dec(r.xgf ?? 0, 2)}–${dec(r.xga ?? 0, 2)}, mål ${r.gf}–${r.ga} mot ${tName(r.opp)}` }) : '';
+
+  const splitRow = (label, a) => `<tr><td class="l"><b>${label}</b></td><td>${a.gp}</td><td>${a.V}</td><td>${a['ÖV']}</td><td>${a['ÖF']}</td><td>${a.F}</td><td>${a.gf}–${a.ga}</td><td class="hl">${a.pts}</td><td>${a.gp ? dec(a.pts / a.gp, 2) : '–'}</td><td>${a.pp != null ? pctTxt(a.pp, 1) : '–'}</td><td>${a.pk != null ? pctTxt(a.pk, 1) : '–'}</td><td>${a.xgp != null ? pctTxt(a.xgp, 1) : '–'}</td></tr>`;
+  const splits = `<div class="tscroll"><table class="t"><thead><tr><th class="l"></th><th>SM</th><th>V</th><th>ÖV</th><th>ÖF</th><th>F</th><th>Mål</th><th>P</th><th>P/M</th><th title="Powerplay">PP%</th><th title="Boxplay">BP%</th><th title="Andel av matchernas xG">xG%</th></tr></thead>
+    <tbody>${splitRow('Hemma', home)}${splitRow('Borta', away)}${splitRow('Totalt', all)}</tbody></table></div>`;
+
+  let a = 0, b = 0, c = 0, e = 0;
+  const pp = rows.map((r) => { a += r.ppg; b += r.ppo; return b ? a / b * 100 : 0; });
+  const pk = rows.map((r) => { c += r.ppga; e += r.pko; return e ? (1 - c / e) * 100 : 100; });
+  const special = rows.length >= 2 ? `<div class="chart">${lineChart([{ pts: pk, color: 'var(--gold)' }, { pts: pp, color: 'var(--accent)' }], { yMax: 100, yFmt: (v) => Math.round(v) + '%', xLabels: rows.map((r) => r.opp) })}</div>
+    <div class="legend"><span><i style="background:var(--accent)"></i>Powerplay</span><span><i style="background:var(--gold)"></i>Boxplay</span><span>Hittills under säsongen, efter varje match</span></div>`
+    : '<p class="empty-state">Kurvan visas efter två matcher.</p>';
+
+  return board([
+    panel('Formen just nu', tiles, { cls: 'wide' }),
+    panel('Resultat match för match', resChart + `<div class="legend"><span><i style="background:${RES_COLOR.V}"></i>Vinst</span><span><i style="background:${RES_COLOR['ÖV']}"></i>Vinst ÖT/str</span><span><i style="background:${RES_COLOR['ÖF']}"></i>Förlust ÖT/str</span><span><i style="background:${RES_COLOR.F}"></i>Förlust</span><span>Upp = gjorda mål, ner = insläppta</span></div>`, { cls: 'wide', sub: 'Tryck på en match för matchfakta. H = hemma, B = borta.' }),
+    xgChart ? panel('xG match för match', xgChart + '<div class="legend"><span><i style="background:var(--accent)"></i>xG för</span><span><i style="background:var(--bad)"></i>xG mot</span><span><i style="background:var(--text);border-radius:50%"></i>Faktiska mål</span></div>', { cls: 'wide', sub: 'Förväntade mål utifrån chansernas kvalitet, jämfört med hur många mål det faktiskt blev.' }) : '',
+    panel('Hemma och borta', splits),
+    panel('Powerplay och boxplay', special),
+  ]);
+}
+
 function teamRoster(code, roster) {
   const skStats = new Map(skaters().map((p) => [p.id, p])), gkStats = new Map(goalies().map((p) => [p.id, p]));
   const rows = roster.map((p) => ({ ...p, st: p.pos === 'GK' ? gkStats.get(p.id) : skStats.get(p.id) }));
@@ -1860,6 +2207,7 @@ async function boot() {
   renderStrip();
   renderFavLink();
   window.addEventListener('hashchange', route);
+  startLive(); // before the first page so a game being played opens in live mode
   route();
   // Charts are drawn for the screen width, so redraw when crossing between phone and desktop layouts
   let wasNarrow = isNarrow(), resizeTimer;

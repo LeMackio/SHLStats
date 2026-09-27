@@ -75,7 +75,7 @@ async function loadSeason(s) {
   const state = ssgt === latest.uuid && latest.state === 'active' ? 'active' : 'closed';
   const teams = {};
   const games = sched.gameInfo.map((g) => {
-    for (const t of [g.homeTeamInfo, g.awayTeamInfo]) teams[t.code] ??= { code: t.code, name: t.names.long || t.names.full, logo: t.icon, uuid: t.uuid };
+    for (const t of [g.homeTeamInfo, g.awayTeamInfo]) teams[t.code] ??= { code: t.code, name: t.names.long || t.names.full, short: t.names.short || '', logo: t.icon, uuid: t.uuid };
     return {
       id: g.uuid, start: g.startDateTime, state: g.state, ot: g.overtime, so: g.shootout,
       home: g.homeTeamInfo.code, away: g.awayTeamInfo.code, hs: g.homeTeamInfo.score, as: g.awayTeamInfo.score,
@@ -95,7 +95,7 @@ async function loadSeason(s) {
     } catch (e) { console.warn(mod, 'failed', label, e.message); return []; }
   };
   const season = {
-    label, code: s.code, ssgt, state, teams, games, standings,
+    label, code: s.code, uuid: s.uuid, ssgt, state, teams, games, standings,
     skaters: (await statsModule('players_summary')).map(skaterRow).filter((p) => p.pos !== 'GK'),
     goalies: (await statsModule('goalkeepers_summary')).map(goalieRow),
   };
@@ -246,6 +246,9 @@ await inBatches(shotTodo, 4, async ([s, g]) => {
   } catch (e) { shotFails++; }
 });
 for (const sg of Object.values(shotGames)) { strAgree += sg.strengthCheck?.[0] || 0; strChecked += sg.strengthCheck?.[1] || 0; }
+// Older cached games marked some saved shots as empty-net when the goalie feed had gaps; a saved shot always had a goalie in net
+let enFixed = 0;
+for (const sg of Object.values(shotGames)) for (const sh of sg.shots) if (!sh.g && sh.en) { sh.en = 0; enFixed++; }
 const allShots = Object.values(shotGames).flatMap((sg) => sg.shots);
 const xgModel = trainXG(allShots);
 
@@ -253,6 +256,7 @@ const xgModel = trainXG(allShots);
 const edgeIds = [], edgeIdx = new Map();
 const idIndex = (id) => { if (!edgeIdx.has(id)) { edgeIdx.set(id, edgeIds.length); edgeIds.push(id); } return edgeIdx.get(id); };
 const eSk = {}, eGk = {}, eTeam = {}, eShots = [];
+const gameXg = {}; // game id → [xG home, xG away, dangerous chances home, away, shots home, away]
 const league = { sa: 0, ga: 0, xga: 0, hd: [0, 0], md: [0, 0], ld: [0, 0] };
 for (const [gid, sg] of Object.entries(shotGames)) {
   if (sg.season !== cur.label) continue;
@@ -262,8 +266,12 @@ for (const [gid, sg] of Object.entries(shotGames)) {
     const team = sg[sh.side], opp = sh.side === 'home' ? sg.away : sg.home;
     const xg = xgModel.predict(sh), zone = zoneOf(xg);
     const shooter = sh.shooter ? refFor(sh.shooter, team, sh.num).id : null;
-    const goalieId = sh.goalie && !sh.en ? refFor(sh.goalie, opp).id : null;
+    // When the feed doesn't say who was in net, credit the goalie who faced most of that team's shots
+    const mainGoalie = () => [...(gameDetails[gid]?.gk?.[sh.side === 'home' ? 'away' : 'home'] || [])].sort((a, b) => b.soga - a.soga)[0]?.id || null;
+    const goalieId = sh.en ? null : sh.goalie ? refFor(sh.goalie, opp).id : mainGoalie();
     const T = eTeam[team], O = eTeam[opp];
+    const GX = (gameXg[gid] ??= [0, 0, 0, 0, 0, 0]), hi = sh.side === 'home' ? 0 : 1;
+    GX[hi] += xg; GX[hi + 4]++; if (zone === 'hd') GX[hi + 2]++;
     T.sf++; T.gf += sh.g; T.xgf += xg; O.sa++; O.ga += sh.g; O.xga += xg;
     if (zone === 'hd') { T.hdf++; O.hda++; }
     if (shooter) {
@@ -381,14 +389,19 @@ for (const [id, ms] of Object.entries(mediaOf)) if (!headshots[id] && hsCache[ms
 // The site links to the full article on shl.se instead of copying it.
 const NEWS_IMG_CACHE = 'cache/news-images.json';
 const newsImgCache = readJson(NEWS_IMG_CACHE, {});
-let news = [];
+let news = [], shlArticles = [];
+const articleOf = (a, host) => {
+  const m = Array.isArray(a.mainMedia) ? a.mainMedia[0] : a.mainMedia;
+  return {
+    id: a.id, title: a.header.trim(), intro: (a.introRawText || a.intro || '').trim(), date: a.publishedAt,
+    label: a.metadata?.label || '', ms: typeof m === 'string' ? m : m?.mediaString,
+    url: a.externalUrl || `https://${host}/article/${a.id}/view`,
+  };
+};
 try {
   const list = await get('/articles/site-news/list?page=0');
-  news = (list?.data?.articleItems || []).filter((a) => a.header && !a.metadata?.isLocked).slice(0, 5).map((a) => ({
-    id: a.id, title: a.header.trim(), intro: (a.introRawText || a.intro || '').trim(), date: a.publishedAt,
-    label: a.metadata?.label || '', ms: Array.isArray(a.mainMedia) ? a.mainMedia[0]?.mediaString : a.mainMedia,
-    url: a.externalUrl || `https://www.shl.se/article/${a.id}/view`,
-  }));
+  shlArticles = (list?.data?.articleItems || []).filter((a) => a.header && !a.metadata?.isLocked).map((a) => articleOf(a, 'www.shl.se'));
+  news = shlArticles.slice(0, 5);
   await inBatches(news.filter((n) => n.ms && !(n.ms in newsImgCache)), 3, async (n) => {
     try {
       const r = await get(`/media/render?mediaString=${encodeURIComponent(n.ms)}&isCroppingEnabled=false`);
@@ -399,9 +412,46 @@ try {
   news = news.map(({ ms, ...n }) => ({ ...n, img: (ms && newsImgCache[ms]) || null }));
 } catch (e) { console.warn('news failed', e.message); }
 
+// ---------- team news ----------
+// Each club's own site runs on the same platform as shl.se and has the same news list. We take the
+// latest first-team items (headline, intro, image, link to the club's site) and add SHL articles that
+// name the team. Linköping's site runs on another platform, so it only gets the SHL articles.
+const CLUB_SITES = { BIF: 'www.brynas.se', DIF: 'www.difhockey.se', FBK: 'www.farjestadbk.se', FHC: 'www.frolundahockey.com', HV71: 'www.hv71.se',
+  IFB: 'www.bjorkloven.com', LHF: 'www.luleahockey.se', MIF: 'www.malmoredhawks.com', OHK: 'www.orebrohockey.se', RBK: 'www.roglebk.se',
+  SAIK: 'www.skellefteaaik.se', TIK: 'www.timraik.se', VLH: 'www.vaxjolakers.se', LIF: 'www.leksandsif.se', MODO: 'www.modohockey.se' };
+const NOT_FIRST_TEAM = /\b(U\d{2}|J\d{2}|akademi\w*|junior\w*|SDHL|dam\w*|flick\w*|pojk\w*|ungdom\w*|TV-pucken|hockeyskola\w*)\b/i;
+const teamNews = {};
+let clubFails = 0;
+await inBatches(codes, 4, async (code) => {
+  const host = CLUB_SITES[code];
+  let club = [];
+  if (host) {
+    try {
+      const r = await fetch(`https://${host}/api/articles/site-news/list?page=0`, { headers: { 'user-agent': 'SHLstats (fan site data refresh)' } });
+      if (!r.ok) throw new Error(r.status);
+      const list = await r.json();
+      club = (list?.data?.articleItems || []).filter((a) => a.header && !a.metadata?.isLocked && !NOT_FIRST_TEAM.test(a.header))
+        .map((a) => ({ ...articleOf(a, host), src: host.replace(/^www\./, '') }));
+    } catch { clubFails++; }
+  }
+  const names = [cur.teams[code].short, cur.teams[code].name].filter((n) => n && n.length > 2);
+  const mentions = shlArticles.filter((a) => names.some((n) => new RegExp(`(^|[^\\p{L}])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'u').test(`${a.title} ${a.intro}`)))
+    .map((a) => ({ ...a, src: 'shl.se' }));
+  teamNews[code] = [...club, ...mentions].sort((a, b) => b.date.localeCompare(a.date)).filter((a, i, all) => all.findIndex((x) => x.title === a.title) === i).slice(0, 6);
+});
+const cardKey = (ms) => `card|${ms}`; // smaller image for the team page's news cards
+await inBatches(Object.values(teamNews).flat().filter((n) => n.ms && !(cardKey(n.ms) in newsImgCache)), 6, async (n) => {
+  try {
+    const r = await get(`/media/render?mediaString=${encodeURIComponent(n.ms)}&isCroppingEnabled=false`);
+    newsImgCache[cardKey(n.ms)] = pickSize(r.srcset, 640) || r.url || null;
+  } catch { newsImgCache[cardKey(n.ms)] = null; }
+});
+writeJson(NEWS_IMG_CACHE, newsImgCache);
+for (const code in teamNews) teamNews[code] = teamNews[code].map(({ ms, id, label, ...n }) => ({ ...n, intro: n.intro.slice(0, 220), img: (ms && newsImgCache[cardKey(ms)]) || null }));
+
 // ---------- aggregates from game details ----------
 const teamStats = Object.fromEntries(codes.map((c) => [c, { gp: 0, gf: 0, ga: 0, sog: 0, sa: 0, ppg: 0, ppo: 0, ppga: 0, pko: 0, shg: 0, fow: 0, fol: 0, hits: 0, blk: 0, pim: 0 }]));
-const gamelogs = {}, goalieLogs = {};
+const gamelogs = {}, goalieLogs = {}, teamLogs = {};
 const lineups = {};
 const detailsByDate = Object.values(gameDetails).filter((d) => isFinal(d)).sort((a, b) => a.start.localeCompare(b.start));
 for (const d of detailsByDate) {
@@ -414,6 +464,10 @@ for (const d of detailsByDate) {
       T.sog += me.SOG || 0; T.sa += them.SOG || 0; T.ppg += me.PPG || 0; T.ppo += me.NumPP || 0;
       T.ppga += me.PPGA || 0; T.pko += me.NumSH || 0; T.shg += me.SHG || 0;
       T.fow += me.FOW || 0; T.fol += them.FOW || 0; T.hits += me.Hits || 0; T.blk += me.BkS || 0; T.pim += me.PIM || 0;
+      // Game by game for the team page: id, home?, goals for/against, xG for/against, powerplay goals/chances, PP goals against/times shorthanded
+      const X = gameXg[d.id], i = side === 'home' ? 0 : 1;
+      (teamLogs[code] ??= []).push([d.id, i ? 0 : 1, side === 'home' ? d.hs : d.as, side === 'home' ? d.as : d.hs,
+        X ? r3(X[i]) : null, X ? r3(X[1 - i]) : null, me.PPG || 0, me.NumPP || 0, me.PPGA || 0, me.NumSH || 0]);
     }
     const won = side === 'home' ? d.hs > d.as : d.as > d.hs;
     for (const r of d.box[side] || []) if (r.id) (gamelogs[r.id] ??= []).push([d.id, code, opp, side === 'home' ? 1 : 0, r.g, r.a, r.pm, r.toi, r.sog, r.pim, r.hits, r.blk]);
@@ -493,15 +547,19 @@ const core = {
   recentClips: allClips.slice(0, 16),
   highlights,
   news,
+  // What the live relay needs to ask shl.se for today's games
+  live: { season: cur.uuid, series: SERIES, type: REGULAR },
 };
 mkdirSync('site/data/games', { recursive: true });
 writeJson('site/data/core.json', core);
 writeJson('site/data/players.json', { bios, career, goalieCareer, gamelogs, goalieLogs, goalClips });
 writeJson('site/data/edge.json', edge);
+writeJson('site/data/teams.json', { logs: teamLogs, news: teamNews });
 for (const d of Object.values(gameDetails)) {
-  const v = videos[d.id];
+  const v = videos[d.id], X = gameXg[d.id];
   writeJson(`site/data/games/${d.id}.json`, {
     ...d,
+    xg: X ? X.map((x, i) => (i < 2 ? r3(x) : x)) : null,
     goals: d.goals.map((x) => ({ ...x, clip: slimClip(clipOf(d, x)) || undefined })),
     hl: slimClip(v?.hl) || null,
   });
@@ -524,8 +582,9 @@ console.log([
   `Videos: ${Object.keys(videos).length} games, ${allClips.length} goal clips, ${highlights.length} highlight packages (${vidFails} failed)`,
   `Headshots: ${Object.keys(headshots).length} (${todo.length} looked up, ${hsFails} failed); roster ids matching stats: ${matched}/${cur.skaters.length}`,
   `Shots: ${allShots.length} from ${Object.keys(shotGames).length} games (${shotTodo.length} fetched, ${shotFails} failed); strength from penalty timeline matches ${strAgree}/${strChecked} official goal strengths`,
-  `xG model: ${JSON.stringify(xgModel.report)}`,
+  `xG model: ${JSON.stringify(xgModel.report)} (${enFixed} saved shots no longer counted as empty-net)`,
   `xG weights: ${xgModel.coef.map((c) => `${c.name} ${c.weight}`).join(', ')}`,
   `Edge (${cur.label}): ${Object.keys(eSk).length} skaters, ${Object.keys(eGk).length} goalies, ${eShots.length} shots; unmatched shooters ${eShots.filter((s) => s[0] < 0).length}, unmatched goalies ${eShots.filter((s) => s[1] < 0 && !s[7]).length}`,
-  `Unmatched game players: ${Object.values(gameDetails).flatMap((d) => [...d.box.home, ...d.box.away]).filter((r) => !r.id).length}`,
+  `Team news: ${Object.entries(teamNews).map(([c, n]) => `${c} ${n.length}`).join(', ')} (${clubFails} club sites failed)`,
+  `Unmatched game players:${Object.values(gameDetails).flatMap((d) => [...d.box.home, ...d.box.away]).filter((r) => !r.id).length}`,
 ].join('\n'));

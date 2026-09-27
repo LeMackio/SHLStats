@@ -53,7 +53,8 @@ export function processShots(pbp) {
       a: Math.atan2(Math.abs(y), Math.max(x, 1)),                // radians off the centre line
       g: isGoal ? 1 : 0,
       str,
-      en: isGoal ? (e.isEmptyNetGoal ? 1 : 0) : (goalie[opp] ? 0 : 1),
+      // A saved shot always had a goalie in net, even when the feed's goalie changes are incomplete
+      en: isGoal && e.isEmptyNetGoal ? 1 : 0,
       ps: e.isPenaltyShot ? 1 : 0,
       reb: e.s - lastShot[side] <= 3 ? 1 : 0,
       shooter: e.player ? `${e.player.firstName || ''} ${e.player.familyName || ''}`.trim() : null,
