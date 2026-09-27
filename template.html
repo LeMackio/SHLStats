@@ -1,4 +1,4 @@
-<title>Isstats SHL</title>
+<title>SHLstats</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
@@ -202,7 +202,7 @@ footer { max-width: 1280px; margin: 0 auto; padding: 0 16px 40px; color: var(--f
 
 <header class="top">
   <div class="top-in">
-    <a class="brand" href="#standings" aria-label="Isstats home">
+    <a class="brand" href="#standings" aria-label="SHLstats home">
       <svg viewBox="0 0 40 40" aria-hidden="true">
         <rect x="1" y="1" width="38" height="38" rx="10" style="fill:var(--accent)"/>
         <ellipse cx="20" cy="26" rx="11" ry="4.2" style="fill:var(--accent-ink)"/>
@@ -210,7 +210,7 @@ footer { max-width: 1280px; margin: 0 auto; padding: 0 16px 40px; color: var(--f
         <ellipse cx="20" cy="19" rx="11" ry="4.2" style="fill:var(--accent)" stroke-width="1.6" stroke="currentColor" color="var(--accent-ink)"/>
         <path d="M20 5v8M16.5 7l3.5 3 3.5-3" style="fill:none;stroke:var(--accent-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <span class="brand-word">Is<em>stats</em></span>
+      <span class="brand-word">SHL<em>stats</em></span>
     </a>
     <nav class="main" aria-label="Sections">
       <a href="#standings">Tabellen</a>
@@ -325,7 +325,7 @@ footer { max-width: 1280px; margin: 0 auto; padding: 0 16px 40px; color: var(--f
       </div>
       <div>
         <h3>Data</h3>
-        <p>Scores, standings and box stats come from shl.se's public stats feeds. Team colours are approximations used for the badges. Isstats is an independent fan project with no connection to the SHL or its clubs.</p>
+        <p>Scores, standings and box stats come from shl.se's public stats feeds. Team colours are approximations used for the badges. SHLstats is an independent fan project with no connection to the SHL or its clubs.</p>
       </div>
     </div>
   </section>
@@ -361,14 +361,14 @@ const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart
 
 /* ---------- theme ---------- */
 const root = document.documentElement;
-const storedTheme = (() => { try { return localStorage.getItem('isstats-theme'); } catch { return null; } })();
+const storedTheme = (() => { try { return localStorage.getItem('shlstats-theme'); } catch { return null; } })();
 if (storedTheme) root.dataset.theme = storedTheme;
 const syncThemeButtons = () => {
   const dark = root.dataset.theme ? root.dataset.theme === 'dark' : !matchMedia('(prefers-color-scheme: light)').matches;
   $('theme-dark').setAttribute('aria-pressed', dark); $('theme-light').setAttribute('aria-pressed', !dark);
 };
 for (const t of ['dark', 'light']) $('theme-' + t).addEventListener('click', () => {
-  root.dataset.theme = t; try { localStorage.setItem('isstats-theme', t); } catch {}
+  root.dataset.theme = t; try { localStorage.setItem('shlstats-theme', t); } catch {}
   syncThemeButtons(); renderGoalies();
 });
 syncThemeButtons();
@@ -619,7 +619,7 @@ function renderCard(x) {
     </div>
     <div class="pc-grid">${metricRows}</div>
     <div class="pc-seasons"><table><thead><tr><th>Season</th><th>GP</th><th>G</th><th>A</th><th>P</th><th>+/-</th><th>TOI/GP</th></tr></thead><tbody>${splits}</tbody></table></div>
-    <div class="pc-foot"><span>Weighted ${PREV} + ${CUR} sample, percentile among SHL ${grpName} (min ${MIN_GP} GP). ${small}</span><span class="mark">ISSTATS</span></div>
+    <div class="pc-foot"><span>Weighted ${PREV} + ${CUR} sample, percentile among SHL ${grpName} (min ${MIN_GP} GP). ${small}</span><span class="mark">SHLSTATS</span></div>
   </article>`;
 }
 
@@ -766,7 +766,7 @@ function renderGoalies() {
 const updated = new Date(D.updated);
 const stampTxt = updated.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Stockholm' }) + ' Stockholm time';
 $('proj-stamp').textContent = `Projections last updated ${stampTxt}`;
-$('data-stamp').textContent = `Isstats is an independent fan project, not affiliated with the SHL. Data from shl.se, updated ${stampTxt}.`;
+$('data-stamp').textContent = `SHLstats is an independent fan project, not affiliated with the SHL. Data from shl.se, updated ${stampTxt}.`;
 renderStrip();
 setupCards();
 setupLeaders();

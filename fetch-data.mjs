@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 const API = 'https://www.shl.se/api';
 
 const get = async (path) => {
-  const res = await fetch(API + path, { headers: { 'user-agent': 'isstats-shl (fan site data refresh)' } });
+  const res = await fetch(API + path, { headers: { 'user-agent': 'SHLstats (fan site data refresh)' } });
   if (!res.ok) throw new Error(`${res.status} ${path}`);
   return res.json();
 };
