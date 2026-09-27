@@ -1276,7 +1276,7 @@ function pageStats() {
   });
 }
 
-/* ---------- Avancerat: shot quality and expected goals (desktop menu) ---------- */
+/* ---------- Nexus: shot quality and expected goals (desktop menu) ---------- */
 let EDGE = null;
 const loadEdge = async () => EDGE ??= await (await fetch(dataUrl('edge.json'))).json();
 
@@ -1327,7 +1327,7 @@ function goalRateMap(shots) {
 }
 
 async function pageEdge() {
-  setTitle('Avancerat');
+  setTitle('Nexus');
   if (!EDGE) app.innerHTML = skeleton();
   const E = await loadEdge();
   const skBy = new Map(skaters().map((p) => [p.id, p])), gkBy = new Map(goalies().map((p) => [p.id, p]));
@@ -1364,7 +1364,7 @@ async function pageEdge() {
   const coef = E.model.coef.map((c) => `<tr><td class="l">${esc(c.name)}</td><td class="${c.weight > 0 ? '' : 'faint'}">${c.weight > 0 ? 'Ökar' : 'Minskar'}</td></tr>`).join('');
 
   render(`
-    <div class="page-head"><div><h1>Avancerat</h1><p>Skottkvalitet och förväntade mål (xG) för SHL ${E.season.replace('-', '/')}. Varje skott på mål värderas efter var det kom ifrån och i vilket läge.</p></div></div>
+    <div class="page-head"><div><h1>Nexus</h1><p>Skottkvalitet och förväntade mål (xG) för SHL ${E.season.replace('-', '/')}. Varje skott på mål värderas efter var det kom ifrån och i vilket läge.</p></div></div>
     <div class="lsec-row">${sections.map((s) => `<section class="panel lsec">
       <div class="p-head"><h2>${s.title}</h2><span class="stamp">${esc(s.note)}</span></div>
       <div class="utabs" id="lt-${s.id}" role="tablist">${s.stats.map((st, i) => `<button role="tab" data-k="${st.k}" aria-selected="${i === 0}">${st.label}</button>`).join('')}</div>
@@ -1565,7 +1565,7 @@ function teamStatsTab(head) {
   ], rows, { key: 'rank', desc: false });
   layoutBoards();
 }
-// Attack (x) against defence (y) per team. Defaults to goals per game; the Avancerat page passes xG.
+// Attack (x) against defence (y) per team. Defaults to goals per game; the Nexus page passes xG.
 function teamScatter(rows, { xk = 'gfpg', yk = 'gapg', xLabel = 'Gjorda mål per match', what = ['gjorda', 'insläppta'] } = {}) {
   rows = rows.map((r) => ({ ...r, gfpg: r[xk], gapg: r[yk] }));
   const pts = rows.filter((r) => r.gfpg != null);
@@ -1757,11 +1757,11 @@ function notFound(msg) {
    ===================================================================== */
 const ROUTES = [
   [/^\/?$/, pageOverview], [/^\/matcher(?:\/([^/]+))?$/, pageGames], [/^\/match\/([^/]+)(?:\/([^/]+))?$/, pageMatch], [/^\/tabell(?:\/([^/]+))?$/, pageTable],
-  [/^\/statistik$/, pageStats], [/^\/spelare\/([^/]+)(?:\/([^/]+))?$/, pagePlayer], [/^\/avancerat$/, pageEdge], [/^\/nyheter\/([^/]+)$/, pageNews],
+  [/^\/statistik$/, pageStats], [/^\/spelare\/([^/]+)(?:\/([^/]+))?$/, pagePlayer], [/^\/nexus$/, pageEdge], [/^\/avancerat$/, pageEdge], // old address still works [/^\/nyheter\/([^/]+)$/, pageNews],
   [/^\/lag$/, () => pageTable('')], // old link to the teams page, now the Tabell page
   [/^\/lag\/([^/]+)(?:\/([^/]+))?$/, pageTeam],
 ];
-const NAV_OF = { match: 'matcher', spelare: 'statistik', lag: 'tabell' };
+const NAV_OF = { match: 'matcher', spelare: 'statistik', lag: 'tabell', avancerat: 'nexus' };
 let lastPath = '';
 async function route() {
   const path = decodeURIComponent(location.hash.replace(/^#/, '')) || '/';
@@ -1808,7 +1808,7 @@ async function boot() {
   $('reload-data').onclick = () => location.reload();
   buildCards();
   // Menu icons (top menu on desktop, bottom bar on phones)
-  const NAV_ICON = { '': 'home', statistik: 'chart', tabell: 'table', matcher: 'calendar', avancerat: 'target' };
+  const NAV_ICON = { '': 'home', statistik: 'chart', tabell: 'table', matcher: 'calendar', nexus: 'target' };
   document.querySelectorAll('nav.main a, .bottom-nav a').forEach((a) => a.insertAdjacentHTML('afterbegin', icon(NAV_ICON[a.dataset.nav])));
   app.removeAttribute('aria-busy');
   setupTheme();

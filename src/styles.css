@@ -871,7 +871,7 @@ header.top { top: env(safe-area-inset-top, 0px); }
 .brand-mark { width: 34px; height: 34px; }
 
 /* =====================================================================
-   Avancerat: shot map explorer
+   Nexus: shot map explorer
    ===================================================================== */
 .smap { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 24px; align-items: start; }
 .smap-side { display: grid; gap: 14px; align-content: start; }
@@ -888,10 +888,16 @@ header.top { top: env(safe-area-inset-top, 0px); }
 .news { position: relative; border-radius: var(--radius) 0 0 var(--radius); overflow: hidden; background: var(--bg-2); min-height: 340px; }
 .news-empty { display: grid; place-items: center; color: var(--muted); }
 .nslides { position: absolute; inset: 0; }
-.nslide { position: absolute; inset: 0; display: block; color: #fff; text-decoration: none !important; opacity: 0; transition: opacity .6s ease; pointer-events: none; }
+.nslide { position: absolute; inset: 0; display: block; color: #fff; text-decoration: none !important; opacity: 0; transition: opacity .8s ease; pointer-events: none;
+  overflow: hidden; will-change: opacity; }
 .nslide.on { opacity: 1; pointer-events: auto; }
-.nslide img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 7s ease; }
-.nslide.on img { transform: scale(1.04); }
+/* Slow zoom on the active photo: a GPU-composited animation at constant speed, restarted each time a
+   slide becomes active and paused while the carousel is paused (hover or keyboard focus) */
+.nslide img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  transform: translate3d(0, 0, 0) scale(1); transform-origin: 50% 45%; backface-visibility: hidden; will-change: transform; }
+.nslide.on img { animation: newsZoom 9s linear both; }
+.news:hover .nslide.on img, .news:focus-within .nslide.on img { animation-play-state: paused; }
+@keyframes newsZoom { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(0, 0, 0) scale(1.07); } }
 .nslide-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8, 11, 16, .05) 20%, rgba(8, 11, 16, .82) 78%); }
 .nslide-text { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px 24px 54px; display: grid; gap: 8px; }
 .nslide-meta { font: 700 12.5px var(--display); letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
@@ -934,7 +940,7 @@ a.mini-game:hover { box-shadow: inset 0 0 0 1px var(--accent); }
   .nitem { grid-template-columns: 96px minmax(0, 1fr); }
   .nitem img { width: 96px; }
 }
-@media (prefers-reduced-motion: reduce) { .nslide, .nslide img, .ndot { transition: none; } .nslide.on img { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .nslide, .ndot { transition: none; } .nslide.on img { animation: none; } }
 
 /* Wordmark in the brand ink: black on the light theme, white on the dark */
 .brand-word, .brand-word em { color: var(--brand-ink); }
