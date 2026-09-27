@@ -4,21 +4,22 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
 <style>
 :root {
+  /* Dark palette matches Claude's dark mode: warm charcoal greys with a clay accent */
   color-scheme: dark;
-  --bg: #0b1622;
-  --bg-2: #0f1c2b;
-  --panel: #122233;
-  --panel-2: #182c40;
-  --line: #22384e;
-  --text: #e7eef6;
-  --muted: #8ea3b8;
-  --faint: #5f7589;
-  --accent: #58b4ff;
-  --accent-ink: #06121e;
-  --good: #37b97a;
+  --bg: #262624;
+  --bg-2: #1f1e1d;
+  --panel: #30302e;
+  --panel-2: #3a3936;
+  --line: #45443f;
+  --text: #faf9f5;
+  --muted: #b7b5a9;
+  --faint: #8b887f;
+  --accent: #d97757;
+  --accent-ink: #1f1e1d;
+  --good: #5fb07f;
   --bad: #e0566e;
   --gold: #e8b949;
-  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px rgba(0,0,0,.25);
+  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px rgba(0,0,0,.2);
   --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
   --body: "Barlow", "Segoe UI", system-ui, sans-serif;
 }
@@ -64,9 +65,18 @@ a { color: var(--accent); }
 .wp { font: 600 12px var(--display); padding: 1px 6px; border-radius: 4px; min-width: 38px; text-align: center; }
 
 /* team badge */
-.tb { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; background: var(--tc); color: var(--tt, #fff);
+.tb { position: relative; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; background: var(--tc); color: var(--tt, #fff);
   font: 700 9.5px/1 var(--display); letter-spacing: .02em; flex: none; box-shadow: 0 0 0 1px rgba(255,255,255,.08) inset; }
 .tb.lg { width: 40px; height: 40px; font-size: 13px; border-radius: 9px; }
+/* Club logo on top of the colour badge; if the logo fails to load the badge shows */
+.tb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.tb:has(img) { background: none; box-shadow: none; color: transparent; }
+
+/* player headshots */
+.hs { display: block; object-fit: cover; object-position: 50% 12%; background: var(--panel-2); flex: none; }
+.hs.sm { width: 28px; height: 28px; border-radius: 50%; }
+.hs-slot { width: 28px; height: 28px; border-radius: 50%; background: var(--panel-2); display: grid; place-items: center;
+  font: 700 11px var(--display); color: var(--faint); flex: none; }
 
 /* ---------- header ---------- */
 header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent);
@@ -122,6 +132,10 @@ main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 64px; display: grid
 .pcard { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg-2); }
 .pc-top { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 16px 18px; position: relative;
   background: linear-gradient(115deg, color-mix(in srgb, var(--tc) 38%, var(--bg-2)) 0%, var(--bg-2) 62%); }
+.pc-top:has(.pc-hs) { grid-template-columns: auto 1fr auto; padding-bottom: 0; }
+.pc-top:has(.pc-hs) > div { padding-bottom: 16px; }
+.pc-hs { height: 124px; width: auto; max-width: 110px; align-self: end; object-fit: contain; object-position: bottom; }
+@media (max-width: 480px) { .pc-hs { height: 92px; max-width: 80px; } }
 .pc-name { font: 700 30px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; margin: 0 0 8px; text-wrap: balance; }
 .pc-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13.5px; color: var(--muted); }
 .pc-meta b { color: var(--text); font-weight: 600; }
@@ -171,7 +185,11 @@ tr.cut td { border-top: 2px solid var(--muted); }
 .leader .val { font: 700 64px/0.9 var(--display); }
 .leader .lbl { font: 600 13px var(--display); letter-spacing: .1em; color: var(--muted); text-transform: uppercase; }
 ol.lb { list-style: none; margin: 0; padding: 0; display: grid; }
-ol.lb li { display: grid; grid-template-columns: 30px 26px 1fr auto; gap: 10px; align-items: center; padding: 5px 4px; border-top: 1px solid var(--line); }
+.leader { overflow: hidden; }
+.leader-bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-bottom: -16px; }
+.leader-bottom > div { padding-bottom: 16px; }
+.leader-hs { height: 150px; width: auto; max-width: 50%; object-fit: contain; object-position: bottom; }
+ol.lb li { display: grid; grid-template-columns: 30px 26px 28px 1fr auto; gap: 10px; align-items: center; padding: 5px 4px; border-top: 1px solid var(--line); }
 ol.lb li:first-child { border-top: 0; }
 ol.lb .r { font: 600 14px var(--display); color: var(--muted); }
 ol.lb .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -351,7 +369,21 @@ const TC = {
   TIK: ['#b8233a', '#fff'], VLH: ['#c21f2e', '#fff'], LIF: ['#1a4fa0', '#fff'],
 };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const tb = (code, lg) => { const [bg, fg] = TC[code] || ['#4a5b6e', '#fff']; return `<span class="tb${lg ? ' lg' : ''}" style="--tc:${bg};--tt:${fg}">${esc(code)}</span>`; };
+const LOGOS = D.logos || {};
+const HEADSHOTS = D.headshots || {};
+const tb = (code, lg) => {
+  const [bg, fg] = TC[code] || ['#4a5b6e', '#fff'];
+  const img = LOGOS[code] ? `<img src="${esc(LOGOS[code])}" alt="" loading="lazy" onerror="this.remove()">` : '';
+  return `<span class="tb${lg ? ' lg' : ''}" style="--tc:${bg};--tt:${fg}" title="${esc(tName(code))}">${esc(code)}${img}</span>`;
+};
+const initials = (name) => String(name || '').split(/\s+/).map((w) => w[0]).slice(0, 2).join('');
+// Small round headshot, or initials when the player has none (or it fails to load)
+const avatar = (id, name) => {
+  const h = HEADSHOTS[id];
+  const slot = `<span class="hs-slot" aria-hidden="true">${esc(initials(name))}</span>`;
+  return h ? `<img class="hs sm" src="${esc(h[0])}" alt="" loading="lazy" onerror="this.outerHTML=this.dataset.fallback" data-fallback="${esc(slot)}">` : slot;
+};
+const headshotLg = (id, cls) => HEADSHOTS[id] ? `<img class="${cls}" src="${esc(HEADSHOTS[id][1])}" alt="" onerror="this.remove()">` : '';
 const tColor = (code) => (TC[code] || ['#4a5b6e'])[0];
 const tName = (code) => TEAMS[code]?.name || code;
 const $ = (id) => document.getElementById(id);
@@ -604,6 +636,7 @@ function renderCard(x) {
   const small = x.gp < MIN_GP ? `<span class="small-sample">Small sample (${Math.round(x.gp)} weighted GP). Treat these ranks loosely.</span>` : '';
   $('player-card').innerHTML = `<article class="pcard" style="--tc:${tColor(x.team)}">
     <div class="pc-top">
+      ${headshotLg(x.id, 'pc-hs')}
       <div>
         <h3 class="pc-name">${esc(x.name)}</h3>
         <div class="pc-meta">
@@ -636,7 +669,7 @@ function setupCards() {
   let hits = [], sel = 0;
   const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const draw = () => {
-    res.innerHTML = hits.map((x, i) => `<button data-id="${esc(x.id)}" class="${i === sel ? 'on' : ''}">${tb(x.team)} ${esc(x.name)} <small>${x.grp === 'D' ? 'D' : 'F'} · ${Math.round(x.gp)} wGP</small></button>`).join('')
+    res.innerHTML = hits.map((x, i) => `<button data-id="${esc(x.id)}" class="${i === sel ? 'on' : ''}">${avatar(x.id, x.name)}${tb(x.team)} ${esc(x.name)} <small>${x.grp === 'D' ? 'D' : 'F'} · ${Math.round(x.gp)} wGP</small></button>`).join('')
       || '<div style="padding:8px;color:var(--muted)">No skater matches that name.</div>';
     res.hidden = false;
   };
@@ -720,8 +753,8 @@ function renderLeaders() {
   $('lb-leader').style.setProperty('--tc', tColor(tp.team));
   $('lb-leader').innerHTML = `<div style="display:flex;gap:10px;align-items:center">${tb(tp.team, true)}<div><div class="nm">${esc(tp.name)}</div>
     <div class="sub">${esc(tp.team)} · #${esc(tp.num ?? '–')} · ${posTxt} · ${tp[gpKey]} GP</div></div></div>
-    <div><div class="val num">${fmt(top.v)}</div><div class="lbl">${def.label}${per52 ? ' per 52' : ''}</div></div>`;
-  $('lb-list').innerHTML = ranked.slice(0, lb.n).map((r) => `<li><span class="r num">${r.tied ? 'T' : ''}${r.rank}.</span>${tb(r.p.team)}
+    <div class="leader-bottom"><div><div class="val num">${fmt(top.v)}</div><div class="lbl">${def.label}${per52 ? ' per 52' : ''}</div></div>${headshotLg(tp.id, 'leader-hs')}</div>`;
+  $('lb-list').innerHTML = ranked.slice(0, lb.n).map((r) => `<li><span class="r num">${r.tied ? 'T' : ''}${r.rank}.</span>${tb(r.p.team)}${avatar(r.p.id, r.p.name)}
     <span class="n">${sk && players.get(r.p.id)?.toiSec ? `<button onclick="showPlayer('${esc(r.p.id)}')">${esc(r.p.name)}</button>` : esc(r.p.name)}</span><span class="v">${fmt(r.v)}</span></li>`).join('');
   $('lb-more').hidden = ranked.length <= 10;
   $('lb-more').textContent = lb.n === 10 ? 'Show top 25' : 'Show top 10';
@@ -754,8 +787,11 @@ function renderGoalies() {
   rows.forEach((g, i) => {
     const y = top + i * rowH, v = g.gsaa, x0 = x(0), x1 = x(v);
     svg += `<text x="${left - 36}" y="${y + 15}" text-anchor="end" font-size="12.5" style="fill:var(--text)">${esc(g.name)}</text>`;
-    svg += `<rect x="${left - 30}" y="${y + 3}" width="26" height="16" rx="4" style="fill:${tColor(g.team)}"/>`;
-    svg += `<text x="${left - 17}" y="${y + 14.5}" text-anchor="middle" font-size="8.5" font-weight="700" style="fill:${(TC[g.team] || [0, '#fff'])[1]}">${esc(g.team)}</text>`;
+    // Colour badge stays hidden under the logo and only shows if the logo fails to load
+    const badge = `<g ${LOGOS[g.team] ? 'style="opacity:0"' : ''}><rect x="${left - 30}" y="${y + 3}" width="26" height="16" rx="4" style="fill:${tColor(g.team)}"/>` +
+      `<text x="${left - 17}" y="${y + 14.5}" text-anchor="middle" font-size="8.5" font-weight="700" style="fill:${(TC[g.team] || [0, '#fff'])[1]}">${esc(g.team)}</text></g>`;
+    svg += badge;
+    if (LOGOS[g.team]) svg += `<image href="${esc(LOGOS[g.team])}" x="${left - 29}" y="${y + 1}" width="20" height="20" preserveAspectRatio="xMidYMid meet" onerror="this.previousElementSibling.style.opacity=1;this.remove()"/>`;
     svg += `<rect x="${Math.min(x0, x1)}" y="${y + 4}" width="${Math.max(1, Math.abs(x1 - x0))}" height="${rowH - 8}" rx="3" style="fill:${v >= 0 ? 'var(--accent)' : 'var(--bad)'}"><title>${esc(g.name)}: ${v.toFixed(1)} GSAA, ${g.svp.toFixed(2)}% SV, ${g.gpi} GP</title></rect>`;
     svg += `<text x="${v >= 0 ? x1 + 5 : x1 - 5}" y="${y + 15}" text-anchor="${v >= 0 ? 'start' : 'end'}" font-size="11.5" font-weight="600" style="fill:var(--muted)">${v > 0 ? '+' : ''}${v.toFixed(1)}</text>`;
   });

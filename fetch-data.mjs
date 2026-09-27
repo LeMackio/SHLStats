@@ -1,6 +1,6 @@
 // Pulls SHL data from shl.se's public API and builds the site into ./site.
 // Run: node fetch-data.mjs
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const API = 'https://www.shl.se/api';
 
@@ -42,9 +42,14 @@ if (SEASONS.length < 2) throw new Error('Could not find two SHL seasons with sch
 const [cur, prev] = SEASONS;
 
 // ---------- games ----------
+// Team logos are linked from the SHL's image server, not copied into the site.
+const logos = {};
 const teams = {};
 const games = cur.sched.gameInfo.map((g) => {
-  for (const t of [g.homeTeamInfo, g.awayTeamInfo]) teams[t.code] ??= { code: t.code, name: t.names.long || t.names.full };
+  for (const t of [g.homeTeamInfo, g.awayTeamInfo]) {
+    teams[t.code] ??= { code: t.code, name: t.names.long || t.names.full };
+    if (t.icon) logos[t.code] ??= t.icon;
+  }
   return {
     id: g.uuid, start: g.startDateTime, state: g.state, ot: g.overtime, so: g.shootout,
     home: g.homeTeamInfo.code, away: g.awayTeamInfo.code,
@@ -54,7 +59,10 @@ const games = cur.sched.gameInfo.map((g) => {
 // Last season's results seed the team-strength priors for the projection model.
 const prevTeams = {};
 const prevGames = prev.sched.gameInfo.filter((g) => g.state === 'post-game').map((g) => {
-  for (const t of [g.homeTeamInfo, g.awayTeamInfo]) prevTeams[t.code] ??= { code: t.code, name: t.names.long || t.names.full };
+  for (const t of [g.homeTeamInfo, g.awayTeamInfo]) {
+    prevTeams[t.code] ??= { code: t.code, name: t.names.long || t.names.full };
+    if (t.icon) logos[t.code] ??= t.icon;
+  }
   return { home: g.homeTeamInfo.code, away: g.awayTeamInfo.code, hs: g.homeTeamInfo.score, as: g.awayTeamInfo.score };
 });
 
@@ -73,13 +81,15 @@ const statsModule = async (mod, s) => {
   const [r] = await get(`/statistics-v2/stats-info/${mod}?count=1000&ssgtUuid=${s.ssgt}&provider=statnet&state=${s.state}&moduleType=summary`);
   return r?.stats ?? [];
 };
-const skaterRow = (r) => ({
+const mediaOf = {}; // player id → portrait media string
+const noteMedia = (r) => { mediaOf[r.info.uuid] ??= r.info.playerMedia?.mediaString; return r; };
+const skaterRow = (r) => (noteMedia(r), {
   id: r.info.uuid, name: r.info.fullName, num: r.info.number, pos: r.info.position,
   born: r.info.birthDate, nat: r.info.nationality, team: r.info.teamCode,
   gp: r.GP, g: r.G, a: r.A, pts: r.TP, pim: r.PIM, ppg: r.PPG, gwg: r.GWG,
   sog: r.SOG, hits: r.Hits, blk: r.BkS, pm: r.PlusMinus, toi: toSec(r.TOI_GP),
 });
-const goalieRow = (r) => ({
+const goalieRow = (r) => (noteMedia(r), {
   id: r.info.uuid, name: r.info.fullName, num: r.info.number, born: r.info.birthDate,
   nat: r.info.nationality, team: r.info.teamCode,
   gpi: r.GPI, sv: r.SVS, ga: r.GA, svp: parseFloat(r.SVSPerc) || 0, gaa: parseFloat(r.GAA) || 0,
@@ -93,10 +103,40 @@ for (const s of SEASONS) {
   };
 }
 
+// ---------- headshots ----------
+// The SHL image service returns signed, resized links. Resolving them costs one
+// API call per player, so results are cached in cache/headshots.json (kept
+// between GitHub Actions runs) and only new players are looked up.
+const CACHE = 'cache/headshots.json';
+const cache = existsSync(CACHE) ? JSON.parse(readFileSync(CACHE, 'utf8')) : {};
+const pickSize = (srcset, want) => {
+  const set = (srcset || '').split(/,\s*(?=https)/).map((s) => {
+    const t = s.trim(), i = t.lastIndexOf(' ');
+    return { w: parseInt(t.slice(i + 1)), url: t.slice(0, i) };
+  }).filter((x) => x.w);
+  return set.find((x) => x.w >= want)?.url;
+};
+const resolveHeadshot = async (ms) => {
+  const r = await get(`/media/render?mediaString=${encodeURIComponent(ms)}&isCroppingEnabled=false`);
+  const sm = pickSize(r.srcset, 100), lg = pickSize(r.srcset, 280);
+  return sm && lg ? [sm, lg] : null;
+};
+const todo = [...new Set(Object.values(mediaOf).filter((ms) => ms && !(ms in cache)))];
+let failed = 0;
+for (let i = 0; i < todo.length; i += 6) {
+  await Promise.all(todo.slice(i, i + 6).map(async (ms) => {
+    try { cache[ms] = await resolveHeadshot(ms); } catch { failed++; }
+  }));
+}
+mkdirSync('cache', { recursive: true });
+writeFileSync(CACHE, JSON.stringify(cache));
+const headshots = {};
+for (const [id, ms] of Object.entries(mediaOf)) if (ms && cache[ms]) headshots[id] = cache[ms];
+
 // ---------- build ----------
 const data = {
   updated: new Date().toISOString(), seasonOrder: [cur.label, prev.label],
-  teams, prevTeams, games, prevGames, standings, seasons,
+  teams, prevTeams, logos, headshots, games, prevGames, standings, seasons,
 };
 const dataJs = 'window.SHL_DATA = ' + JSON.stringify(data).replace(/</g, '\\u003c') + ';';
 const page = readFileSync('template.html', 'utf8').replace('/*__DATA__*/', () => dataJs);
@@ -108,5 +148,6 @@ writeFileSync('site/index.html',
 writeFileSync('site/.nojekyll', '');
 
 console.log(`Built site/index.html · seasons ${SEASONS.map((s) => `${s.label} (${s.state})`).join(', ')} · ` +
-  `${games.length} games · ` +
+  `${games.length} games · ${Object.keys(logos).length} logos · ` +
+  `${Object.keys(headshots).length} headshots (${todo.length} looked up, ${failed} failed) · ` +
   Object.entries(seasons).map(([k, v]) => `${k}: ${v.skaters.length} skaters, ${v.goalies.length} goalies`).join('; '));
