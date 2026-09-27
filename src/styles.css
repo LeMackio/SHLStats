@@ -879,3 +879,58 @@ header.top { top: env(safe-area-inset-top, 0px); }
 .smap-who .lfeat-meta { margin-top: 6px; }
 .smap .tiles .tile { flex-basis: 110px; }
 @media (max-width: 900px) { .smap { grid-template-columns: minmax(0, 1fr); } }
+
+/* =====================================================================
+   Overview top: SHL news carousel, your team (or a team picker), article page
+   ===================================================================== */
+.newshero .mday-grid { min-height: 340px; }
+.news { position: relative; border-radius: var(--radius) 0 0 var(--radius); overflow: hidden; background: var(--bg-2); min-height: 340px; }
+.news-empty { display: grid; place-items: center; color: var(--muted); }
+.nslides { position: absolute; inset: 0; }
+.nslide { position: absolute; inset: 0; display: block; color: #fff; text-decoration: none !important; opacity: 0; transition: opacity .6s ease; pointer-events: none; }
+.nslide.on { opacity: 1; pointer-events: auto; }
+.nslide img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 7s ease; }
+.nslide.on img { transform: scale(1.04); }
+.nslide-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8, 11, 16, .05) 20%, rgba(8, 11, 16, .82) 78%); }
+.nslide-text { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px 24px 54px; display: grid; gap: 8px; }
+.nslide-meta { font: 700 12.5px var(--display); letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
+.nslide-text b { font: 700 30px/1.08 var(--display); text-wrap: balance; max-width: 30ch; }
+.nslide-intro { font-size: 15px; line-height: 1.45; opacity: .9; max-width: 62ch; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.nslide:hover b { text-decoration: underline; text-underline-offset: 4px; }
+.nctrl { position: absolute; left: 20px; bottom: 16px; display: flex; align-items: center; gap: 6px; z-index: 2; }
+.ndot { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 999px; background: rgba(255, 255, 255, .45); cursor: pointer; transition: width .25s, background .25s; }
+.ndot.on { width: 24px; background: #fff; }
+.nnav { width: 30px; height: 30px; border: 0; border-radius: 50%; background: rgba(8, 11, 16, .45); color: #fff; font-size: 18px; line-height: 1; cursor: pointer; }
+.nnav:hover { background: rgba(8, 11, 16, .7); }
+.mini-games { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mini-game { display: grid; gap: 6px; padding: 10px; border-radius: 12px; background: var(--panel-2); color: var(--text); text-decoration: none !important; }
+a.mini-game:hover { box-shadow: inset 0 0 0 1px var(--accent); }
+.mg-teams { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.mg-teams b { font: 700 20px var(--display); }
+.mg-sub { font-size: 13px; color: var(--muted); }
+.narticle { overflow: hidden; }
+.narticle-img { width: 100%; max-height: 460px; object-fit: cover; display: block; }
+.narticle-body { padding: 24px 26px 26px; display: grid; gap: 14px; max-width: 760px; }
+.narticle-body h1 { margin: 0; font: 700 36px/1.08 var(--display); text-wrap: balance; }
+.narticle-intro { margin: 0; font-size: 18px; line-height: 1.55; color: var(--text); }
+.narticle-body .btn { justify-self: start; }
+.nlist { display: grid; gap: 10px; }
+.nitem { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; align-items: center; color: var(--text); text-decoration: none !important; padding: 6px; border-radius: 12px; }
+.nitem:hover { background: var(--panel-2); }
+.nitem img { width: 120px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; }
+.nitem b { display: block; font: 700 17px/1.2 var(--display); }
+@media (max-width: 900px) { .news { border-radius: var(--radius) var(--radius) 0 0; } }
+@media (max-width: 700px) {
+  .news, .newshero .mday-grid { min-height: 300px; }
+  .nslide-text { padding: 16px 16px 50px; }
+  .nslide-text b { font-size: 24px; }
+  .nslide-meta { font-size: 13px; }
+  .nnav { width: 38px; height: 38px; }
+  .ndot { width: 10px; height: 10px; }
+  .narticle-body { padding: 18px 16px 20px; }
+  .narticle-body h1 { font-size: 28px; }
+  .narticle-intro { font-size: 17px; }
+  .nitem { grid-template-columns: 96px minmax(0, 1fr); }
+  .nitem img { width: 96px; }
+}
+@media (prefers-reduced-motion: reduce) { .nslide, .nslide img, .ndot { transition: none; } .nslide.on img { transform: none; } }

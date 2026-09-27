@@ -639,58 +639,32 @@ function setTitle(t) { document.title = t ? `${t} · SHLstats` : 'SHLstats'; }
 const render = (html) => { app.innerHTML = html; layoutBoards(); countUp(app); };
 
 /* ---------- Översikt ---------- */
-// The hero game: your team's next (or live) game when you follow a team; otherwise a live game,
-// or the closest and strongest matchup of the next game day
-function pickFeatured() {
-  if (FAV) {
-    const mine = GAMES.find((g) => !isFinal(g) && (g.home === FAV || g.away === FAV));
-    if (mine) return { g: mine, kicker: isLive(mine) ? 'Mitt lag spelar nu' : 'Mitt lags nästa match' };
-  }
-  const live = GAMES.filter(isLive);
-  if (live.length) return { g: live[0], kicker: 'Pågår nu' };
-  const up = GAMES.filter((g) => !isFinal(g));
-  if (!up.length) return null;
-  const date = up[0].start.slice(0, 10);
-  const strength = (c) => SIM[c]?.top6 ?? 0;
-  const interest = (g) => (1 - Math.abs((g.ph ?? 0.5) - 0.5) * 2) + (strength(g.home) + strength(g.away)) / 2;
-  const g = up.filter((x) => x.start.slice(0, 10) === date).sort((a, b) => interest(b) - interest(a))[0];
-  return { g, kicker: date === todayStr() ? 'Kvällens match' : 'Nästa toppmatch' };
-}
-const countdownTxt = (g) => {
-  if (!g) return '';
-  if (isLive(g)) return 'Live';
-  if (isFinal(g)) return 'Slut';
-  const ms = stockholmEpoch(g.start) - Date.now();
-  if (ms <= 0) return 'Nedsläpp strax';
-  const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
-  return 'Nedsläpp om ' + (d ? `${d} d ${h} h` : h ? `${h} h ${mm} min` : `${mm} min`);
-};
-// Top of the overview: the featured game on the left, your team (or a team picker) on the right
-// Only shown when you follow a team; first-time visitors go straight to the table and stats
-function matchdayHero() {
+// Top of the overview: SHL news rotating on the left; your team (or a team picker) on the right
+const safeUrl = (u) => { try { const x = new URL(u); return x.protocol === 'https:' ? x.href : null; } catch { return null; } };
+function newsHero() {
+  const news = D.news || [];
   const fav = FAV && SIM[FAV] ? FAV : null;
-  if (!fav) return '';
-  const f = pickFeatured();
-  const g = f?.g, live = g && isLive(g);
-  const rec = (c) => { const r = TABLE.find((t) => t.code === c); return r ? `Plats ${TABLE.indexOf(r) + 1} · ${r.pts} p` : ''; };
-  const game = g ? `<div class="band">
-      <div class="mday-top"><span class="kicker">${f.kicker}</span><span class="count" id="hero-count" data-gid="${g.id}">${countdownTxt(g)}</span></div>
-      <div class="mhead">
-        <a class="mteam home" href="#/lag/${g.home}">${tb(g.home, 'xl')}<b>${esc(tName(g.home))}</b><span>${rec(g.home)}</span></a>
-        <div class="mscore">${live ? `<div class="sc">${g.hs ?? 0}–${g.as ?? 0}</div><div class="st">Pågår</div>`
-          : `<div class="sc sm">${fmtTime(g.start)}</div><div class="st">${fmtDay(g.start)}</div>${oddsBar(g.ph ?? 0.5)}`}</div>
-        <a class="mteam away" href="#/lag/${g.away}">${tb(g.away, 'xl')}<b>${esc(tName(g.away))}</b><span>${rec(g.away)}</span></a>
-      </div>
-      <div class="mday-actions">
-        <a class="btn" href="#/match/${g.id}">${icon('grid')}${live ? 'Följ matchen' : 'Förhandstips'}</a>
-        <a class="btn ghost" href="#/match/${g.id}/uppstallning">${icon('users')}Uppställningar</a>
-        <a class="btn ghost" href="#/match/${g.id}/inbordes">${icon('swap')}Inbördes</a>
-      </div>
-    </div>`
-    : `<div class="band"><div class="mday-top"><span class="kicker">Mitt lag</span></div><p class="mday-empty">Inga fler matcher i grundserien.</p></div>`;
+  const slides = news.map((n, i) => `<a class="nslide ${i === 0 ? 'on' : ''}" href="#/nyheter/${encodeURIComponent(n.id)}" data-i="${i}" ${i ? 'aria-hidden="true" tabindex="-1"' : ''}>
+      ${n.img ? `<img src="${esc(n.img)}" alt="" ${i ? 'loading="lazy"' : ''}>` : ''}
+      <span class="nslide-shade"></span>
+      <span class="nslide-text"><span class="nslide-meta">${n.label ? `${esc(n.label)} · ` : ''}${fmtDay(n.date)}</span><b>${esc(n.title)}</b><span class="nslide-intro">${esc(n.intro)}</span></span>
+    </a>`).join('');
+  const newsBox = news.length
+    ? `<div class="news" id="news" aria-roledescription="karusell" aria-label="Senaste nyheterna från SHL"><div class="nslides">${slides}</div>
+        <div class="nctrl"><button class="nnav" data-d="-1" aria-label="Föregående nyhet">‹</button>${news.map((_, i) => `<button class="ndot ${i === 0 ? 'on' : ''}" data-i="${i}" aria-label="Nyhet ${i + 1}"></button>`).join('')}<button class="nnav" data-d="1" aria-label="Nästa nyhet">›</button></div></div>`
+    : '<div class="news news-empty"><p>Inga nyheter just nu.</p></div>';
+  return `<section class="panel mday newshero"><div class="mday-grid">${newsBox}${fav ? myTeamSide(fav) : pickerSide()}</div></section>`;
+}
+function myTeamSide(fav) {
   const r = TABLE.find((t) => t.code === fav), s = SIM[fav];
+  const next = GAMES.find((x) => !isFinal(x) && (x.home === fav || x.away === fav));
   const last = [...GAMES].reverse().find((x) => isFinal(x) && (x.home === fav || x.away === fav));
-  const side = `<div class="mday-side">
+  const mini = (g, lbl) => g
+    ? `<a class="mini-game" href="#/match/${g.id}"><span class="mini-lbl">${lbl}</span>
+        <span class="mg-teams">${tb(g.home, 'md')}<b class="num">${isFinal(g) ? `${g.hs}–${g.as}` : fmtTime(g.start)}</b>${tb(g.away, 'md')}</span>
+        <span class="mg-sub">${fmtDay(g.start)}${isFinal(g) && (g.ot || g.so) ? ' · ÖT' : ''}</span></a>`
+    : `<div class="mini-game"><span class="mini-lbl">${lbl}</span><span class="mg-sub">Ingen match</span></div>`;
+  return `<div class="mday-side">
       <span class="mini-lbl">Mitt lag</span>
       <a class="mday-teamname" href="#/lag/${fav}">${tb(fav, 'lg')}<span><b>${esc(tName(fav))}</b><small>Plats ${TABLE.indexOf(r) + 1} · ${r.pts} poäng · ${r.gp} matcher</small></span></a>
       ${formChips(fav)}
@@ -700,12 +674,70 @@ function matchdayHero() {
         <div><b>${oddsTxt(s.gold)}</b><span>SM-guld</span></div>
         <div><b>${dec(s.proj, 0)}</b><span>Proj. poäng</span></div>
       </div>
-      ${last ? `<a class="mday-last" href="#/match/${last.id}"><span class="mini-lbl">Senaste match</span>${tb(last.home)} ${esc(last.home)} <b>${last.hs}–${last.as}</b> ${esc(last.away)} ${tb(last.away)}</a>` : ''}
+      <div class="mini-games">${mini(last, 'Senaste match')}${mini(next, 'Nästa match')}</div>
       <button class="linkbtn" data-fav="${fav}">Sluta följa ${esc(fav)}</button>
     </div>`;
-  return `<section class="panel mday" style="--hc:${tColor(g?.home || fav)};--ac:${tColor(g?.away || fav)}"><div class="mday-grid">${game}${side}</div></section>`;
 }
-let heroTimer = null;
+function pickerSide() {
+  return `<div class="mday-side">
+      <span class="mini-lbl">Följ ditt lag</span>
+      <p class="muted" style="margin:0;font-size:14px">Välj ett lag så visas dess tabellplats, odds och matcher här, och lagets matcher lyfts fram över hela sajten.</p>
+      <div class="pickteams sm">${[...CODES].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => `<button data-fav="${c}" title="Följ ${esc(tName(c))}" aria-label="Följ ${esc(tName(c))}">${tb(c, 'md')}</button>`).join('')}</div>
+    </div>`;
+}
+// Rotates the news every 7 seconds; pauses while you hover or focus it; arrows, dots and swipe
+let newsTimer = null;
+function setupNewsCarousel() {
+  clearInterval(newsTimer);
+  const box = $('news'); if (!box) return;
+  const slides = [...box.querySelectorAll('.nslide')], dots = [...box.querySelectorAll('.ndot')];
+  if (slides.length < 2) return;
+  let i = 0, paused = false;
+  const go = (n) => {
+    i = (n + slides.length) % slides.length;
+    slides.forEach((s, k) => { s.classList.toggle('on', k === i); s.setAttribute('aria-hidden', k !== i); s.tabIndex = k === i ? 0 : -1; });
+    dots.forEach((d, k) => d.classList.toggle('on', k === i));
+  };
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduce) newsTimer = setInterval(() => { if (!paused && document.visibilityState === 'visible') go(i + 1); }, 7000);
+  box.addEventListener('mouseenter', () => { paused = true; });
+  box.addEventListener('mouseleave', () => { paused = false; });
+  box.addEventListener('focusin', () => { paused = true; });
+  box.addEventListener('focusout', () => { paused = false; });
+  box.querySelector('.nctrl').onclick = (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.d) go(i + Number(b.dataset.d)); else go(Number(b.dataset.i));
+  };
+  let x0 = null;
+  box.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  box.addEventListener('touchend', (e) => {
+    if (x0 == null) return;
+    const dx = e.changedTouches[0].clientX - x0; x0 = null;
+    if (Math.abs(dx) > 40) { go(i + (dx < 0 ? 1 : -1)); paused = true; }
+  });
+}
+// A news item on this site: headline, image and the SHL's own intro, with the full article on shl.se
+function pageNews(id) {
+  const n = (D.news || []).find((x) => x.id === id);
+  if (!n) return notFound('Nyheten finns inte längre bland de senaste nyheterna.');
+  setTitle(n.title);
+  const url = safeUrl(n.url);
+  const others = (D.news || []).filter((x) => x.id !== id);
+  render(`<div class="crumbs"><a href="#/">Översikt</a> / Nyheter</div>
+    <article class="panel narticle">
+      ${n.img ? `<img class="narticle-img" src="${esc(n.img)}" alt="">` : ''}
+      <div class="narticle-body">
+        <span class="mini-lbl">${n.label ? `${esc(n.label)} · ` : ''}${fmtDay(n.date)} ${dateParts(n.date).y}</span>
+        <h1>${esc(n.title)}</h1>
+        <p class="narticle-intro">${esc(n.intro)}</p>
+        ${url ? `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Läs hela artikeln på shl.se ↗</a>` : ''}
+        <p class="note">Artikeln är skriven av SHL och publiceras på shl.se.</p>
+      </div>
+    </article>
+    ${others.length ? panel('Fler nyheter', `<div class="nlist">${others.map((o) => `<a class="nitem" href="#/nyheter/${encodeURIComponent(o.id)}">
+      ${o.img ? `<img src="${esc(o.img)}" alt="" loading="lazy">` : '<span></span>'}<span><span class="mini-lbl">${fmtDay(o.date)}</span><b>${esc(o.title)}</b></span></a>`).join('')}</div>`) : ''}`);
+}
+
 function pageOverview() {
   setTitle('');
   const today = todayStr();
@@ -732,7 +764,7 @@ function pageOverview() {
   const section = (ic, title) => `<h2 class="section-title">${icon(ic)}${title}</h2>`;
 
   render(`
-    ${matchdayHero()}
+    ${newsHero()}
     ${section('table', 'Tabell')}
     ${row('r-leaders', [
       panel('Tabell', `<div id="ov-table">${standingsTable({ mode: tableMode })}</div>${legendHtml}`,
@@ -798,13 +830,7 @@ function pageOverview() {
   $('card-picks').onclick = (e) => { const b = e.target.closest('button'); if (b) show(CARD.get(b.dataset.id)); };
   bindSearch($('card-search'), $('card-results'), (it) => show(CARD.get(it.id)), (it) => it.type === 'p' && CARD.has(it.id));
   if (picks[0]) show(picks[0]);
-  // Keep the hero countdown current while the overview is open
-  clearInterval(heroTimer);
-  heroTimer = setInterval(() => {
-    const el = $('hero-count');
-    if (!el) { clearInterval(heroTimer); return; }
-    el.textContent = countdownTxt(GAMES_BY_ID[el.dataset.gid]);
-  }, 30000);
+  setupNewsCarousel();
 }
 
 /* ---------- Matcher ---------- */
@@ -1741,7 +1767,7 @@ function notFound(msg) {
    ===================================================================== */
 const ROUTES = [
   [/^\/?$/, pageOverview], [/^\/matcher(?:\/([^/]+))?$/, pageGames], [/^\/match\/([^/]+)(?:\/([^/]+))?$/, pageMatch], [/^\/tabell(?:\/([^/]+))?$/, pageTable],
-  [/^\/statistik$/, pageStats], [/^\/spelare\/([^/]+)(?:\/([^/]+))?$/, pagePlayer], [/^\/avancerat$/, pageEdge],
+  [/^\/statistik$/, pageStats], [/^\/spelare\/([^/]+)(?:\/([^/]+))?$/, pagePlayer], [/^\/avancerat$/, pageEdge], [/^\/nyheter\/([^/]+)$/, pageNews],
   [/^\/lag$/, () => pageTable('')], // old link to the teams page, now the Tabell page
   [/^\/lag\/([^/]+)(?:\/([^/]+))?$/, pageTeam],
 ];
@@ -1756,6 +1782,7 @@ async function route() {
     if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
   document.body.classList.remove('search-open');
+  clearInterval(newsTimer); // the news carousel only runs on the overview
   // Switching tabs within the same page keeps the scroll position near the tabs
   const samePage = lastPath && path.split('/').slice(0, 3).join('/') === lastPath.split('/').slice(0, 3).join('/');
   const keepY = samePage ? window.scrollY : 0;

@@ -353,6 +353,29 @@ await inBatches(todo, 6, async (ms) => {
 writeJson(HS_CACHE, hsCache);
 for (const [id, ms] of Object.entries(mediaOf)) if (!headshots[id] && hsCache[ms]) headshots[id] = hsCache[ms];
 
+// ---------- SHL news ----------
+// The 5 latest items from shl.se's news list: headline, the SHL's own short intro, image and date.
+// The site links to the full article on shl.se instead of copying it.
+const NEWS_IMG_CACHE = 'cache/news-images.json';
+const newsImgCache = readJson(NEWS_IMG_CACHE, {});
+let news = [];
+try {
+  const list = await get('/articles/site-news/list?page=0');
+  news = (list?.data?.articleItems || []).filter((a) => a.header && !a.metadata?.isLocked).slice(0, 5).map((a) => ({
+    id: a.id, title: a.header.trim(), intro: (a.introRawText || a.intro || '').trim(), date: a.publishedAt,
+    label: a.metadata?.label || '', ms: Array.isArray(a.mainMedia) ? a.mainMedia[0]?.mediaString : a.mainMedia,
+    url: a.externalUrl || `https://www.shl.se/article/${a.id}/view`,
+  }));
+  await inBatches(news.filter((n) => n.ms && !(n.ms in newsImgCache)), 3, async (n) => {
+    try {
+      const r = await get(`/media/render?mediaString=${encodeURIComponent(n.ms)}&isCroppingEnabled=false`);
+      newsImgCache[n.ms] = pickSize(r.srcset, 1200) || r.url || null;
+    } catch { newsImgCache[n.ms] = null; }
+  });
+  writeJson(NEWS_IMG_CACHE, newsImgCache);
+  news = news.map(({ ms, ...n }) => ({ ...n, img: (ms && newsImgCache[ms]) || null }));
+} catch (e) { console.warn('news failed', e.message); }
+
 // ---------- aggregates from game details ----------
 const teamStats = Object.fromEntries(codes.map((c) => [c, { gp: 0, gf: 0, ga: 0, sog: 0, sa: 0, ppg: 0, ppo: 0, ppga: 0, pko: 0, shg: 0, fow: 0, fol: 0, hits: 0, blk: 0, pim: 0 }]));
 const gamelogs = {}, goalieLogs = {};
@@ -438,6 +461,7 @@ const core = {
   pastGames: SEASONS.slice(1).flatMap((s) => s.games.filter(isFinal).map((g) => [s.label, g.start.slice(0, 10), g.home, g.away, g.hs, g.as, g.ot || g.so ? 1 : 0])),
   recentClips: allClips.slice(0, 16),
   highlights,
+  news,
   // Site logo supplied by the owner in src/ (the page falls back to its built-in mark)
   logo: ['logo.svg', 'logo.png'].find((f) => existsSync(`src/${f}`)) || null,
 };
