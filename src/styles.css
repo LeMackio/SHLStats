@@ -51,11 +51,14 @@ img { max-width: 100%; }
 .faint { color: var(--faint); }
 .up { text-transform: uppercase; letter-spacing: .06em; }
 
-/* ---------- score strip: one card per game, the date sticks while its day scrolls ---------- */
-.strip { background: var(--bg-2); display: flex; align-items: stretch; position: relative; }
-.strip-btn { flex: 0 0 36px; background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 22px; z-index: 3; }
-.strip-btn:hover { color: var(--text); background: var(--panel); }
-.strip-track { flex: 1; display: flex; gap: 14px; overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none; cursor: grab; padding: 10px 0; }
+/* ---------- score strip: one card per game; cards fade out at the edges instead of being cut off ---------- */
+.strip { background: var(--bg-2); display: flex; align-items: center; gap: 8px; padding-right: 12px; }
+.strip-ctrl { flex: none; display: flex; align-items: center; gap: 4px; background: var(--panel); border-radius: 999px; padding: 3px; }
+.strip-btn { width: 30px; height: 30px; border-radius: 50%; background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 20px; line-height: 1; display: grid; place-items: center; }
+.strip-btn:hover { color: var(--text); background: var(--panel-2); }
+.strip-track { flex: 1; min-width: 0; display: flex; gap: 14px; overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none; cursor: grab; padding: 10px 24px;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 32px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 32px), transparent 100%); }
 .strip-track::-webkit-scrollbar { display: none; }
 .strip-track.dragging { cursor: grabbing; scroll-behavior: auto; }
 .strip-track.dragging a { pointer-events: none; }
@@ -456,7 +459,7 @@ tr.fav td.rank { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .teamtile, .clip .thumb img { transition: none; } }
 
 /* ---------- misc ---------- */
-.strip-today { flex: none; border: 0; border-right: 1px solid var(--line); background: var(--panel); color: var(--accent); cursor: pointer; font: 700 12.5px var(--display); letter-spacing: .08em; text-transform: uppercase; padding: 0 10px; }
+.strip-today { height: 30px; border: 0; border-radius: 999px; background: none; color: var(--accent); cursor: pointer; font: 700 12.5px var(--display); letter-spacing: .08em; text-transform: uppercase; padding: 0 10px; }
 .strip-today:hover { background: var(--panel-2); }
 .kbd { position: absolute; right: 8px; top: 50%; translate: 0 -50%; font: 600 11px var(--body); color: var(--faint); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; pointer-events: none; }
 .gsearch input:focus + .kbd, .gsearch input:not(:placeholder-shown) + .kbd { display: none; }
@@ -470,7 +473,10 @@ tr.fav td.rank { color: var(--accent); }
   .gsearch input { width: 100%; max-width: none; }
   .theme-toggle button { width: 26px; height: 24px; }
   .favlink span { display: none; }
-  .strip-today { padding: 0 6px; font-size: 11px; }
+  .strip { padding-right: 8px; }
+  .strip-track { padding: 8px 16px; gap: 10px; }
+  .s-game { flex-basis: 138px; }
+  .strip-btn { display: none; } /* swipe on phones; only "Idag" stays */
   .page-head h1 { font-size: 30px; }
   .hero h1 { font-size: 30px; }
 }
@@ -599,3 +605,63 @@ nav.main a .ic { width: 17px; height: 17px; opacity: .85; }
   .skel, .s-status.live::before { animation: none; }
   .s-game, .grow, .teamtile { transition: none; }
 }
+
+/* =====================================================================
+   Overview layout: fixed rows where every card in a row has the same height
+   ===================================================================== */
+.panel .p-body { flex: 1; }
+.ov-row { display: grid; gap: 20px; align-items: stretch; animation: rise .45s cubic-bezier(.2, .7, .2, 1) both; }
+.ov-row > .panel { min-width: 0; }
+.r-leaders { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr); }
+.r-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.r-one { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 1180px) {
+  .r-leaders { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .r-leaders > :first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  .r-leaders, .r-two { grid-template-columns: minmax(0, 1fr); }
+}
+/* Top-10 lists stretch their rows to match the height of the table next to them */
+.fill { height: 100%; }
+.fill ol.lb { height: 100%; grid-auto-rows: 1fr; }
+ol.lb .n small { display: block; font-size: 12px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25; }
+ol.lb .n a { font-weight: 600; }
+table.t.compact td, table.t.compact th { padding-block: 7px; }
+table.t.compact th:nth-child(2), table.t.compact td:nth-child(2) { padding-left: 4px; }
+@media (max-width: 600px) { .hide-sm { display: none; } }
+.clips.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1180px) { .clips.six { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .clips.six { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.p-foot { justify-content: space-between; align-items: center; }
+
+/* Hero: the featured game on the left, your team on the right */
+.mday-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); }
+.mday .band { border-radius: var(--radius) 0 0 var(--radius); display: flex; flex-direction: column; justify-content: space-between; }
+.mday .mhead { padding: 10px 22px 8px; }
+.mday-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 4px 22px 20px; justify-content: center; }
+.band .btn { background: #fff; color: #10151c; }
+.band .btn.ghost { background: rgba(255, 255, 255, .14); color: #fff; }
+.band .btn.ghost:hover { background: rgba(255, 255, 255, .24); }
+.mday-empty { color: rgba(255, 255, 255, .8); padding: 30px 22px; margin: 0; }
+.mday-side { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; justify-content: center; }
+.mday-teamname { display: flex; align-items: center; gap: 12px; color: var(--text); text-decoration: none !important; }
+.mday-teamname b { display: block; font: 700 22px/1.05 var(--display); text-transform: uppercase; }
+.mday-teamname small { color: var(--muted); font-size: 13px; }
+.mday-teamname:hover b { color: var(--accent); }
+.mday-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.mday-stats div { background: var(--panel-2); border-radius: 10px; padding: 8px 10px; display: grid; }
+.mday-stats b { font: 700 22px/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.mday-stats span { font: 600 11.5px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mday-last { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--text); font-size: 14px; text-decoration: none !important; }
+.mday-last .mini-lbl { flex-basis: 100%; }
+.mday-last:hover b { color: var(--accent); }
+.linkbtn { all: unset; cursor: pointer; font-size: 13px; color: var(--faint); align-self: flex-start; }
+.linkbtn:hover { color: var(--text); text-decoration: underline; }
+.pickteams.sm { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
+.pickteams.sm button { padding: 6px; }
+@media (max-width: 900px) {
+  .mday-grid { grid-template-columns: minmax(0, 1fr); }
+  .mday .band { border-radius: var(--radius) var(--radius) 0 0; }
+}
+@media (prefers-reduced-motion: reduce) { .ov-row { animation: none; } }

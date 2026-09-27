@@ -431,7 +431,7 @@ function renderStrip() {
   const toToday = (smooth) => {
     const anchor = $('strip-anchor'); if (!anchor) return;
     track.style.scrollBehavior = smooth ? 'smooth' : 'auto';
-    track.scrollLeft = Math.max(0, anchor.offsetLeft - track.offsetLeft - 8);
+    track.scrollLeft = Math.max(0, anchor.offsetLeft - track.offsetLeft - 20);
     track.style.scrollBehavior = '';
   };
   toToday(false);
@@ -545,7 +545,7 @@ function standingsTable({ mode = 'full' } = {}) {
   const zone = (r) => r <= 6 ? 'var(--accent)' : r <= 10 ? 'color-mix(in srgb, var(--accent) 60%, var(--muted))' : r >= 13 ? 'var(--bad)' : 'var(--faint)';
   const shade = (p, color = 'var(--accent)') => p <= 0.005 ? '' : `background:color-mix(in srgb, ${color} ${Math.round(8 + p * 62)}%, transparent)`;
   const head = {
-    stats: `<th class="rank">#</th><th class="l">Lag</th><th>SM</th><th>V</th><th>ÖV</th><th>ÖF</th><th>F</th><th>GM–IM</th><th>+/-</th><th>P</th>`,
+    stats: `<th class="rank">#</th><th class="l">Lag</th><th>SM</th><th>V</th><th class="hide-sm">ÖV</th><th class="hide-sm">ÖF</th><th>F</th><th class="hide-sm">GM–IM</th><th>+/-</th><th>P</th>`,
     proj: `<th class="rank">#</th><th class="l">Lag</th><th>P</th><th>Proj.<small>poäng</small></th><th>Topp 6</th><th>Slutspel<small>topp 10</small></th><th>SHL-kval</th><th>Guld</th>`,
     full: `<th class="rank">#</th><th class="l">Lag</th><th>SM</th><th>V</th><th>ÖV</th><th>ÖF</th><th>F</th><th>GM–IM</th><th>P</th><th>Takt<small>52 matcher</small></th><th>Proj.<small>poäng</small></th>
        <th>Topp 6<small>direkt KF</small></th><th>Slutspel<small>topp 10</small></th><th>SHL-kval<small>plats 13–14</small></th><th>SM-guld</th>`,
@@ -558,14 +558,14 @@ function standingsTable({ mode = 'full' } = {}) {
     const gold = `<td class="odds"><span style="${shade(Math.min(1, s.gold * 3), 'var(--gold)')}">${oddsTxt(s.gold)}</span></td>`;
     const cls = [[6, 10, 12].includes(i) ? 'cut' : '', r.code === FAV ? 'fav' : ''].join(' ');
     const cells = {
-      stats: `<td>${r.gp}</td><td>${r.w}</td><td>${r.otw}</td><td>${r.otl}</td><td>${r.l}</td><td>${r.gf}–${r.ga}</td><td>${signed(r.gf - r.ga)}</td><td><b>${r.pts}</b></td>`,
+      stats: `<td>${r.gp}</td><td>${r.w}</td><td class="hide-sm">${r.otw}</td><td class="hide-sm">${r.otl}</td><td>${r.l}</td><td class="hide-sm">${r.gf}–${r.ga}</td><td>${signed(r.gf - r.ga)}</td><td><b>${r.pts}</b></td>`,
       proj: `<td><b>${r.pts}</b></td><td>${Math.round(s.proj)}</td>${odds(s.top6)}${odds(s.top10)}${odds(s.rel, 'var(--bad)')}${gold}`,
       full: `<td>${r.gp}</td><td>${r.w}</td><td>${r.otw}</td><td>${r.otl}</td><td>${r.l}</td><td>${r.gf}–${r.ga}</td><td><b>${r.pts}</b></td><td>${pace}</td><td><b>${Math.round(s.proj)}</b></td>
          ${odds(s.top6)}${odds(s.top10)}${odds(s.rel, 'var(--bad)')}${gold}`,
     }[mode];
     return `<tr class="${cls}"><td class="rank" style="--zone:${zone(rank)}">${rank}</td>${team}${cells}</tr>`;
   }).join('');
-  return `<div class="tscroll"><table class="t" style="min-width:${compact ? 460 : 900}px"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="tscroll"><table class="t ${compact ? 'compact' : ''}" style="min-width:${compact ? 300 : 900}px"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 const legendHtml = `<div class="legend"><span><i style="background:var(--accent)"></i>Kvartsfinal (1–6)</span><span><i style="background:color-mix(in srgb, var(--accent) 60%, var(--muted))"></i>Play in (7–10)</span><span><i style="background:var(--bad)"></i>SHL-kval (13–14)</span></div>`;
 
@@ -582,9 +582,9 @@ function gameRow(g, { dated = false } = {}) {
 }
 const gameList = (games, opts) => `<div class="day">${games.map((g) => gameRow(g, opts)).join('')}</div>`;
 
-function leaderList(rows, { val, fmt = (v) => v, team = (r) => r.team, n = 10 }) {
+function leaderList(rows, { val, fmt = (v) => v, team = (r) => r.team, n = 10, sub = null }) {
   if (!rows.length) return '<p class="empty-state">Ingen statistik ännu.</p>';
-  return `<ol class="lb">${rows.slice(0, n).map((r, i) => `<li><span class="r num">${i + 1}.</span>${tb(team(r))}${avatar(r.id, r.name, team(r))}<span class="n">${pLink(r.id, r.name)}</span><span class="v">${fmt(val(r))}</span></li>`).join('')}</ol>`;
+  return `<ol class="lb">${rows.slice(0, n).map((r, i) => `<li><span class="r num">${i + 1}.</span>${tb(team(r))}${avatar(r.id, r.name, team(r))}<span class="n">${pLink(r.id, r.name)}${sub ? `<small>${sub(r)}</small>` : ''}</span><span class="v">${fmt(val(r))}</span></li>`).join('')}</ol>`;
 }
 function leaderTile(title, rows, { val, fmt = (v) => v, n = 5 }) {
   if (!rows.length) return `<div class="ltile"><h3>${title}</h3><span class="faint">Inga spelare ännu.</span></div>`;
@@ -629,33 +629,12 @@ function setTitle(t) { document.title = t ? `${t} · SHLstats` : 'SHLstats'; }
 const render = (html) => { app.innerHTML = html; layoutBoards(); countUp(app); };
 
 /* ---------- Översikt ---------- */
-function myTeamPanel() {
-  if (!FAV || !SIM[FAV]) {
-    return panel('Välj ditt lag', `<p class="muted" style="margin:0">Följ ett lag så lyfts deras matcher och placering fram över hela sajten.</p>
-      <div class="pickteams">${[...CODES].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => `<button data-fav="${c}" title="${esc(tName(c))}">${tb(c, 'md')}${esc(c)}</button>`).join('')}</div>`);
-  }
-  const c = FAV, r = TABLE.find((t) => t.code === c), s = SIM[c];
-  const next = GAMES.find((g) => !isFinal(g) && (g.home === c || g.away === c));
-  const last = [...GAMES].reverse().find((g) => isFinal(g) && (g.home === c || g.away === c));
-  return panel('', `<div class="myteam" style="--tc:${tColor(c)}">
-      <div class="row">${tb(c, 'lg')}<div style="flex:1"><span class="mini-lbl">Mitt lag</span><h3><a href="#/lag/${c}">${esc(tName(c))}</a></h3>
-        <span class="muted">Plats ${TABLE.indexOf(r) + 1} · ${r.pts} poäng · ${r.gp} matcher</span></div>${formChips(c)}</div>
-      <div class="tiles">
-        <div class="tile"><span class="k">Slutspel</span><span class="v">${oddsTxt(s.top10)}</span></div>
-        <div class="tile"><span class="k">Topp 6</span><span class="v">${oddsTxt(s.top6)}</span></div>
-        <div class="tile"><span class="k">SM-guld</span><span class="v">${oddsTxt(s.gold)}</span></div>
-        <div class="tile"><span class="k">Proj. poäng</span><span class="v">${dec(s.proj, 0)}</span></div>
-      </div>
-      ${!next ? '<p class="empty-state">Inga fler matcher i grundserien.</p>' : ''}
-      ${last ? `<div><span class="mini-lbl">Senaste match · ${fmtDay(last.start)}</span>${gameList([last])}</div>` : ''}
-    </div>`, { foot: `<button class="more" data-fav="${c}">Sluta följa</button>` });
-}
 // The hero game: your team's next (or live) game when you follow a team; otherwise a live game,
 // or the closest and strongest matchup of the next game day
 function pickFeatured() {
   if (FAV) {
     const mine = GAMES.find((g) => !isFinal(g) && (g.home === FAV || g.away === FAV));
-    if (mine) return { g: mine, kicker: isLive(mine) ? 'Mitt lag spelar nu' : `Mitt lags nästa match` };
+    if (mine) return { g: mine, kicker: isLive(mine) ? 'Mitt lag spelar nu' : 'Mitt lags nästa match' };
   }
   const live = GAMES.filter(isLive);
   if (live.length) return { g: live[0], kicker: 'Pågår nu' };
@@ -676,13 +655,14 @@ const countdownTxt = (g) => {
   const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
   return 'Nedsläpp om ' + (d ? `${d} d ${h} h` : h ? `${h} h ${mm} min` : `${mm} min`);
 };
+// Top of the overview: the featured game on the left, your team (or a team picker) on the right
 function matchdayHero() {
   const f = pickFeatured();
-  if (!f) return '';
-  const { g } = f, live = isLive(g);
+  const fav = FAV && SIM[FAV] ? FAV : null;
+  if (!f && !fav) return '';
+  const g = f?.g, live = g && isLive(g);
   const rec = (c) => { const r = TABLE.find((t) => t.code === c); return r ? `Plats ${TABLE.indexOf(r) + 1} · ${r.pts} p` : ''; };
-  return `<section class="panel mday wide" style="--hc:${tColor(g.home)};--ac:${tColor(g.away)}">
-    <div class="band">
+  const game = g ? `<div class="band">
       <div class="mday-top"><span class="kicker">${f.kicker}</span><span class="count" id="hero-count" data-gid="${g.id}">${countdownTxt(g)}</span></div>
       <div class="mhead">
         <a class="mteam home" href="#/lag/${g.home}">${tb(g.home, 'xl')}<b>${esc(tName(g.home))}</b><span>${rec(g.home)}</span></a>
@@ -690,64 +670,95 @@ function matchdayHero() {
           : `<div class="sc sm">${fmtTime(g.start)}</div><div class="st">${fmtDay(g.start)}</div>${oddsBar(g.ph ?? 0.5)}`}</div>
         <a class="mteam away" href="#/lag/${g.away}">${tb(g.away, 'xl')}<b>${esc(tName(g.away))}</b><span>${rec(g.away)}</span></a>
       </div>
-    </div>
-    <div class="mday-foot">
-      <a class="btn" href="#/match/${g.id}">${icon('grid')}${live ? 'Följ matchen' : 'Förhandstips'}</a>
-      <a class="btn ghost" href="#/match/${g.id}/uppstallning">${icon('users')}Uppställningar</a>
-      <a class="btn ghost" href="#/match/${g.id}/inbordes">${icon('swap')}Inbördes möten</a>
-    </div>
-  </section>`;
+      <div class="mday-actions">
+        <a class="btn" href="#/match/${g.id}">${icon('grid')}${live ? 'Följ matchen' : 'Förhandstips'}</a>
+        <a class="btn ghost" href="#/match/${g.id}/uppstallning">${icon('users')}Uppställningar</a>
+        <a class="btn ghost" href="#/match/${g.id}/inbordes">${icon('swap')}Inbördes</a>
+      </div>
+    </div>`
+    : `<div class="band"><div class="mday-top"><span class="kicker">Mitt lag</span></div><p class="mday-empty">Inga fler matcher i grundserien.</p></div>`;
+  let side;
+  if (fav) {
+    const r = TABLE.find((t) => t.code === fav), s = SIM[fav];
+    const last = [...GAMES].reverse().find((x) => isFinal(x) && (x.home === fav || x.away === fav));
+    side = `<div class="mday-side">
+      <span class="mini-lbl">Mitt lag</span>
+      <a class="mday-teamname" href="#/lag/${fav}">${tb(fav, 'lg')}<span><b>${esc(tName(fav))}</b><small>Plats ${TABLE.indexOf(r) + 1} · ${r.pts} poäng · ${r.gp} matcher</small></span></a>
+      ${formChips(fav)}
+      <div class="mday-stats">
+        <div><b>${oddsTxt(s.top10)}</b><span>Slutspel</span></div>
+        <div><b>${oddsTxt(s.top6)}</b><span>Topp 6</span></div>
+        <div><b>${oddsTxt(s.gold)}</b><span>SM-guld</span></div>
+        <div><b>${dec(s.proj, 0)}</b><span>Proj. poäng</span></div>
+      </div>
+      ${last ? `<a class="mday-last" href="#/match/${last.id}"><span class="mini-lbl">Senaste match</span>${tb(last.home)} ${esc(last.home)} <b>${last.hs}–${last.as}</b> ${esc(last.away)} ${tb(last.away)}</a>` : ''}
+      <button class="linkbtn" data-fav="${fav}">Sluta följa ${esc(fav)}</button>
+    </div>`;
+  } else {
+    side = `<div class="mday-side">
+      <span class="mini-lbl">Följ ditt lag</span>
+      <p class="muted" style="margin:0;font-size:14px">Välj ett lag så visas dess nästa match här högst upp, och lagets matcher lyfts fram över hela sajten.</p>
+      <div class="pickteams sm">${[...CODES].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => `<button data-fav="${c}" title="Följ ${esc(tName(c))}" aria-label="Följ ${esc(tName(c))}">${tb(c, 'md')}</button>`).join('')}</div>
+    </div>`;
+  }
+  return `<section class="panel mday" style="--hc:${tColor(g?.home || fav)};--ac:${tColor(g?.away || fav)}"><div class="mday-grid">${game}${side}</div></section>`;
 }
 let heroTimer = null;
 function pageOverview() {
   setTitle('');
   const today = todayStr();
   const upcoming = GAMES.filter((g) => !isFinal(g));
-  const nextDate = upcoming[0]?.start.slice(0, 10);
-  const nextGames = upcoming.filter((g) => g.start.slice(0, 10) === nextDate);
   const finals = GAMES.filter(isFinal);
   const lastDate = finals[finals.length - 1]?.start.slice(0, 10);
   const lastGames = finals.filter((g) => g.start.slice(0, 10) === lastDate);
+  // Upcoming games by day, whole days only, until the card roughly matches the results card beside it
+  const comingDays = [];
+  for (const g of upcoming) {
+    const d = g.start.slice(0, 10), last = comingDays[comingDays.length - 1];
+    if (last && last[0] === d) last[1].push(g);
+    else if (sum(comingDays.map((x) => x[1].length)) < Math.max(lastGames.length, 5)) comingDays.push([d, [g]]);
+    else break;
+  }
   const gmin = goalieMinGp(CUR);
   const gold = CODES.map((c) => ({ label: tName(c), code: c, v: SIM[c].gold })).sort((a, b) => b.v - a.v);
   const race = CODES.map((c) => ({ label: tName(c), code: c, v: SIM[c].top10 })).sort((a, b) => b.v - a.v);
   const hls = (D.highlights || []).slice(0, 6);
   const seg = (id, opts, on) => `<div class="seg" id="${id}">${opts.map(([v, l]) => `<button data-v="${v}" aria-pressed="${v === on}">${l}</button>`).join('')}</div>`;
   const tableMode = store.get('shlstats-ovtable') === 'proj' ? 'proj' : 'stats';
+  // Rows of cards; cards in the same row always share the same height
+  const row = (cls, items) => `<div class="ov-row ${cls}">${items.filter(Boolean).join('')}</div>`;
+  const section = (ic, title) => `<h2 class="section-title">${icon(ic)}${title}</h2>`;
 
-  // Sections in a fixed order: table and league leaders, games, predictions, players
   render(`
-    <div class="page-head"><div><h1>SHL ${CUR.replace('-', '/')}</h1><p>Tabell, statistik, målvideor och slutspelsodds för hela SHL, uppdaterat flera gånger per dag.</p></div></div>
-    <h2 class="section-title">${icon('table')}Tabell & ligaledare</h2>
-    ${board([
+    ${matchdayHero()}
+    ${section('table', 'Tabell & ligaledare')}
+    ${row('r-leaders', [
       panel('Tabell', `<div id="ov-table">${standingsTable({ mode: tableMode })}</div>${legendHtml}`,
         { more: seg('ov-table-mode', [['stats', 'Tabell'], ['proj', 'Prognos']], tableMode), foot: `${moreLink('#/tabell', 'Hela tabellen')}<span class="stamp">Uppdaterad ${esc(stampTxt)}</span>` }),
-      panel('Utespelare', '<div id="ov-sk"></div>', { more: seg('ov-sk-stat', [['pts', 'Poäng'], ['g', 'Mål'], ['a', 'Assist']], 'pts'), foot: moreLink('#/statistik', 'All spelarstatistik') }),
-      panel('Målvakter', '<div id="ov-gk"></div>', { more: seg('ov-gk-stat', [['svp', 'Rädd%'], ['gaa', 'GAA'], ['gsaa', 'GSAA']], 'svp'),
-        sub: `Minst ${gmin} matcher. GSAA = räddade mål över snittet.`, foot: moreLink('#/statistik', 'Alla målvakter') }),
+      panel('Utespelare', '<div id="ov-sk" class="fill"></div>', { more: seg('ov-sk-stat', [['pts', 'Poäng'], ['g', 'Mål'], ['a', 'Assist']], 'pts'), foot: moreLink('#/statistik', 'All spelarstatistik') }),
+      panel('Målvakter', '<div id="ov-gk" class="fill"></div>', { more: seg('ov-gk-stat', [['svp', 'Rädd%'], ['gaa', 'GAA'], ['gsaa', 'GSAA']], 'svp'),
+        foot: `${moreLink('#/statistik', 'Alla målvakter')}<span class="stamp">Minst ${gmin} matcher</span>` }),
     ])}
-    <h2 class="section-title">${icon('calendar')}Matcher</h2>
-    ${board([
-      matchdayHero(),
-      myTeamPanel(),
-      panel(nextDate === today ? 'Dagens matcher' : 'Nästa matchdag', nextGames.length ? `<div class="day"><h3>${fmtDay(nextDate)}</h3>${nextGames.map((g) => gameRow(g)).join('')}</div>` : '<p class="empty-state">Inga fler matcher i grundserien.</p>',
-        { more: moreLink('#/matcher', 'Alla matcher'), sub: 'Vinstchanser från SHLstats-modellen.' }),
+    ${section('calendar', 'Matcher')}
+    ${row('r-two', [
+      panel('Kommande matcher', comingDays.length ? comingDays.map(([d, gs]) => `<div class="day"><h3>${d === today ? 'Idag' : fmtDay(d)}</h3>${gs.map((g) => gameRow(g)).join('')}</div>`).join('') : '<p class="empty-state">Inga fler matcher i grundserien.</p>',
+        { more: moreLink('#/matcher', 'Alla matcher') }),
       panel('Senaste resultat', lastGames.length ? `<div class="day"><h3>${fmtDay(lastDate)}</h3>${lastGames.map((g) => gameRow(g)).join('')}</div>` : '<p class="empty-state">Inga spelade matcher ännu.</p>',
         { more: moreLink('#/matcher/spelade', 'Alla resultat') }),
-      hls.length ? panel('Matchsammandrag', `<div class="clips">${hls.map((h) => clipCard(h, `${esc(h.home)} ${h.hs}–${h.as} ${esc(h.away)}`, fmtDay(h.date))).join('')}</div>`) : '',
     ])}
-    <h2 class="section-title">${icon('chart')}Prognos</h2>
-    ${board([
+    ${hls.length ? row('r-one', [panel('Matchsammandrag', `<div class="clips six">${hls.map((h) => clipCard(h, `${esc(h.home)} ${h.hs}–${h.as} ${esc(h.away)}`, fmtDay(h.date))).join('')}</div>`)]) : ''}
+    ${section('chart', 'Prognos')}
+    ${row('r-two', [
       panel('Slutspelsstrecket', `<div class="chart">${hBars(race, { max: 1, labelW: 140, logos: true, color: (it) => it.v >= 0.5 ? 'var(--accent)' : 'var(--bad)' })}</div>`, { sub: 'Chans att sluta topp 10 och nå slutspel.' }),
-      panel('Chans till SM-guld', `<div class="chart">${hBars(gold, { labelW: 140, logos: true })}</div>`, { more: moreLink('#/tabell', 'Alla odds') }),
+      panel('Chans till SM-guld', `<div class="chart">${hBars(gold, { labelW: 140, logos: true })}</div>`, { sub: 'Andel av 10 000 simuleringar där laget vinner SM-finalen.', more: moreLink('#/tabell', 'Alla odds') }),
     ])}
-    <h2 class="section-title">${icon('user')}Spelare</h2>
-    ${board([
+    ${section('user', 'Spelare')}
+    ${row('r-two', [
       `<section class="panel"><div class="p-head"><h2>Spelarkort</h2><p class="p-sub">Percentiler från ett viktat urval av två säsonger.</p></div>
         <div class="p-body"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
           <input id="card-search" type="search" placeholder="Sök utespelare" autocomplete="off" aria-label="Sök utespelare"><div class="results" id="card-results" hidden></div></div>
           <div class="chips" id="card-picks"></div><div id="card-slot"></div></div></section>`,
-      panel('Målvakter: räddade mål över snittet', `<div class="chart">${gsaaChart(CUR)}</div>`, { sub: `Räddningar jämfört med en genomsnittlig SHL-målvakt på samma skott (${CUR}).`, more: moreLink('#/statistik', 'Mer') }),
+      panel('Räddade mål över snittet', `<div class="chart">${gsaaChart(CUR)}</div>`, { sub: `Målvakternas räddningar jämfört med en genomsnittlig SHL-målvakt på samma skott (${CUR}).`, more: moreLink('#/statistik', 'Mer') }),
     ])}`);
 
   // Toggles: table vs. predictions, and the stat shown in each top-10 list
@@ -759,7 +770,7 @@ function pageOverview() {
   const SK_OPTS = { pts: [(p) => p.pts * 1000 + p.g, (p) => p.pts], g: [(p) => p.g * 1000 + p.pts, (p) => p.g], a: [(p) => p.a * 1000 + p.pts, (p) => p.a] };
   const drawSk = (k) => {
     const [order, val] = SK_OPTS[k];
-    $('ov-sk').innerHTML = leaderList([...skaters()].sort((a, b) => order(b) - order(a)), { val });
+    $('ov-sk').innerHTML = leaderList([...skaters()].sort((a, b) => order(b) - order(a)), { val, sub: (p) => `${esc(tName(p.team))} · ${p.g}+${p.a} på ${p.gp} matcher` });
   };
   const GK_OPTS = {
     svp: [(g) => g.svp, (g) => dec(g.svp, 2)],
@@ -768,7 +779,8 @@ function pageOverview() {
   };
   const drawGk = (k) => {
     const [order, fmt] = GK_OPTS[k];
-    $('ov-gk').innerHTML = leaderList(goalies().filter((g) => g.gpi >= gmin).sort((a, b) => order(b) - order(a)), { val: (g) => g, fmt });
+    $('ov-gk').innerHTML = leaderList(goalies().filter((g) => g.gpi >= gmin).sort((a, b) => order(b) - order(a)),
+      { val: (g) => g, fmt, sub: (g) => `${esc(tName(g.team))} · ${g.gpi} matcher` });
   };
   bindSeg('ov-sk-stat', drawSk); bindSeg('ov-gk-stat', drawGk);
   drawSk('pts'); drawGk('svp');
