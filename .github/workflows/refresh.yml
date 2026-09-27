@@ -29,6 +29,13 @@ jobs:
         with:
           node-version: 22
 
+      # Keeps resolved headshot links between runs so only new players are looked up
+      - uses: actions/cache@v4
+        with:
+          path: cache
+          key: headshots-${{ github.run_id }}
+          restore-keys: headshots-
+
       - name: Fetch SHL data and build site
         run: node fetch-data.mjs
 
