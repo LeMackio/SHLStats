@@ -12,7 +12,8 @@ import { buildRatings, simulate, winProb } from './model.mjs';
 import { processShots, trainXG, zoneOf } from './edge.mjs';
 
 const API = 'https://www.shl.se/api';
-const N_SEASONS = 5; // current + 4 previous, for career stats, past standings and head-to-head
+const N_SEASONS = 5;      // current + 4 previous: past standings, head-to-head and team history
+const MAX_CAREER = 25;    // player careers go back as far as shl.se has stats (at most this many seasons)
 const CODE_FIX = { 'ÖRE': 'OHK', 'SKE': 'SAIK' }; // standings use different codes than the schedule
 const fix = (c) => CODE_FIX[c] || c;
 
@@ -102,12 +103,16 @@ async function loadSeason(s) {
   return season;
 }
 
-const SEASONS = [];
+// Every season shl.se has stats for (finished seasons are cached, so this is a one-time download).
+// The site's tables and history use the latest N_SEASONS; player careers use all of them.
+const ALL_SEASONS = [];
 for (const s of [...filter.season].sort((a, b) => b.code - a.code)) {
-  if (SEASONS.length === N_SEASONS) break;
-  const season = await loadSeason(s);
-  if (season) SEASONS.push(season);
+  if (ALL_SEASONS.length === MAX_CAREER) break;
+  let season = null;
+  try { season = await loadSeason(s); } catch (e) { console.warn('season failed', s.code, e.message); }
+  if (season && (ALL_SEASONS.length < 2 || season.skaters.length)) ALL_SEASONS.push(season);
 }
+const SEASONS = ALL_SEASONS.slice(0, N_SEASONS);
 if (SEASONS.length < 2) throw new Error('Could not find two SHL seasons with schedules');
 const [cur, prev] = SEASONS;
 const codes = Object.keys(cur.teams);
@@ -296,10 +301,28 @@ const prevPlayed = prev.games.filter(isFinal);
 const model = buildRatings(prevPlayed, played, codes);
 const remaining = cur.games.filter((g) => !isFinal(g));
 const sim = simulate(model, cur.standings, remaining, codes, 10000);
+// Arenas: played games have theirs in the play-by-play; games in the next three weeks are looked up
+// once via game-info (cached); anything further ahead uses the home team's usual arena.
+const ARENA_CACHE = 'cache/arenas.json';
+const arenaCache = readJson(ARENA_CACHE, {});
+for (const d of Object.values(gameDetails)) if (d.arena) arenaCache[d.id] = d.arena;
+const soon = Date.now() + 21 * 864e5;
+await inBatches(cur.games.filter((g) => !isFinal(g) && !arenaCache[g.id] && gameTime(g) < soon), 4, async (g) => {
+  try { const r = await get(`/sports-v2/game-info/${g.id}`); if (r?.gameInfo?.arenaName) arenaCache[g.id] = r.gameInfo.arenaName; } catch {}
+});
+writeJson(ARENA_CACHE, arenaCache);
+const homeArena = {}; // most common known arena for each team's home games
+for (const g of cur.games) {
+  const a = arenaCache[g.id]; if (!a) continue;
+  const m = (homeArena[g.home] ??= {}); m[a] = (m[a] || 0) + 1;
+}
+const usualArena = (code) => Object.entries(homeArena[code] || {}).sort((a, b) => b[1] - a[1])[0]?.[0];
+
 const games = cur.games.map((g) => ({
   ...g,
   ph: isFinal(g) ? undefined : Math.round(winProb(model, g.home, g.away) * 1000) / 1000,
   hv: videos[g.id]?.hl || videos[g.id]?.clips.length ? 1 : undefined, // game has video
+  arena: arenaCache[g.id] || usualArena(g.home) || undefined,
 }));
 
 // Odds history: one entry per day, updated only when new results have come in
@@ -412,14 +435,19 @@ for (const d of detailsByDate) {
 
 // ---------- career rows across the loaded seasons ----------
 const career = {}, goalieCareer = {};
-for (const s of SEASONS) {
-  for (const p of s.skaters) (career[p.id] ??= []).push([s.label, p.team, p.gp, p.g, p.a, p.pts, p.pm, p.pim, p.sog, p.toi, p.ppg]);
-  for (const p of s.goalies) (goalieCareer[p.id] ??= []).push([s.label, p.team, p.gpi, p.sv, p.ga, p.svp, p.gaa, p.so, p.w_, p.l, Math.round(p.mins)]);
+// Older seasons often lack player IDs; match those rows to the player's ID by name and birth date
+const idByNameBorn = new Map();
+for (const s of ALL_SEASONS) for (const p of [...s.skaters, ...s.goalies]) if (p.id && p.born) idByNameBorn.set(`${norm(p.name)}|${p.born}`, p.id);
+const pidOf = (p) => p.id || (p.born ? idByNameBorn.get(`${norm(p.name)}|${p.born}`) : null) || null;
+for (const s of ALL_SEASONS) {
+  for (const p of s.skaters) { const id = pidOf(p); if (id) (career[id] ??= []).push([s.label, p.team, p.gp, p.g, p.a, p.pts, p.pm, p.pim, p.sog, p.toi, p.ppg]); }
+  for (const p of s.goalies) { const id = pidOf(p); if (id) (goalieCareer[id] ??= []).push([s.label, p.team, p.gpi, p.sv, p.ga, p.svp, p.gaa, p.so, p.w_, p.l, Math.round(p.mins)]); }
 }
 // Bio for everyone in the loaded seasons (newest season wins)
 const bios = {};
-for (const s of [...SEASONS].reverse()) for (const p of [...s.skaters, ...s.goalies]) {
-  bios[p.id] = { name: p.name, num: p.num, pos: p.pos, born: p.born, nat: p.nat, team: p.team, h: p.h, w: p.w, last: s.label };
+for (const s of [...ALL_SEASONS].reverse()) for (const p of [...s.skaters, ...s.goalies]) {
+  const id = pidOf(p); if (!id) continue;
+  bios[id] = { name: p.name, num: p.num, pos: p.pos, born: p.born, nat: p.nat, team: p.team, h: p.h, w: p.w, last: s.label };
 }
 
 // ---------- goal clip index ----------
@@ -441,7 +469,7 @@ const highlights = detailsByDate.filter((d) => videos[d.id]?.hl).reverse().slice
 // ---------- write site ----------
 const strip = (rows) => rows.map(({ ms, ...r }) => r);
 // Rookies: no SHL games in the earlier loaded seasons, and at most 25 when the season starts
-const seenBefore = new Set(SEASONS.slice(1).flatMap((s) => [...s.skaters, ...s.goalies].map((p) => p.id)));
+const seenBefore = new Set(ALL_SEASONS.slice(1).flatMap((s) => [...s.skaters, ...s.goalies].map((p) => p.id)));
 const seasonStartYear = Number(cur.code);
 const markRookies = (rows) => rows.map((p) => {
   const age = p.born ? seasonStartYear - Number(p.born.slice(0, 4)) : 99;
@@ -488,7 +516,7 @@ writeFileSync('site/.nojekyll', '');
 const rosterIds = new Set(Object.values(rosters).flat().map((p) => p.id));
 const matched = cur.skaters.filter((p) => rosterIds.has(p.id)).length;
 console.log([
-  `Seasons: ${SEASONS.map((s) => `${s.label} (${s.state})`).join(', ')}`,
+  `Seasons: ${SEASONS.map((s) => `${s.label} (${s.state})`).join(', ')}; careers from ${ALL_SEASONS.length} seasons (${ALL_SEASONS[ALL_SEASONS.length - 1].label} onwards)`,
   `Games: ${games.length}, played ${played.length}, details ${Object.keys(gameDetails).length} (${toFetch.length} fetched, ${gameFails} failed)`,
   `Videos: ${Object.keys(videos).length} games, ${allClips.length} goal clips, ${highlights.length} highlight packages (${vidFails} failed)`,
   `Headshots: ${Object.keys(headshots).length} (${todo.length} looked up, ${hsFails} failed); roster ids matching stats: ${matched}/${cur.skaters.length}`,
