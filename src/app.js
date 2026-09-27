@@ -415,8 +415,8 @@ function renderStrip() {
   let html = '';
   for (const d of dates) {
     const p = dateParts(d);
-    // Each day is its own group, so its date label sticks to the left while that day's games scroll past
-    html += `<div class="s-day" ${d === anchorDate ? 'id="strip-anchor"' : ''}><div class="s-date ${d === today ? 'today' : ''}"><b>${d === today ? 'idag' : DAYS[p.wd]}</b><span>${p.d}</span><b>${MONTHS[p.m - 1]}</b></div>`;
+    // Dates and games are siblings in one flat row, each with a fixed width, so nothing can be squeezed
+    html += `<div class="s-date ${d === today ? 'today' : ''}" ${d === anchorDate ? 'id="strip-anchor"' : ''}><b>${d === today ? 'idag' : DAYS[p.wd]}</b><span>${p.d}</span><b>${MONTHS[p.m - 1]}</b></div>`;
     for (const g of byDate.get(d).sort((a, b) => a.start.localeCompare(b.start))) {
       const done = isFinal(g), live = isLive(g), fav = FAV && (g.home === FAV || g.away === FAV);
       const row = (c, right, loser) => `<div class="s-row${loser ? ' loser' : ''}">${tb(c)}<span class="code">${esc(c)}</span>${right}</div>`;
@@ -427,7 +427,6 @@ function renderStrip() {
         ? row(g.away, sc(g.as ?? ''), done && g.as < g.hs) + row(g.home, sc(g.hs ?? ''), done && g.hs < g.as)
         : row(g.away, pill(1 - g.ph)) + row(g.home, pill(g.ph))}</a>`;
     }
-    html += '</div>';
   }
   track.innerHTML = html;
   const toToday = (smooth) => {

@@ -62,23 +62,25 @@ img { max-width: 100%; }
 .strip-track::-webkit-scrollbar { display: none; }
 .strip-track.dragging { cursor: grabbing; scroll-behavior: auto; }
 .strip-track.dragging a { pointer-events: none; }
-.s-day { display: flex; gap: 8px; flex: none; }
-.s-date { flex: 0 0 50px; display: grid; place-content: center; text-align: center; user-select: none; }
+/* Every item in the bar has a fixed width and can never shrink, in any browser */
+.strip-track > * { flex: 0 0 auto; }
+.s-date { width: 50px; min-width: 50px; margin-left: 10px; display: grid; place-content: center; text-align: center; user-select: none; overflow: hidden; }
+.s-date:first-child { margin-left: 0; }
 .s-date b { font: 600 11px var(--display); letter-spacing: .1em; color: var(--muted); text-transform: uppercase; }
 .s-date span { font: 700 24px/1.05 var(--display); }
 .s-date.today b { color: var(--accent); }
 .s-date.today span { color: var(--accent); }
-.s-game { flex: 0 0 158px; padding: 8px 10px; border-radius: 12px; background: var(--panel); display: grid; gap: 4px; color: var(--text);
-  text-decoration: none !important; user-select: none; transition: background .15s, transform .15s; }
-.s-game:hover { background: var(--panel-2); transform: translateY(-1px); }
+.s-game { width: 158px; min-width: 158px; padding: 8px 10px; border-radius: 12px; background: var(--panel); display: grid; gap: 4px; color: var(--text);
+  text-decoration: none !important; user-select: none; transition: background .15s; overflow: hidden; }
+.s-game:hover { background: var(--panel-2); }
 .s-status { display: flex; align-items: center; justify-content: space-between; font: 600 11px var(--display); letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
 .s-status.live { color: var(--bad); }
 .s-status.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--bad); animation: pulse 1.4s ease-in-out infinite; margin-right: 6px; }
 .s-status .star { color: var(--accent); }
 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
-.s-row { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 8px; }
+.s-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; }
 .s-row .tb { width: 26px; height: 26px; }
-.s-row .code { font: 700 15px var(--display); letter-spacing: .02em; }
+.s-row .code { font: 700 15px var(--display); letter-spacing: .02em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .s-row.loser .code, .s-row.loser .score { color: var(--faint); }
 .score { font: 700 19px var(--display); min-width: 12px; text-align: right; font-variant-numeric: tabular-nums; }
 .wp { font: 600 12px var(--display); padding: 1px 6px; border-radius: 5px; min-width: 38px; text-align: center; }
@@ -475,7 +477,7 @@ tr.fav td.rank { color: var(--accent); }
   .favlink span { display: none; }
   .strip { padding-right: 8px; }
   .strip-track { padding: 8px 16px; gap: 10px; }
-  .s-game { flex-basis: 138px; }
+  .s-game { width: 138px; min-width: 138px; }
   .strip-btn { display: none; } /* swipe on phones; only "Idag" stays */
   .page-head h1 { font-size: 30px; }
   .hero h1 { font-size: 30px; }
