@@ -10,7 +10,7 @@
 // Setup: Cloudflare dashboard → Workers & Pages → Create → Worker → paste this file → Deploy.
 
 const API = 'https://www.shl.se/api';
-const SITES = ['https://lemackio.github.io', 'http://localhost:4323'];
+const SITES = ['https://shlstats.net', 'https://www.shlstats.net', 'https://lemackio.github.io', 'http://localhost:4323'];
 const ID = /^[A-Za-z0-9-]{4,40}$/;
 
 const upstream = async (path, ttl) => {

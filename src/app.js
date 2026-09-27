@@ -146,7 +146,11 @@ async function loadLive(id, maxAge = 15000) {
   try {
     const r = await fetch(`${LIVE_API}/game/${encodeURIComponent(id)}`);
     if (!r.ok) throw new Error(r.status);
-    LIVE[id] = { at: Date.now(), data: await r.json() };
+    const data = await r.json();
+    // The feed calls the shootout period "shootout"; use 5 like the rest of the site
+    const per = (p) => typeof p === 'number' ? p : /shoot/i.test(String(p)) ? 5 : Number(p) || null;
+    data.p = per(data.p); for (const e of data.events || []) e.p = per(e.p) || 0;
+    LIVE[id] = { at: Date.now(), data };
   } catch { /* keep the last answer if there is one */ }
   return LIVE[id]?.data ?? null;
 }
@@ -875,14 +879,6 @@ function pageOverview() {
     ${row('r-two', [
       panel('Slutspelsstrecket', `<div class="chart">${hBars(race, { max: 1, labelW: 140, logos: true, color: (it) => it.v >= 0.5 ? 'var(--accent)' : 'var(--bad)' })}</div>`, { sub: 'Chans att sluta topp 10 och nå slutspel.' }),
       panel('Chans till SM-guld', `<div class="chart">${hBars(gold, { labelW: 140, logos: true })}</div>`, { sub: 'Andel av 10 000 simuleringar där laget vinner SM-finalen.', more: moreLink('#/tabell', 'Alla odds') }),
-    ])}
-    ${section('user', 'Spelare')}
-    ${row('r-two', [
-      `<section class="panel"><div class="p-head"><h2>Spelarkort</h2><p class="p-sub">Percentiler från ett viktat urval av två säsonger.</p></div>
-        <div class="p-body"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input id="card-search" type="search" placeholder="Sök spelare" autocomplete="off" aria-label="Sök spelare"><div class="results" id="card-results" hidden></div></div>
-          <div class="chips" id="card-picks"></div><div id="card-slot"></div></div></section>`,
-      panel('Räddade mål över snittet', `<div class="chart">${gsaaChart(CUR)}</div>`, { sub: `Målvakternas räddningar jämfört med en genomsnittlig SHL-målvakt på samma skott (${CUR}).`, more: moreLink('#/statistik', 'Mer') }),
     ])}`);
 
   // Toggles: table vs. predictions, and the stat shown in each top-10 list
@@ -908,18 +904,6 @@ function pageOverview() {
   };
   bindSeg('ov-sk-stat', drawSk); bindSeg('ov-gk-stat', drawGk);
   drawSk('pts'); drawGk('svp');
-
-  // Player card with quick picks and search
-  const eligible = [...CARD.values()].filter((x) => x.gp >= MIN_GP);
-  const top = (grp, n) => eligible.filter((x) => x.grp === grp).sort((a, b) => b.composite - a.composite).slice(0, n);
-  const picks = [...top('F', 4), ...top('D', 2)];
-  const show = (x) => {
-    $('card-slot').innerHTML = cardHtml(x);
-    $('card-picks').innerHTML = picks.map((p) => `<button class="chip" data-id="${esc(p.id)}" aria-pressed="${p.id === x.id}">${esc(p.name)}</button>`).join('');
-  };
-  $('card-picks').onclick = (e) => { const b = e.target.closest('button'); if (b) show(CARD.get(b.dataset.id)); };
-  bindSearch($('card-search'), $('card-results'), (it) => show(CARD.get(it.id)), (it) => it.type === 'p' && CARD.has(it.id));
-  if (picks[0]) show(picks[0]);
   setupNewsCarousel();
 }
 
@@ -1531,24 +1515,61 @@ function pageStats() {
 let EDGE = null;
 const loadEdge = async () => EDGE ??= await (await fetch(dataUrl('edge.json'))).json();
 
-// Half rink seen from above, goal on the left. Shots are drawn at their real spot, sized by xG.
-function halfRink(shots, { goalColor = 'var(--accent)', title = '' } = {}) {
-  const W = 560, H = 330, GX = 36, Y0 = H / 2; // 1 unit = 1 dm; the goal line sits at x = GX
-  const px = (x) => GX + x * 1.8, py = (y) => Y0 - y * 1.05;
-  const inRange = (s) => s.x >= -30 && s.x <= 270;
-  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title || 'Skottkarta')}">
-    <rect x="4" y="6" width="${W - 8}" height="${H - 12}" rx="70" style="fill:var(--panel-2);stroke:var(--line)" stroke-width="2"/>
-    <rect x="${W / 2}" y="4" width="${W / 2}" height="${H - 8}" style="fill:var(--panel-2)"/>
-    <line x1="${px(0)}" x2="${px(0)}" y1="22" y2="${H - 22}" style="stroke:color-mix(in srgb, var(--bad) 45%, transparent)" stroke-width="2"/>
-    <line x1="${px(172)}" x2="${px(172)}" y1="6" y2="${H - 6}" style="stroke:color-mix(in srgb, var(--accent) 55%, transparent)" stroke-width="5"/>
-    <path d="M${px(0)} ${py(18)} a${18 * 1.8} ${18 * 1.05} 0 0 1 0 ${36 * 1.05}" style="fill:color-mix(in srgb, var(--accent) 22%, transparent)"/>
-    <rect x="${px(0) - 12}" y="${py(9)}" width="12" height="${18 * 1.05}" rx="2" style="fill:none;stroke:var(--muted)" stroke-width="2"/>
-    ${[70, -70].map((y) => `<circle cx="${px(60)}" cy="${py(y)}" r="${45 * 1.05}" style="fill:none;stroke:var(--line)" stroke-width="2"/><circle cx="${px(60)}" cy="${py(y)}" r="3" style="fill:var(--line)"/>`).join('')}
-    <text x="${px(172) + 8}" y="${H - 14}" font-size="11" style="fill:var(--faint)">Blå linje</text>`;
-  // Saves first, goals on top
-  for (const s of shots.filter((x) => !x.g && inRange(x))) svg += `<circle cx="${px(s.x)}" cy="${py(s.y)}" r="${3 + s.xg * 16}" style="fill:var(--muted);fill-opacity:.28;stroke:var(--muted);stroke-opacity:.55" stroke-width="1"/>`;
-  for (const s of shots.filter((x) => x.g && inRange(x))) svg += `<circle cx="${px(s.x)}" cy="${py(s.y)}" r="${4 + s.xg * 16}" style="fill:${goalColor};stroke:var(--text)" stroke-width="1.6"><title>Mål, xG ${dec(s.xg, 2)}, ${dec(Math.hypot(s.x, s.y) / 10, 1)} m</title></circle>`;
-  return svg + '</svg>';
+// Half rink seen from above with the net at the top, drawn to scale (1 unit = 1 dm; x = distance out from
+// the goal line, y = sideways). Saves are small dots, goals glow and can be clicked. mode 'heat' shows
+// where the shots come from as a soft density map instead of dots.
+const RINK = { S: 1.9, pad: 12, xMin: -40, xMax: 230 };
+function shotRink(shots, { color = 'var(--accent)', mode = 'dots', sel = -1, title = 'Skottkarta' } = {}) {
+  const { S, pad, xMin, xMax } = RINK;
+  const W = pad * 2 + 300 * S, H = pad * 2 + (xMax - xMin) * S, cx = W / 2;
+  const X = (y) => cx - y * S, Y = (x) => pad + (x - xMin) * S;
+  const L = X(150), R = X(-150), top = Y(xMin), bot = Y(xMax), cr = 85 * S;
+  const boards = `M${L} ${bot} L${L} ${top + cr} A${cr} ${cr} 0 0 1 ${L + cr} ${top} L${R - cr} ${top} A${cr} ${cr} 0 0 1 ${R} ${top + cr} L${R} ${bot}`;
+  const inside = shots.filter((s) => s.x >= xMin && s.x <= xMax);
+  let svg = `<svg class="rink" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">
+    <defs><clipPath id="rink-clip"><path d="${boards} Z"/></clipPath>
+      <filter id="heat-blur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="${7 * S}"/></filter>
+      <radialGradient id="goal-glow"><stop offset="0" style="stop-color:${color};stop-opacity:.55"/><stop offset="1" style="stop-color:${color};stop-opacity:0"/></radialGradient></defs>
+    <path d="${boards} Z" class="rk-ice"/>
+    <g clip-path="url(#rink-clip)">
+      <path d="M${X(9)} ${Y(0)} L${X(70)} ${Y(60)} L${X(70)} ${Y(105)} L${X(-70)} ${Y(105)} L${X(-70)} ${Y(60)} L${X(-9)} ${Y(0)} Z" class="rk-slot"/>
+      <line x1="${L}" x2="${R}" y1="${Y(0)}" y2="${Y(0)}" class="rk-red"/>
+      <rect x="${L}" y="${Y(172)}" width="${R - L}" height="${3 * S}" class="rk-blue"/>
+      ${[70, -70].map((y) => `<circle cx="${X(y)}" cy="${Y(60)}" r="${45 * S}" class="rk-circle"/><circle cx="${X(y)}" cy="${Y(60)}" r="${3 * S}" class="rk-dot"/>
+        <path d="M${X(y) - 45 * S} ${Y(60) - 4 * S} h${-6 * S} M${X(y) - 45 * S} ${Y(60) + 4 * S} h${-6 * S} M${X(y) + 45 * S} ${Y(60) - 4 * S} h${6 * S} M${X(y) + 45 * S} ${Y(60) + 4 * S} h${6 * S}" class="rk-hash"/>`).join('')}
+      ${[70, -70].map((y) => `<circle cx="${X(y)}" cy="${Y(200)}" r="${3 * S}" class="rk-dot"/>`).join('')}
+    </g>
+    <path d="M${X(18)} ${Y(0)} A${18 * S} ${18 * S} 0 0 0 ${X(-18)} ${Y(0)} Z" class="rk-crease"/>
+    <rect x="${X(9.15)}" y="${Y(-11)}" width="${18.3 * S}" height="${11 * S}" rx="${3 * S}" class="rk-net"/>
+    <path d="${boards}" class="rk-boards"/>
+    <text x="${R - 8}" y="${Y(172) - 8}" text-anchor="end" class="rk-lbl">Blå linje</text>`;
+  if (mode === 'heat') {
+    // Density: shots counted in 12 dm cells, drawn as blurred blobs
+    const cell = 12, grid = new Map();
+    for (const s of inside) { const k = `${Math.round(s.x / cell)}|${Math.round(s.y / cell)}`; grid.set(k, (grid.get(k) || 0) + 1 + s.xg * 4); }
+    const mx = Math.max(1, ...grid.values());
+    svg += `<g filter="url(#heat-blur)" clip-path="url(#rink-clip)" class="rk-heat">${[...grid].map(([k, v]) => {
+      const [gx, gy] = k.split('|').map(Number);
+      return `<circle cx="${X(gy * cell)}" cy="${Y(gx * cell)}" r="${cell * S * 1.15}" style="fill:${color};fill-opacity:${Math.min(0.95, 0.12 + (v / mx) * 0.85)}"/>`;
+    }).join('')}</g>`;
+  }
+  // Saves first, goals on top; each marker fades in with a small stagger
+  inside.forEach((s, i) => {
+    if (s.g) return;
+    if (mode === 'heat') return;
+    svg += `<circle cx="${X(s.y)}" cy="${Y(s.x)}" r="${2.6 + s.xg * 14}" class="sm-dot" style="--d:${Math.min(i, 400) * 2}ms"><title>Räddat · xG ${dec(s.xg, 2)} · ${dec(Math.hypot(s.x, s.y) / 10, 1)} m</title></circle>`;
+  });
+  inside.forEach((s, i) => {
+    if (!s.g) return;
+    const r = 5 + s.xg * 16, x = X(s.y), y = Y(s.x);
+    svg += `<g class="sm-goal ${s.k === sel ? 'sel' : ''}" data-k="${s.k}" tabindex="0" role="button" aria-label="Mål, xG ${dec(s.xg, 2)}" style="--d:${300 + Math.min(i, 400) * 2}ms;--c:${color}">
+      <circle cx="${x}" cy="${y}" r="${r * 2.6}" fill="url(#goal-glow)" class="sm-glow"/>
+      <circle cx="${x}" cy="${y}" r="${r}" class="sm-pulse"/>
+      <circle cx="${x}" cy="${y}" r="${r}" class="sm-core"/>
+      <title>Mål · xG ${dec(s.xg, 2)} · ${dec(Math.hypot(s.x, s.y) / 10, 1)} m${s.clip >= 0 ? ' · tryck för video' : ''}</title></g>`;
+  });
+  const far = shots.length - inside.length;
+  return svg + `${far ? `<text x="${cx}" y="${bot - 8}" text-anchor="middle" class="rk-lbl">${far} ${far === 1 ? 'skott' : 'skott'} från längre bort än blå linjen visas inte</text>` : ''}</svg>`;
 }
 
 // Scoring rate by area of the attacking zone, league-wide
@@ -1622,21 +1643,38 @@ async function pageEdge() {
       <div class="p-body" id="lb-${s.id}">${leaderBody(s, s.stats[0])}</div>
     </section>`).join('')}</div>
 
-    <section class="panel" id="shotmap"><div class="p-head"><h2>Skottkarta</h2><p class="p-sub">Varje skott på mål den här säsongen. Större ring = farligare chans (högre xG). Fyllda ringar är mål.</p></div>
+    <section class="panel smap-panel" id="shotmap"><div class="p-head"><h2>Skottkarta</h2><p class="p-sub">Varje skott på mål ${E.season.replace('-', '/')}. Större prick = farligare chans. Tryck på ett mål för att se det.</p></div>
       <div class="p-body"><div class="smap">
         <div class="smap-side">
-          <div class="seg" id="sm-kind"><button data-v="sk" aria-pressed="true">Spelare</button><button data-v="gk" aria-pressed="false">Målvakt</button></div>
-          <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <input id="sm-search" type="search" placeholder="Sök spelare" autocomplete="off" aria-label="Sök spelare till skottkartan"><div class="results" id="sm-results" hidden></div></div>
+          <div class="seg" id="sm-kind"><button data-v="sk" aria-pressed="true">Spelare</button><button data-v="gk" aria-pressed="false">Målvakt</button><button data-v="t" aria-pressed="false">Lag</button></div>
+          <div class="search" id="sm-search-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="sm-search" type="search" placeholder="Sök spelare" autocomplete="off" aria-label="Sök till skottkartan"><div class="results" id="sm-results" hidden></div></div>
           <div class="chips" id="sm-picks"></div>
           <div id="sm-info"></div>
+          <div id="sm-zones"></div>
         </div>
-        <div class="chart" id="sm-rink"></div>
+        <div class="smap-main">
+          <div class="smap-bar">
+            <div class="seg" id="sm-side" hidden><button data-v="for" aria-pressed="true">Skott för</button><button data-v="mot" aria-pressed="false">Skott mot</button></div>
+            <div class="seg" id="sm-show"><button data-v="all" aria-pressed="true">Alla</button><button data-v="g" aria-pressed="false">Mål</button><button data-v="hd" aria-pressed="false">Farliga</button></div>
+            <div class="seg" id="sm-str"><button data-v="all" aria-pressed="true">Alla lägen</button><button data-v="0" aria-pressed="false">Jämnt</button><button data-v="1" aria-pressed="false">PP</button><button data-v="2" aria-pressed="false">BP</button></div>
+            <div class="seg" id="sm-view"><button data-v="dots" aria-pressed="true">Prickar</button><button data-v="heat" aria-pressed="false">Värme</button></div>
+          </div>
+          <div class="smap-stage" id="sm-rink"></div>
+          <div class="legend" id="sm-legend"></div>
+          <div id="sm-detail"></div>
+        </div>
       </div></div>
     </section>
 
     <div class="ov-row r-two">
+      <section class="panel"><div class="p-head"><h2>Spelarkort</h2><p class="p-sub">Percentiler från ett viktat urval av två säsonger.</p></div>
+        <div class="p-body"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="card-search" type="search" placeholder="Sök spelare" autocomplete="off" aria-label="Sök spelare"><div class="results" id="card-results" hidden></div></div>
+          <div class="chips" id="card-picks"></div><div id="card-slot"></div></div></section>
       ${panel('Lag: xG för och mot', `<div class="chart">${teamScatter(teamRows, { xk: 'xgfpg', yk: 'xgapg', xLabel: 'xG för per match', what: ['xG för', 'xG mot'] })}</div>`, { sub: 'Förväntade mål per match. Bäst är uppe till höger: många chanser framåt, få bakåt.' })}
+    </div>
+    <div class="ov-row r-one">
       ${panel('Lag: xG-tabell', '<div class="tscroll"><table class="t stick" id="xg-teams" style="min-width:640px"></table></div>', { sub: 'Avslut = gjorda mål minus xG (skärpa framåt). Målvakt = xG mot minus insläppta (målvaktsspel).' })}
     </div>
     <div class="ov-row r-two">
@@ -1673,41 +1711,113 @@ async function pageEdge() {
     { k: 'fin', label: 'Avslut', f: pp }, { k: 'save', label: 'Målvakt', f: pp },
   ], teamRows, { key: 'xgp' });
 
-  // Shot map explorer
-  const idOf = (i) => E.ids[i];
-  const byShooter = new Map(), byGoalie = new Map();
-  for (const s of E.shots) {
-    const shot = { x: s[2], y: s[3], g: s[4], xg: s[5] / 1000 };
-    if (s[0] >= 0) { const id = idOf(s[0]); (byShooter.get(id) || byShooter.set(id, []).get(id)).push(shot); }
-    if (s[1] >= 0) { const id = idOf(s[1]); (byGoalie.get(id) || byGoalie.set(id, []).get(id)).push(shot); }
-  }
-  let kind = 'sk';
-  const picksFor = () => kind === 'sk' ? [...skRows].sort((a, b) => b.e.xg - a.e.xg).slice(0, 6) : [...gkRows].sort((a, b) => b.e.sa - a.e.sa).slice(0, 6);
-  const show = (id) => {
-    const isSk = kind === 'sk';
-    const p = isSk ? skRows.find((r) => r.id === id) : gkAll.find((r) => r.id === id);
-    if (!p) return;
-    const shots = (isSk ? byShooter : byGoalie).get(id) || [];
-    const t = (k, v, s) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span>${s ? `<span class="s">${s}</span>` : ''}</div>`;
-    const tiles = isSk
-      ? t('Skott', p.e.sog) + t('Mål', p.e.g) + t('xG', dec(p.e.xg, 1)) + t('Mål över xG', pp(p.e.g - p.e.xg)) + t('Farliga skott', p.e.hd, `${p.e.hdg} mål`) + t('Snittavstånd', dec(p.e.dist, 1), 'meter')
-      : t('Skott mot', p.e.sa) + t('Insläppta', p.e.ga) + t('xG mot', dec(p.e.xga, 1)) + t('GSAx', pp(p.e.xga - p.e.ga)) + t('Rädd% farliga', p.e.hd[0] ? dec((1 - p.e.hd[1] / p.e.hd[0]) * 100, 1) : '–', `${p.e.hd[0]} skott`) + t('Rädd%', dec((1 - p.e.ga / p.e.sa) * 100, 1), `liga ${dec(lgSv * 100, 1)}`);
-    $('sm-info').innerHTML = `<div class="smap-who">${portrait(p.id, p.name, p.team, 'sm')}<div><a class="lfeat-name" href="#/spelare/${encodeURIComponent(p.id)}">${esc(p.name)}</a>
-      <div class="lfeat-meta">${tb(p.team)}<span>${esc(p.team)} · #${esc(p.num ?? '–')} · ${POS_SHORT[p.pos] || 'F'}</span></div></div></div><div class="tiles">${tiles}</div>`;
-    $('sm-rink').innerHTML = halfRink(shots, { goalColor: isSk ? 'var(--accent)' : 'var(--bad)', title: `Skottkarta för ${p.name}` }) +
-      `<div class="legend"><span><i style="background:${isSk ? 'var(--accent)' : 'var(--bad)'};border-radius:50%"></i>${isSk ? 'Mål' : 'Insläppt mål'}</span><span><i style="background:var(--muted);opacity:.5;border-radius:50%"></i>${isSk ? 'Räddat skott' : 'Räddning'}</span><span>Större ring = högre xG</span></div>`;
-    $('sm-picks').innerHTML = picksFor().map((r) => `<button class="chip" data-id="${esc(r.id)}" aria-pressed="${r.id === id}">${esc(r.name)}</button>`).join('');
+  // Shot map explorer: pick a player, goalie or team, filter by outcome and game state, click a goal for its video
+  const HD = E.model.zones.hd;
+  const shotsAll = E.shots.map((s, k) => {
+    const game = E.games?.[s[9]] || null, team = s[6];
+    return { k, sh: s[0] >= 0 ? E.ids[s[0]] : null, gk: s[1] >= 0 ? E.ids[s[1]] : null, x: s[2], y: s[3], g: s[4], xg: s[5] / 1000, team, en: s[7],
+      str: s[8] ?? 0, game, opp: game ? (game[1] === team ? game[2] : game[1]) : null, clip: s[10] ?? -1 };
+  });
+  const SM = { kind: 'sk', id: null, side: 'for', show: 'all', str: 'all', view: 'dots', sel: -1 };
+  const defensive = () => SM.kind === 'gk' || (SM.kind === 't' && SM.side === 'mot');
+  const picksFor = () => SM.kind === 'sk' ? [...skRows].sort((a, b) => b.e.g - a.e.g || b.e.xg - a.e.xg).slice(0, 8)
+    : SM.kind === 'gk' ? [...gkRows].sort((a, b) => b.e.sa - a.e.sa).slice(0, 8) : TABLE.map((r) => ({ id: r.code, name: tName(r.code), team: r.code }));
+  const pool = () => shotsAll.filter((s) => SM.kind === 'sk' ? s.sh === SM.id : SM.kind === 'gk' ? s.gk === SM.id : SM.side === 'for' ? s.team === SM.id : s.opp === SM.id);
+  const byState = () => pool().filter((s) => SM.str === 'all' || s.str === +SM.str);
+  const shown = () => byState().filter((s) => SM.show === 'all' || (SM.show === 'g' ? s.g : s.xg >= HD));
+  const STR_NAME = ['Jämnt', 'Powerplay', 'Boxplay'];
+  const nameOf = (id) => skBy.get(id)?.name || gkBy.get(id)?.name || 'Okänd';
+  const tile = (k, v, s) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span>${s ? `<span class="s">${s}</span>` : ''}</div>`;
+
+  const drawInfo = () => {
+    const list = byState(), n = list.length, g = sum(list.map((s) => s.g)), xg = sum(list.map((s) => s.xg));
+    const hd = list.filter((s) => s.xg >= HD), dist = n ? sum(list.map((s) => Math.hypot(s.x, s.y) / 10)) / n : 0;
+    let who;
+    if (SM.kind === 't') who = `<div class="smap-who">${tb(SM.id, 'xl')}<div><a class="lfeat-name" href="#/lag/${esc(SM.id)}">${esc(tName(SM.id))}</a><div class="lfeat-meta"><span>${SM.side === 'for' ? 'Lagets skott' : 'Skott mot laget'}</span></div></div></div>`;
+    else {
+      const p = (SM.kind === 'sk' ? skRows : gkAll).find((r) => r.id === SM.id);
+      who = p ? `<div class="smap-who">${portrait(p.id, p.name, p.team, 'sm')}<div><a class="lfeat-name" href="#/spelare/${encodeURIComponent(p.id)}">${esc(p.name)}</a>
+        <div class="lfeat-meta">${tb(p.team)}<span>${esc(p.team)} · #${esc(p.num ?? '–')} · ${POS_SHORT[p.pos] || 'F'}</span></div></div></div>` : '';
+    }
+    const ne = list.filter((s) => !s.en), neG = sum(ne.map((s) => s.g)), neXg = sum(ne.map((s) => s.xg));
+    const tiles = defensive()
+      ? tile('Skott mot', n) + tile('Insläppta', g) + tile('Rädd%', ne.length ? dec((1 - neG / ne.length) * 100, 1) : '–', `liga ${dec(lgSv * 100, 1)}`)
+        + tile('xG mot', dec(xg, 1)) + tile('GSAx', ne.length ? pp(neXg - neG) : '–', 'räddat över förväntan') + tile('Farliga', hd.length, hd.length ? `${dec((1 - sum(hd.map((s) => s.g)) / hd.length) * 100, 0)} % räddade` : '')
+      : tile('Skott', n) + tile('Mål', g) + tile('xG', dec(xg, 1)) + tile('Mål över xG', pp(g - xg))
+        + tile('Farliga', hd.length, `${sum(hd.map((s) => s.g))} mål`) + tile('Snittavstånd', n ? dec(dist, 1) : '–', 'meter');
+    $('sm-info').innerHTML = `${who}<div class="tiles">${tiles}</div>`;
+    // Where the shots come from: close, middle, far
+    const bands = [['Nära mål', 0, 6], ['Mellandistans', 6, 12], ['Långt ifrån', 12, 999]].map(([label, a, b]) => {
+      const inBand = list.filter((s) => { const d = Math.hypot(s.x, s.y) / 10; return d >= a && d < b; });
+      return { label, n: inBand.length, g: sum(inBand.map((s) => s.g)) };
+    });
+    const mx = Math.max(1, ...bands.map((b) => b.n));
+    $('sm-zones').innerHTML = n ? `<div class="sm-zones"><h3>Avstånd</h3>${bands.map((b) => `<div class="smz">
+      <span class="smz-l">${b.label}</span><div class="smz-bar"><i style="width:${b.n / mx * 100}%"></i><i class="g" style="width:${b.g / mx * 100}%"></i></div>
+      <span class="smz-v num">${b.n} <small>${b.g} mål${b.n ? ` · ${Math.round(b.g / b.n * 100)} %` : ''}</small></span></div>`).join('')}</div>` : '';
     countUp($('sm-info'));
   };
-  $('sm-picks').onclick = (e) => { const b = e.target.closest('button'); if (b) show(b.dataset.id); };
-  $('sm-kind').onclick = (e) => {
-    const b = e.target.closest('button'); if (!b) return;
-    kind = b.dataset.v; [...$('sm-kind').children].forEach((c) => c.setAttribute('aria-pressed', c === b));
-    $('sm-search').placeholder = kind === 'sk' ? 'Sök spelare' : 'Sök målvakt';
-    show(picksFor()[0]?.id);
+  const drawDetail = () => {
+    const s = shotsAll[SM.sel];
+    if (!s || SM.sel < 0) { $('sm-detail').innerHTML = `<div class="sm-hint">${icon('play')}<span>Tryck på ett mål på kartan för att se vem som gjorde det, hur farlig chansen var och spela upp videon.</span></div>`; return; }
+    const clip = s.clip >= 0 ? E.clips[s.clip] : null, [gid, , , date] = s.game || [];
+    const title = `${nameOf(s.sh)} mot ${tName(s.opp)}`;
+    $('sm-detail').innerHTML = `<div class="smd">
+      ${clip && safeEmbed(clip[0]) ? `<button class="smd-video" data-embed="${esc(clip[0])}" data-title="${esc(title)}">${clip[1] ? `<img src="${esc(clip[1])}" alt="">` : ''}<span class="play-ic"></span></button>` : ''}
+      <div class="smd-info"><span class="smd-k">Mål${date ? ` · ${fmtDay(date)}` : ''}${s.opp ? ` · mot ${esc(tName(s.opp))}` : ''}</span>
+        <b>${s.sh ? `<a href="#/spelare/${encodeURIComponent(s.sh)}">${esc(nameOf(s.sh))}</a>` : 'Okänd målskytt'} <span class="faint">${esc(s.team)}</span></b>
+        <div class="smd-facts"><span><b>${dec(s.xg * 100, s.xg < 0.1 ? 1 : 0)} %</b> chans (xG)</span><span><b>${dec(Math.hypot(s.x, s.y) / 10, 1)} m</b> från mål</span><span>${s.en ? 'Tom kasse' : STR_NAME[s.str]}</span>${s.gk && !s.en ? `<span>Målvakt: ${esc(nameOf(s.gk))}</span>` : ''}</div>
+        ${gid ? `<a class="more-link" href="#/match/${esc(gid)}">Matchfakta ›</a>` : ''}</div></div>`;
   };
-  bindSearch($('sm-search'), $('sm-results'), (it) => show(it.id), (it) => it.type === 'p' && (kind === 'sk' ? !!E.skaters[it.id] : !!E.goalies[it.id]));
-  show(picksFor()[0]?.id);
+  const drawRink = () => {
+    const color = defensive() ? 'var(--bad)' : 'var(--accent)';
+    $('sm-rink').innerHTML = shotRink(shown(), { color, mode: SM.view, sel: SM.sel, title: 'Skottkarta' });
+    $('sm-legend').innerHTML = SM.view === 'heat'
+      ? `<span><i style="background:${color}"></i>Mörkare = fler och farligare skott</span><span><i style="background:${color};border-radius:50%"></i>${defensive() ? 'Insläppt mål' : 'Mål'}</span>`
+      : `<span><i style="background:${color};border-radius:50%;box-shadow:0 0 0 3px color-mix(in srgb, ${color} 35%, transparent)"></i>${defensive() ? 'Insläppt mål' : 'Mål'}</span><span><i style="background:var(--muted);opacity:.55;border-radius:50%"></i>Räddat</span><span>Större = högre xG</span><span>Streckat område = farligaste ytan</span>`;
+  };
+  const drawAll = () => {
+    $('sm-picks').innerHTML = picksFor().map((r) => `<button class="chip ${SM.kind === 't' ? 'chip-team' : ''}" data-id="${esc(r.id)}" aria-pressed="${r.id === SM.id}">${SM.kind === 't' ? tb(r.id) + esc(r.id) : esc(r.name)}</button>`).join('');
+    $('sm-search-wrap').hidden = SM.kind === 't';
+    $('sm-side').hidden = SM.kind !== 't';
+    drawInfo(); drawRink(); drawDetail();
+  };
+  const pick = (id) => { if (!id) return; SM.id = id; SM.sel = -1; drawAll(); };
+  const segBind = (id, key, after) => $(id).onclick = (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    SM[key] = b.dataset.v; [...$(id).children].forEach((c) => c.setAttribute('aria-pressed', c === b));
+    after();
+  };
+  segBind('sm-kind', 'kind', () => { $('sm-search').placeholder = SM.kind === 'gk' ? 'Sök målvakt' : 'Sök spelare'; $('sm-search').value = ''; pick(SM.kind === 't' && FAV ? FAV : picksFor()[0]?.id); });
+  segBind('sm-side', 'side', () => { SM.sel = -1; drawAll(); });
+  segBind('sm-show', 'show', () => { drawRink(); });
+  segBind('sm-str', 'str', () => { SM.sel = -1; drawInfo(); drawRink(); drawDetail(); });
+  segBind('sm-view', 'view', () => { drawRink(); });
+  $('sm-picks').onclick = (e) => { const b = e.target.closest('button'); if (b) pick(b.dataset.id); };
+  const selectGoal = (el) => {
+    if (!el) return;
+    SM.sel = +el.dataset.k;
+    $('sm-rink').querySelectorAll('.sm-goal').forEach((g) => g.classList.toggle('sel', g === el));
+    drawDetail();
+    if (isNarrow()) $('sm-detail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+  $('sm-rink').onclick = (e) => selectGoal(e.target.closest('.sm-goal'));
+  $('sm-rink').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectGoal(e.target.closest('.sm-goal')); } };
+  bindSearch($('sm-search'), $('sm-results'), (it) => pick(it.id), (it) => it.type === 'p' && (SM.kind === 'sk' ? !!E.skaters[it.id] : !!E.goalies[it.id]));
+  pick(picksFor()[0]?.id);
+
+  // Player card with quick picks and search
+  const eligible = [...CARD.values()].filter((x) => x.gp >= MIN_GP);
+  const topCards = (grp, n) => eligible.filter((x) => x.grp === grp).sort((a, b) => b.composite - a.composite).slice(0, n);
+  const cardPicks = [...topCards('F', 4), ...topCards('D', 2)];
+  const showCard = (x) => {
+    if (!x) return;
+    $('card-slot').innerHTML = cardHtml(x);
+    $('card-picks').innerHTML = cardPicks.map((p) => `<button class="chip" data-id="${esc(p.id)}" aria-pressed="${p.id === x.id}">${esc(p.name)}</button>`).join('');
+  };
+  $('card-picks').onclick = (e) => { const b = e.target.closest('button'); if (b) showCard(CARD.get(b.dataset.id)); };
+  bindSearch($('card-search'), $('card-results'), (it) => showCard(CARD.get(it.id)), (it) => it.type === 'p' && CARD.has(it.id));
+  showCard(cardPicks[0]);
 }
 
 /* ---------- Spelare ---------- */
@@ -1982,10 +2092,15 @@ function teamOverview(code, teamGames, news = []) {
   const next = teamGames.filter((g) => !isFinal(g)).slice(0, 3), last = teamGames.filter(isFinal).slice(-3).reverse();
   const sk = skaters().filter((p) => p.team === code).sort((a, b) => b.pts - a.pts || b.g - a.g);
   const clips = (D.recentClips || []).filter((c) => c.team === code).slice(0, 4);
+  // Top row: the points list on the left, upcoming games above the latest results on the right
   return board([
-    panel('Kommande matcher', next.length ? gameList(next, { dated: true }) : '<p class="empty-state">Inga fler matcher.</p>', { more: moreLink(`#/lag/${code}/schema`, 'Hela schemat') }),
-    panel('Senaste resultat', last.length ? gameList(last, { dated: true }) : '<p class="empty-state">Inga spelade matcher ännu.</p>'),
-    panel('Poängliga', leaderList(sk, { val: (p) => p.pts, n: 8 }), { more: moreLink(`#/lag/${code}/trupp`, 'Hela truppen') }),
+    `<div class="ov-row r-two wide">
+      ${panel('Poängliga', leaderList(sk, { val: (p) => p.pts, n: 8 }), { more: moreLink(`#/lag/${code}/trupp`, 'Hela truppen') })}
+      <div class="stack">
+        ${panel('Kommande matcher', next.length ? gameList(next, { dated: true }) : '<p class="empty-state">Inga fler matcher.</p>', { more: moreLink(`#/lag/${code}/schema`, 'Hela schemat') })}
+        ${panel('Senaste resultat', last.length ? gameList(last, { dated: true }) : '<p class="empty-state">Inga spelade matcher ännu.</p>')}
+      </div>
+    </div>`,
     teamNewsPanel(code, news),
     clips.length ? panel('Senaste målen', `<div class="clips">${clips.map((c) => clipCard(c, clipTitle(c), clipSub(c))).join('')}</div>`) : '',
     panel('Slutspelsodds över tid', hist),

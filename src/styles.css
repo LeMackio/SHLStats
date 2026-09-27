@@ -1038,3 +1038,65 @@ ul.clubs .clubs-v b { color: var(--text); font-size: 15px; }
   .rx-sub { font-size: 13.5px; }
   .live-top .faint { margin-left: 0; width: 100%; }
 }
+/* Team page top row: stacked cards in the right column */
+.stack { display: grid; gap: 20px; align-content: start; min-width: 0; }
+
+/* ---------- Nexus shot map ---------- */
+.smap-panel .smap { grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 28px; }
+.smap-main { display: grid; gap: 12px; min-width: 0; }
+.smap-bar { display: flex; flex-wrap: wrap; gap: 8px 10px; }
+.smap-bar .seg button { font-size: 13px; padding: 5px 10px; }
+.smap-stage { position: relative; border-radius: 16px; background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--accent) 7%, var(--panel-2)), var(--panel-2)); padding: 10px; }
+.smap-stage svg.rink { display: block; width: 100%; max-width: 640px; height: auto; margin: 0 auto; overflow: visible; }
+.rk-ice { fill: color-mix(in srgb, var(--panel) 55%, var(--panel-2)); }
+.rk-boards { fill: none; stroke: color-mix(in srgb, var(--text) 30%, transparent); stroke-width: 3; }
+.rk-red { stroke: color-mix(in srgb, #e0475b 70%, transparent); stroke-width: 2.5; }
+.rk-blue { fill: color-mix(in srgb, #3f7be0 70%, transparent); }
+.rk-circle { fill: none; stroke: color-mix(in srgb, #e0475b 45%, transparent); stroke-width: 2; }
+.rk-hash { stroke: color-mix(in srgb, #e0475b 45%, transparent); stroke-width: 2; }
+.rk-dot { fill: color-mix(in srgb, #e0475b 70%, transparent); }
+.rk-crease { fill: color-mix(in srgb, #3f7be0 28%, transparent); stroke: color-mix(in srgb, #e0475b 60%, transparent); stroke-width: 2; }
+.rk-net { fill: color-mix(in srgb, var(--text) 8%, transparent); stroke: color-mix(in srgb, var(--text) 55%, transparent); stroke-width: 2; }
+.rk-slot { fill: color-mix(in srgb, var(--accent) 7%, transparent); stroke: color-mix(in srgb, var(--accent) 45%, transparent); stroke-width: 1.5; stroke-dasharray: 5 5; }
+.rk-lbl { font: 600 12px var(--display); letter-spacing: .08em; text-transform: uppercase; fill: var(--faint); }
+.sm-dot { fill: var(--muted); fill-opacity: .32; stroke: var(--muted); stroke-opacity: .6; stroke-width: 1; animation: smIn .45s ease-out both; animation-delay: var(--d); }
+.sm-goal { cursor: pointer; outline: none; animation: smIn .5s cubic-bezier(.2, .9, .3, 1.4) both; animation-delay: var(--d); }
+.sm-goal, .sm-dot, .sm-pulse, .sm-core { transform-box: fill-box; transform-origin: center; }
+.sm-core { fill: var(--c); stroke: var(--text); stroke-width: 2; transition: transform .15s; }
+.sm-glow { opacity: .9; }
+.sm-pulse { fill: none; stroke: var(--c); stroke-width: 2; animation: smPulse 2.4s ease-out infinite; animation-delay: calc(var(--d) + .6s); opacity: 0; }
+.sm-goal:hover .sm-core, .sm-goal:focus-visible .sm-core { transform: scale(1.3); }
+.sm-goal.sel .sm-core { stroke-width: 3.5; transform: scale(1.35); }
+.sm-goal.sel .sm-pulse { animation-duration: 1.2s; }
+.rk-heat { animation: smFade .6s ease-out both; }
+@keyframes smIn { from { opacity: 0; transform: scale(.2); } to { opacity: 1; transform: scale(1); } }
+@keyframes smPulse { 0% { opacity: .8; transform: scale(1); } 80%, 100% { opacity: 0; transform: scale(2.6); } }
+@keyframes smFade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sm-dot, .sm-goal, .rk-heat { animation: none; } .sm-pulse { display: none; } }
+
+.chip-team { display: inline-flex; align-items: center; gap: 6px; padding-left: 5px; }
+.sm-zones { display: grid; gap: 8px; }
+.sm-zones h3 { margin: 0; font: 700 14px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.smz { display: grid; grid-template-columns: 104px minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13.5px; }
+.smz-l { color: var(--muted); }
+.smz-bar { position: relative; height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--text) 7%, transparent); overflow: hidden; }
+.smz-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: color-mix(in srgb, var(--muted) 55%, transparent); transition: width .4s; }
+.smz-bar i.g { background: var(--accent); }
+.smz-v { font: 700 15px var(--display); text-align: right; white-space: nowrap; }
+.smz-v small { font: 500 12.5px var(--sans, inherit); color: var(--muted); margin-left: 4px; }
+
+.sm-hint { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; border: 1px dashed var(--line); color: var(--muted); font-size: 14px; }
+.sm-hint .ic { width: 18px; height: 18px; flex: none; color: var(--accent); }
+.smd { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; padding: 12px; border-radius: 14px; background: var(--panel-2); animation: smFade .3s ease-out both; }
+.smd-video { all: unset; cursor: pointer; position: relative; width: 190px; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; }
+.smd-video img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s; }
+.smd-video:hover img { transform: scale(1.05); }
+.smd-video .play-ic { position: absolute; inset: 0; margin: auto; }
+.smd-info { display: grid; gap: 5px; min-width: 0; }
+.smd-k { font: 600 12.5px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.smd-info > b { font: 700 22px/1.1 var(--display); text-transform: uppercase; }
+.smd-info > b a { color: var(--text); }
+.smd-facts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 14px; color: var(--muted); }
+.smd-facts b { color: var(--text); }
+@media (max-width: 900px) { .smap-panel .smap { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .smd { grid-template-columns: 1fr; } .smd-video { width: 100%; } .smz { grid-template-columns: 92px minmax(0, 1fr) auto; } }

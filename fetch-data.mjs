@@ -40,6 +40,8 @@ const toSec = (t) => {
 const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
 const stockholmDate = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Stockholm' });
 const isFinal = (g) => g.state === 'post-game' && typeof g.hs === 'number';
+// The feed calls the shootout period "shootout"; everywhere else it is period 5
+const periodNo = (p) => typeof p === 'number' ? p : /shoot/i.test(String(p)) ? 5 : Number(p) || 0;
 
 // ---------- seasons ----------
 const filter = await get('/sports-v2/season-series-game-types-filter');
@@ -158,15 +160,15 @@ async function fetchGame(g) {
     const side = e.eventTeam?.place;
     if (e.type === 'goal') {
       goals.push({
-        p: e.period, t: e.time, team: side, scorer: pRef(e.player, side),
+        p: periodNo(e.period), t: e.time, team: side, scorer: pRef(e.player, side),
         a1: pRef(e.assists?.first, side), a2: pRef(e.assists?.second, side),
         str: e.goalStatus || 'EQ', en: !!e.isEmptyNetGoal, ps: !!e.isPenaltyShot,
         score: [e.homeGoals, e.awayGoals], x: e.locationX, y: e.locationY,
       });
     } else if (e.type === 'penalty') {
-      pens.push({ p: e.period, t: e.time, team: side, player: pRef(e.player, side), desc: e.variant?.description || '', off: e.offence || '' });
+      pens.push({ p: periodNo(e.period), t: e.time, team: side, player: pRef(e.player, side), desc: e.variant?.description || '', off: e.offence || '' });
     } else if (e.type === 'shot') {
-      shots.push({ p: e.period, t: e.time, team: side, x: e.locationX, y: e.locationY });
+      shots.push({ p: periodNo(e.period), t: e.time, team: side, x: e.locationX, y: e.locationY });
     }
   }
   const stat = (side, period) => Object.fromEntries((ts[side]?.statistics?.find((s) => s.period === period)?.parsedTotalStatistics || []).map((k) => [k.key, k.value]));
@@ -185,7 +187,11 @@ const gameDetails = {};
 const toFetch = [];
 for (const g of cur.games) {
   const file = `cache/games/${g.id}.json`;
-  if (isFinal(g) && existsSync(file)) gameDetails[g.id] = readJson(file);
+  if (isFinal(g) && existsSync(file)) {
+    const d = readJson(file); // older cached games may still say "shootout"
+    for (const k of ['goals', 'pens', 'shots']) d[k] = d[k].map((x) => ({ ...x, p: periodNo(x.p) })).sort((a, b) => a.p - b.p || String(a.t).localeCompare(String(b.t)));
+    gameDetails[g.id] = d;
+  }
   else if (g.state !== 'pre-game') toFetch.push(g); // finished but not cached yet, or live
 }
 let gameFails = 0;
@@ -247,6 +253,8 @@ await inBatches(shotTodo, 4, async ([s, g]) => {
 });
 for (const sg of Object.values(shotGames)) { strAgree += sg.strengthCheck?.[0] || 0; strChecked += sg.strengthCheck?.[1] || 0; }
 // Older cached games marked some saved shots as empty-net when the goalie feed had gaps; a saved shot always had a goalie in net
+// Shootout attempts are not shots in the game; older cached games kept them with the period "shootout"
+for (const sg of Object.values(shotGames)) sg.shots = sg.shots.filter((sh) => typeof sh.p === 'number' && sh.p < 5);
 let enFixed = 0;
 for (const sg of Object.values(shotGames)) for (const sh of sg.shots) if (!sh.g && sh.en) { sh.en = 0; enFixed++; }
 const allShots = Object.values(shotGames).flatMap((sg) => sg.shots);
@@ -257,6 +265,8 @@ const edgeIds = [], edgeIdx = new Map();
 const idIndex = (id) => { if (!edgeIdx.has(id)) { edgeIdx.set(id, edgeIds.length); edgeIds.push(id); } return edgeIdx.get(id); };
 const eSk = {}, eGk = {}, eTeam = {}, eShots = [];
 const gameXg = {}; // game id → [xG home, xG away, dangerous chances home, away, shots home, away]
+const eGames = [], eGameIdx = new Map(), eClips = [];
+const gameIndex = (gid, sg) => { if (!eGameIdx.has(gid)) { eGameIdx.set(gid, eGames.length); eGames.push([gid, sg.home, sg.away, sg.start.slice(0, 10)]); } return eGameIdx.get(gid); };
 const league = { sa: 0, ga: 0, xga: 0, hd: [0, 0], md: [0, 0], ld: [0, 0] };
 for (const [gid, sg] of Object.entries(shotGames)) {
   if (sg.season !== cur.label) continue;
@@ -287,8 +297,16 @@ for (const [gid, sg] of Object.entries(shotGames)) {
         G.sa++; G.ga += sh.g; G.xga += xg; G[zone][0]++; G[zone][1] += sh.g;
       }
     }
-    // Compact shot list for the shot maps: shooter, goalie, x, y, goal, xG in thousandths, shooting team, empty net
-    eShots.push([shooter ? idIndex(shooter) : -1, goalieId ? idIndex(goalieId) : -1, sh.x, sh.y, sh.g, Math.round(xg * 1000), team, sh.en]);
+    // Compact shot list for the shot maps: shooter, goalie, x, y, goal, xG in thousandths, shooting team, empty net,
+    // game state (0 even, 1 powerplay, 2 shorthanded), game, goal video (index into edge.clips, -1 if none)
+    let clip = -1;
+    if (sh.g) {
+      const d = gameDetails[gid], goal = d?.goals.find((x) => x.p === sh.p && (x.p - 1) * 1200 + toSec(x.t) === sh.s);
+      const c = goal && slimClip(clipOf(d, goal));
+      if (c) { clip = eClips.length; eClips.push([c.embed, c.thumb]); }
+    }
+    eShots.push([shooter ? idIndex(shooter) : -1, goalieId ? idIndex(goalieId) : -1, sh.x, sh.y, sh.g, Math.round(xg * 1000), team, sh.en,
+      sh.str === 'PP' ? 1 : sh.str === 'SH' ? 2 : 0, gameIndex(gid, sg), clip]);
   }
 }
 const r3 = (x) => Math.round(x * 1000) / 1000;
@@ -301,6 +319,8 @@ const edge = {
   goalies: Object.fromEntries(Object.entries(eGk).map(([id, G]) => [id, [G.sa, G.ga, r3(G.xga), ...G.hd, ...G.md, ...G.ld]])),
   teams: Object.fromEntries(Object.entries(eTeam).map(([c, T]) => [c, [T.gp, T.sf, T.gf, r3(T.xgf), T.sa, T.ga, r3(T.xga), T.hdf, T.hda]])),
   shots: eShots,
+  games: eGames,  // [id, home, away, date]
+  clips: eClips,  // [embed, thumb]
 };
 
 // ---------- model ----------
