@@ -76,7 +76,12 @@ img { max-width: 100%; }
 .s-status { display: flex; align-items: center; justify-content: space-between; font: 600 11px var(--display); letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
 .s-status.live { color: var(--bad); }
 .s-status.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--bad); animation: pulse 1.4s ease-in-out infinite; margin-right: 6px; }
-.s-status .star { color: var(--accent); }
+/* A panel holding only a tab row (Tabell page) */
+.tabs-only .tabs { border-top: 0; }
+.ltop-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ltop-name a { overflow: hidden; text-overflow: ellipsis; }
+/* Your team's games: a border around the whole card */
+.s-game.fav { box-shadow: inset 0 0 0 2px var(--accent); }
 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
 .s-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; }
 .s-row .tb { width: 26px; height: 26px; }
@@ -199,7 +204,9 @@ main { max-width: 1320px; margin: 0 auto; padding: 22px 16px 64px; display: grid
 .tile .s { font-size: 12.5px; color: var(--faint); }
 
 /* ---------- tables ---------- */
-.tscroll { overflow-x: auto; margin: 0 -20px; padding: 0 20px; }
+/* Wide tables scroll inside their card instead of stretching it */
+.p-body > * { min-width: 0; }
+.tscroll { overflow-x: auto; margin: 0 -20px; padding: 0 20px; max-width: calc(100% + 40px); }
 table.t { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 table.t th { font: 600 12.5px/1.15 var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 7px 8px; vertical-align: bottom; white-space: nowrap; }
 table.t th small { display: block; font-weight: 500; color: var(--faint); letter-spacing: .04em; }
@@ -713,7 +720,7 @@ header.top { top: env(safe-area-inset-top, 0px); }
   body.search-open .results small { font-size: 14px; }
 
   /* Bottom navigation, within thumb reach */
-  .bottom-nav { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  .bottom-nav { display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)); background: color-mix(in srgb, var(--bg-2) 94%, transparent);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
   .bottom-nav a { display: grid; justify-items: center; gap: 3px; padding: 6px 2px; min-height: 54px; border-radius: 12px; color: var(--muted);
@@ -798,4 +805,12 @@ header.top { top: env(safe-area-inset-top, 0px); }
   /* Video player fills the width */
   dialog.video { width: 100vw; max-width: 100vw; margin: auto 0; border-radius: 16px 16px 0 0; }
   .video-close { width: 44px; height: 44px; }
+}
+
+/* Phones: tables line up with the card edges, and the compact table fits without sideways scrolling */
+@media (max-width: 700px) {
+  .tscroll { margin: 0 -16px; padding: 0 16px; max-width: calc(100% + 32px); }
+  table.t.compact .odds span { min-width: 44px; padding: 3px 4px; }
+  table.t.compact td, table.t.compact th { padding-inline: 5px; }
+  table.t.compact th small { display: none; } /* "topp 10" etc. is explained in the legend */
 }
