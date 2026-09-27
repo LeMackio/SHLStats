@@ -22,7 +22,7 @@
   --body: "Barlow", "Segoe UI", system-ui, sans-serif;
 }
 @media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]):not([data-theme="kol"]) {
+  :root:not([data-theme="dark"]) {
     color-scheme: light;
     --bg: #e6ebf0; --bg-2: #dbe2e9; --panel: #ffffff; --panel-2: #f1f4f7; --line: #d0d8e1;
     --text: #17202b; --muted: #56657a; --faint: #8592a3; --accent: #3f6c9c; --accent-ink: #ffffff;
@@ -513,7 +513,7 @@ footer { max-width: 1320px; margin: 0 auto; padding: 0 16px 40px; color: var(--f
    Design refresh: soft flat cards, icons, matchday hero, team colour bands, motion
    ===================================================================== */
 :root { --card-shadow: none; }
-@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]):not([data-theme="kol"]) { --card-shadow: 0 1px 2px rgba(23,32,43,.05), 0 4px 14px rgba(23,32,43,.05); } }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --card-shadow: 0 1px 2px rgba(23,32,43,.05), 0 4px 14px rgba(23,32,43,.05); } }
 :root[data-theme="light"] { --card-shadow: 0 1px 2px rgba(23,32,43,.05), 0 4px 14px rgba(23,32,43,.05); }
 
 /* Soft, flat cards: no borders, a lighter surface and larger radius */
@@ -891,21 +891,7 @@ header.top { top: env(safe-area-inset-top, 0px); }
 .nslide { position: absolute; inset: 0; display: block; color: #fff; text-decoration: none !important; opacity: 0; transition: opacity .8s ease; pointer-events: none;
   overflow: hidden; will-change: opacity; }
 .nslide.on { opacity: 1; pointer-events: auto; }
-/* Slow zoom on the active photo: a GPU-composited animation at constant speed, restarted each time a
-   slide becomes active and paused while the carousel is paused (hover or keyboard focus) */
-/* Slow zoom on the active photo. Very slow scaling stutters when the browser snaps each frame to
-   whole pixels, so the image lives in its own 3D layer (perspective + translateZ) and carries a tiny
-   rotation, which makes browsers keep sub-pixel positions and move it smoothly. */
-.nslides { perspective: 1000px; }
-.nslide img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-  transform: translateZ(0) scale(1.001) rotate(0.01deg); transform-origin: 50% 45%;
-  backface-visibility: hidden; -webkit-backface-visibility: hidden; will-change: transform; }
-.nslide.on img { animation: newsZoom 10s cubic-bezier(.25, .1, .25, 1) both; }
-.news:hover .nslide.on img, .news:focus-within .nslide.on img { animation-play-state: paused; }
-@keyframes newsZoom {
-  from { transform: translateZ(0) scale(1.001) rotate(0.01deg); }
-  to { transform: translateZ(0) scale(1.09) rotate(0.01deg); }
-}
+.nslide img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .nslide-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8, 11, 16, .05) 20%, rgba(8, 11, 16, .82) 78%); }
 .nslide-text { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px 24px 54px; display: grid; gap: 8px; }
 .nslide-meta { font: 700 12.5px var(--display); letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
@@ -948,7 +934,7 @@ a.mini-game:hover { box-shadow: inset 0 0 0 1px var(--accent); }
   .nitem { grid-template-columns: 96px minmax(0, 1fr); }
   .nitem img { width: 96px; }
 }
-@media (prefers-reduced-motion: reduce) { .nslide, .ndot { transition: none; } .nslide.on img { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .nslide, .ndot { transition: none; } }
 
 /* Wordmark in the brand ink: black on the light theme, white on the dark */
 .brand-word, .brand-word em { color: var(--brand-ink); }
@@ -963,15 +949,8 @@ ol.lb.noav .v { text-align: right; font-size: 20px; }
 ol.lb.noav li:first-child .v { color: var(--accent); }
 @media (max-width: 700px) { ol.lb.noav .n small { font-size: 13px; } }
 
-/* Kol: a neutral charcoal dark theme (#1c1c1c background, #e5e5e5 text) */
-:root[data-theme="kol"] {
-  color-scheme: dark;
-  --bg: #1c1c1c; --bg-2: #161616; --panel: #252525; --panel-2: #2e2e2e; --line: #3a3a3a;
-  --text: #e5e5e5; --muted: #a8a8a8; --faint: #777777; --accent: #8fb4dc; --accent-ink: #141414;
-  --good: #58b584; --bad: #e0697f; --gold: #e3b75a;
-  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.3);
-  --card-shadow: none; --logo-filter: invert(1); --brand-ink: #e5e5e5;
-}
+/* Statistik: the GSAA chart as a compact card rather than full width */
+.panel.gsaa-card { max-width: 620px; }
 /* Player career: best season per stat, totals row, clubs list */
 .t td.best { color: var(--accent); font-weight: 700; }
 .t tr.total td { border-top: 2px solid var(--line); }
