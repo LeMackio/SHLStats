@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SHLstats</title>
-<meta name="description" content="SHL-statistik: tabell, slutspelsodds, matcher, spelar- och lagstatistik.">
+<meta name="description" content="SHL-statistik: tabell, slutspelsodds, matcher, målvideor, spelar- och lagstatistik.">
+<link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%238fb4dc'/%3E%3Cellipse cx='20' cy='24' rx='11' ry='4.5' fill='%23121820'/%3E%3Crect x='9' y='17' width='22' height='7' fill='%23121820'/%3E%3Cellipse cx='20' cy='17' rx='11' ry='4.5' fill='%238fb4dc' stroke='%23121820' stroke-width='1.6'/%3E%3C/svg%3E">
 <script>
   // Apply the saved theme before first paint
   try { var t = localStorage.getItem('shlstats-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
@@ -16,6 +17,7 @@
 </head>
 <body>
 <div class="strip" aria-label="Matcher">
+  <button class="strip-today" id="strip-today" title="Hoppa till dagens matcher">Idag</button>
   <button class="strip-btn" id="strip-prev" aria-label="Tidigare matcher">‹</button>
   <div class="strip-track" id="strip"></div>
   <button class="strip-btn" id="strip-next" aria-label="Senare matcher">›</button>
@@ -24,27 +26,29 @@
 <header class="top">
   <div class="top-in">
     <a class="brand" href="#/" aria-label="SHLstats startsida">
-      <svg viewBox="0 0 40 40" aria-hidden="true">
+      <!-- Replaced by src/logo.svg or src/logo.png when one of them exists -->
+      <span class="brand-mark" id="brand-mark"><svg viewBox="0 0 40 40" aria-hidden="true">
         <rect x="1" y="1" width="38" height="38" rx="10" style="fill:var(--accent)"/>
         <ellipse cx="20" cy="26" rx="11" ry="4.2" style="fill:var(--accent-ink)"/>
         <rect x="9" y="19" width="22" height="7" style="fill:var(--accent-ink)"/>
         <ellipse cx="20" cy="19" rx="11" ry="4.2" style="fill:var(--accent);stroke:var(--accent-ink)" stroke-width="1.6"/>
         <path d="M20 5v8M16.5 7l3.5 3 3.5-3" style="fill:none;stroke:var(--accent-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      </svg></span>
       <span class="brand-word">SHL<em>stats</em></span>
     </a>
     <nav class="main" aria-label="Sidor">
       <a href="#/" data-nav="">Översikt</a>
       <a href="#/matcher" data-nav="matcher">Matcher</a>
       <a href="#/tabell" data-nav="tabell">Tabell</a>
-      <a href="#/statistik" data-nav="statistik">Spelarstatistik</a>
+      <a href="#/statistik" data-nav="statistik">Spelare</a>
       <a href="#/lag" data-nav="lag">Lag</a>
-      <a href="#/metod" data-nav="metod">Metod</a>
     </nav>
     <div class="top-tools">
+      <a class="favlink" id="favlink" hidden></a>
       <div class="gsearch">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <input id="gsearch" type="search" placeholder="Sök spelare eller lag" autocomplete="off" aria-label="Sök spelare eller lag">
+        <kbd class="kbd" aria-hidden="true">/</kbd>
         <div class="results" id="gsearch-results" hidden></div>
       </div>
       <div class="theme-toggle" role="group" aria-label="Färgtema">
@@ -55,8 +59,14 @@
   </div>
 </header>
 
-<main id="app"><div class="loading">Laddar SHL-data…</div></main>
+<main id="app"><div class="loading"><span class="spinner"></span>Laddar SHL-data…</div></main>
 <footer id="foot"></footer>
+
+<dialog class="video" id="video" aria-label="Video">
+  <div class="video-head"><b id="video-title"></b><button class="video-close" id="video-close" aria-label="Stäng video">✕</button></div>
+  <div class="video-frame"><iframe id="video-frame" title="Video" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+  <p class="video-note">Video från SHL via Staylive.</p>
+</dialog>
 <script src="app.js"></script>
 </body>
 </html>

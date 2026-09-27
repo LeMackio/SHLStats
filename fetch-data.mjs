@@ -191,13 +191,45 @@ await inBatches(toFetch, 3, async (g) => {
   } catch (e) { gameFails++; console.warn('game failed', g.id, e.message); }
 });
 
+// ---------- highlight videos ----------
+// The SHL publishes a highlights package and one clip per goal on its Staylive channel.
+// We store ids and thumbnails and embed the official player; no video is copied.
+// Clips appear a while after the final horn, so games under three days old without a
+// highlights package are checked again on later runs.
+const videos = {};
+let vidFails = 0;
+const gameTime = (g) => Date.parse(g.start.replace(' ', 'T') + '+02:00');
+await inBatches(cur.games.filter(isFinal), 4, async (g) => {
+  const file = `cache/videos/${g.id}.json`;
+  const cached = readJson(file, null);
+  if (cached && (cached.hl || Date.now() - gameTime(g) > 3 * 864e5)) { videos[g.id] = cached; return; }
+  try {
+    const r = await get(`/media/videos-for-game?gameUuid=${g.id}`);
+    const items = (r.items || []).filter((v) => !v.locked).map((v) => ({
+      id: v.id, name: v.name || '', desc: v.description || '', tags: v.tags || [],
+      thumb: v.thumbnail || v.renderedMedia?.url || '', embed: v.renderedMedia?.videourl || '',
+      dur: (v.duration?.h || 0) * 3600 + (v.duration?.m || 0) * 60 + (v.duration?.s || 0),
+    }));
+    const hl = items.find((v) => v.tags.includes('custom.highlights')) || null;
+    const clips = items.filter((v) => v.tags.some((t) => t.startsWith('goal.')));
+    videos[g.id] = { hl, clips };
+    writeJson(file, videos[g.id]);
+  } catch (e) { vidFails++; if (cached) videos[g.id] = cached; }
+});
+const clipOf = (d, goal) => videos[d.id]?.clips.find((c) => c.tags.includes(`goal.${goal.score[0]}-${goal.score[1]}`));
+const slimClip = (c) => c && { id: c.id, thumb: c.thumb, embed: c.embed, dur: c.dur };
+
 // ---------- model ----------
 const played = cur.games.filter(isFinal);
 const prevPlayed = prev.games.filter(isFinal);
 const model = buildRatings(prevPlayed, played, codes);
 const remaining = cur.games.filter((g) => !isFinal(g));
 const sim = simulate(model, cur.standings, remaining, codes, 10000);
-const games = cur.games.map((g) => ({ ...g, ph: isFinal(g) ? undefined : Math.round(winProb(model, g.home, g.away) * 1000) / 1000 }));
+const games = cur.games.map((g) => ({
+  ...g,
+  ph: isFinal(g) ? undefined : Math.round(winProb(model, g.home, g.away) * 1000) / 1000,
+  hv: videos[g.id]?.hl || videos[g.id]?.clips.length ? 1 : undefined, // game has video
+}));
 
 // Odds history: one entry per day, updated only when new results have come in
 const HISTORY = 'history/odds.json';
@@ -296,6 +328,22 @@ for (const s of [...SEASONS].reverse()) for (const p of [...s.skaters, ...s.goal
   bios[p.id] = { name: p.name, num: p.num, pos: p.pos, born: p.born, nat: p.nat, team: p.team, h: p.h, w: p.w, last: s.label };
 }
 
+// ---------- goal clip index ----------
+const goalClips = {}; // player id → [[gameId, clipId, thumb, embed, date, opponent]]
+const allClips = [];
+for (const d of detailsByDate) {
+  for (const x of d.goals) {
+    const c = clipOf(d, x);
+    if (!c) continue;
+    const team = d[x.team], opp = x.team === 'home' ? d.away : d.home;
+    allClips.push({ gid: d.id, date: d.start, p: x.p, t: x.t, team, opp, score: x.score, scorer: x.scorer, ...slimClip(c) });
+    if (x.scorer?.id) (goalClips[x.scorer.id] ??= []).push([d.id, c.id, c.thumb, c.embed, d.start.slice(0, 10), opp]);
+  }
+}
+allClips.sort((a, b) => b.date.localeCompare(a.date) || b.p - a.p || b.t.localeCompare(a.t));
+const highlights = detailsByDate.filter((d) => videos[d.id]?.hl).reverse().slice(0, 12)
+  .map((d) => ({ gid: d.id, date: d.start, home: d.home, away: d.away, hs: d.hs, as: d.as, ...slimClip(videos[d.id].hl) }));
+
 // ---------- write site ----------
 const strip = (rows) => rows.map(({ ms, ...r }) => r);
 const core = {
@@ -310,11 +358,20 @@ const core = {
   teamStats, lineups, rosters, headshots,
   pastStandings: Object.fromEntries(SEASONS.map((s) => [s.label, s.standings])),
   pastGames: SEASONS.slice(1).flatMap((s) => s.games.filter(isFinal).map((g) => [s.label, g.start.slice(0, 10), g.home, g.away, g.hs, g.as, g.ot || g.so ? 1 : 0])),
+  recentClips: allClips.slice(0, 16),
+  highlights,
 };
 mkdirSync('site/data/games', { recursive: true });
 writeJson('site/data/core.json', core);
-writeJson('site/data/players.json', { bios, career, goalieCareer, gamelogs, goalieLogs });
-for (const d of Object.values(gameDetails)) writeJson(`site/data/games/${d.id}.json`, d);
+writeJson('site/data/players.json', { bios, career, goalieCareer, gamelogs, goalieLogs, goalClips });
+for (const d of Object.values(gameDetails)) {
+  const v = videos[d.id];
+  writeJson(`site/data/games/${d.id}.json`, {
+    ...d,
+    goals: d.goals.map((x) => ({ ...x, clip: slimClip(clipOf(d, x)) || undefined })),
+    hl: slimClip(v?.hl) || null,
+  });
+}
 for (const f of readdirSync('src')) cpSync(`src/${f}`, `site/${f}`);
 writeFileSync('site/.nojekyll', '');
 
@@ -323,6 +380,7 @@ const matched = cur.skaters.filter((p) => rosterIds.has(p.id)).length;
 console.log([
   `Seasons: ${SEASONS.map((s) => `${s.label} (${s.state})`).join(', ')}`,
   `Games: ${games.length}, played ${played.length}, details ${Object.keys(gameDetails).length} (${toFetch.length} fetched, ${gameFails} failed)`,
+  `Videos: ${Object.keys(videos).length} games, ${allClips.length} goal clips, ${highlights.length} highlight packages (${vidFails} failed)`,
   `Headshots: ${Object.keys(headshots).length} (${todo.length} looked up, ${hsFails} failed); roster ids matching stats: ${matched}/${cur.skaters.length}`,
   `Unmatched game players: ${Object.values(gameDetails).flatMap((d) => [...d.box.home, ...d.box.away]).filter((r) => !r.id).length}`,
 ].join('\n'));
