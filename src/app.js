@@ -617,8 +617,8 @@ function setupStripScrolling() {
    ===================================================================== */
 function setupTheme() {
   const root = document.documentElement;
-  // Two themes: Mörkt (dark) and Ljust (light). With no choice saved, the phone or computer's own setting decides.
-  const THEMES = ['dark', 'light'];
+  // Three themes: Mörkt (dark), Ljust (light) and Papper (off-white and navy). With no choice saved, the phone or computer's own setting decides.
+  const THEMES = ['dark', 'light', 'paper'];
   if (!THEMES.includes(root.dataset.theme)) delete root.dataset.theme; // e.g. a removed theme still saved in the browser
   const sync = () => {
     const current = root.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
@@ -2666,7 +2666,7 @@ function applyTheme(v) {
   if (v === 'auto') { delete root.dataset.theme; store.set('shlstats-theme', 'auto'); }
   else { root.dataset.theme = v; store.set('shlstats-theme', v); }
   const cur = root.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-  for (const t of ['dark', 'light']) $('theme-' + t)?.setAttribute('aria-pressed', t === cur);
+  for (const t of ['dark', 'light', 'paper']) $('theme-' + t)?.setAttribute('aria-pressed', t === cur);
   route();
 }
 function openSettings() {
@@ -2676,7 +2676,7 @@ function openSettings() {
     dlg.innerHTML = `<div class="sheet-in"><div class="sheet-grab" aria-hidden="true"></div>
       <div class="sheet-head"><h2>Inställningar</h2><button class="sheet-close" data-close>Klar</button></div>
       <h3>Tema</h3>
-      <div class="seg sheet-seg" id="set-theme">${[['dark', 'Mörkt'], ['light', 'Ljust'], ['auto', 'Automatiskt']].map(([v, l]) => `<button data-v="${v}" aria-pressed="${theme === v}">${l}</button>`).join('')}</div>
+      <div class="seg sheet-seg" id="set-theme">${[['dark', 'Mörkt'], ['light', 'Ljust'], ['paper', 'Papper'], ['auto', 'Auto']].map(([v, l]) => `<button data-v="${v}" aria-pressed="${theme === v}">${l}</button>`).join('')}</div>
       <h3>Mitt lag</h3>
       <div class="set-teams">${[...CODES].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => `<button data-team="${c}" aria-pressed="${FAV === c}">${tb(c, 'md')}<span>${esc(tName(c))}</span></button>`).join('')}
         <button data-team="" aria-pressed="${!FAV}"><span class="set-none">–</span><span>Inget lag</span></button></div>

@@ -1722,3 +1722,30 @@ a.lu-p:hover { background: color-mix(in srgb, var(--accent) 12%, var(--panel-2))
 .pc-hero .pc-meta { color: rgba(255, 255, 255, .8); font-size: 13.5px; }
 .pc-hero .pc-meta b { color: #fff; }
 @media (max-width: 700px) { .pc-top.pc-hero { height: 270px; } .pc-img { max-width: 70%; right: -2%; } .pc-hero .pc-name { font-size: 32px; } }
+
+/* Papper: warm off-white paper with navy ink (from the projection graphic the theme is based on) */
+:root[data-theme="paper"] {
+  color-scheme: light;
+  --bg: #efefeb; --bg-2: #e5e5df; --panel: #fafaf7; --panel-2: #f0f0eb; --line: #d5d5ce;
+  --text: #2e2e2e; --muted: #5b5b57; --faint: #8d8d87; --accent: #0b1f52; --accent-ink: #ffffff;
+  --good: #2c7a4b; --bad: #b3324a; --gold: #946f10;
+  --shadow: 0 1px 2px rgba(40,40,30,.06), 0 8px 22px rgba(40,40,30,.06); --card-shadow: 0 1px 2px rgba(40,40,30,.05), 0 4px 14px rgba(40,40,30,.05);
+  --logo-filter: none; --brand-ink: #0b1f52;
+}
+@media (max-width: 700px) { :root[data-theme="paper"] .gcard.fav { outline: none; } }
+
+/* The puck mark painted in a colour (the file is black): the picture is pushed out of its box and the file shape is used as a mask */
+:root[data-theme="paper"] img.brand-mark { box-sizing: border-box; width: 52px; padding-left: 52px; filter: none; background: var(--brand-ink);
+  -webkit-mask: url(icons/logo-mark.png?v=3) center / contain no-repeat; mask: url(icons/logo-mark.png?v=3) center / contain no-repeat; }
+
+/* Light theme on computers: the logo and wordmark in the site's blue */
+@media (min-width: 701px) {
+  :root[data-theme="light"] { --brand-ink: var(--accent); }
+  :root[data-theme="light"] img.brand-mark { box-sizing: border-box; width: 52px; padding-left: 52px; filter: none; background: var(--brand-ink);
+    -webkit-mask: url(icons/logo-mark.png?v=3) center / contain no-repeat; mask: url(icons/logo-mark.png?v=3) center / contain no-repeat; }
+}
+@media (min-width: 701px) and (prefers-color-scheme: light) {
+  :root:not([data-theme]) { --brand-ink: var(--accent); }
+  :root:not([data-theme]) img.brand-mark { box-sizing: border-box; width: 52px; padding-left: 52px; filter: none; background: var(--brand-ink);
+    -webkit-mask: url(icons/logo-mark.png?v=3) center / contain no-repeat; mask: url(icons/logo-mark.png?v=3) center / contain no-repeat; }
+}
