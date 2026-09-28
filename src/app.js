@@ -238,7 +238,7 @@ const tName = (c) => TEAMS[c]?.name || c;
 const tb = (code, size = '') => {
   const [bg, fg] = TC[code] || ['#5b6b7e', '#fff'];
   const img = LOGOS[code] ? `<img src="${esc(LOGOS[code])}" alt="" loading="lazy" onerror="this.remove()">` : '';
-  return `<span class="tb ${size}" style="--tc:${bg};--tt:${fg}" title="${esc(tName(code))}">${esc(code)}${img}</span>`;
+  return `<span class="tb ${size}" style="--tc:${bg};--tt:${fg}" title="${esc(tName(code))}"><span class="tb-t">${esc(code)}</span>${img}</span>`;
 };
 const teamLink = (code, { name = false, size = '' } = {}) =>
   `<a class="teamlink" href="#/lag/${encodeURIComponent(code)}">${tb(code, size)}${name ? `<span>${esc(tName(code))}</span>` : ''}</a>`;
@@ -306,8 +306,10 @@ function layoutBoards() {
   }));
 }
 // Stat numbers count up from zero when a page opens
-function countUpEl(el, dur = 650) {
+function countUpEl(el, dur = 420) {
   if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const top = el.getBoundingClientRect().top;
+  if (top > innerHeight || top < -200) return; // off screen: just show the number
   const m = el.textContent.trim().match(/^([+<>]?)(-?\d+)(,\d+)?(\s?%?)$/);
   if (!m) return; // times, ranges and dashes stay as they are
   const decs = m[3] ? m[3].length - 1 : 0, target = parseFloat(m[2] + (m[3] ? '.' + m[3].slice(1) : ''));
@@ -951,7 +953,7 @@ async function pageMatch(id, tab = '') {
   if (!g) return notFound('Matchen hittades inte.');
   setTitle(`${g.home}–${g.away}`); mTitle(`${g.home}–${g.away}`);
   const done = isFinal(g), live = isLive(g);
-  const rec = (c) => { const r = TABLE.find((t) => t.code === c); return r ? `${r.pts} p · plats ${TABLE.indexOf(r) + 1}` : ''; };
+  const rec = (c) => { const r = TABLE.find((t) => t.code === c); return r ? `<span class="mh-rec"><span class="gc-rank">${TABLE.indexOf(r) + 1}</span>${r.pts} p</span>` : ''; };
   if ((done || live) && !(id in gameCache)) app.innerHTML = skeleton();
   let d = done || live ? await loadGame(id) : null;
   if (live && LIVE_API) {
@@ -965,17 +967,17 @@ async function pageMatch(id, tab = '') {
   const base = `/match/${id}`;
   const tabList = done || live
     ? [['', 'Översikt'], ['video', 'Video', d ? d.goals.filter((x) => x.clip).length + (d.hl ? 1 : 0) || '' : ''], ['spelare', 'Spelare'], ['skott', 'Skott & utvisningar']]
-    : [['', 'Förhandstips'], ['uppstallning', 'Uppställningar'], ['inbordes', 'Inbördes möten']];
+    : [['', 'Preview'], ['uppstallning', 'Uppställningar'], ['inbordes', 'Inbördes möten']];
   if (!tabList.some(([k]) => k === tab)) tab = '';
   const meta = [`${fmtDay(g.start)} ${dateParts(g.start).y}, ${fmtTime(g.start)}`, d?.arena || g.arena, d?.att ? `Publik ${d.att.toLocaleString('sv-SE')}` : ''].filter(Boolean);
   const head = `<section class="panel mpanel" style="--hc:${pairColors(g.home, g.away)[0]};--ac:${pairColors(g.home, g.away)[1]}">
     <div class="band">
     <div class="crumbs" style="padding:16px 22px 0"><a href="#/matcher">Matcher</a> / ${esc(tName(g.home))} – ${esc(tName(g.away))}</div>
     <div class="mhead">
-      <a class="mteam" href="#/lag/${g.home}">${tb(g.home, 'xl')}<b>${esc(tName(g.home))}</b><span>Hemma · ${rec(g.home)}</span></a>
+      <a class="mteam" href="#/lag/${g.home}"><span class="mh-side">Hemma</span>${tb(g.home, 'xl')}<b>${esc(tName(g.home))}</b>${rec(g.home)}</a>
       <div class="mscore">${done || live ? `<div class="sc">${g.hs}–${g.as}</div>` : `<div class="sc sm">${fmtTime(g.start)}</div>`}
         <div class="st ${live ? 'live' : ''}">${done ? statusTxt(g) : live ? `<i class="live-dot"></i>${esc(liveClock(d?.live))}` : fmtDay(g.start)}</div></div>
-      <a class="mteam" href="#/lag/${g.away}">${tb(g.away, 'xl')}<b>${esc(tName(g.away))}</b><span>Borta · ${rec(g.away)}</span></a>
+      <a class="mteam" href="#/lag/${g.away}"><span class="mh-side">Borta</span>${tb(g.away, 'xl')}<b>${esc(tName(g.away))}</b>${rec(g.away)}</a>
     </div>
     </div>
     <div class="mmeta" style="padding-top:14px">${meta.map((m) => `<span>${esc(m)}</span>`).join('')}</div>
@@ -1283,13 +1285,13 @@ function matchPreview(g) {
     panel('Vinstchans', `<div style="display:grid;gap:12px">${oddsBar(ph)}
       <div class="tiles">
         <div class="tile"><span class="k">${esc(g.home)} vinner</span><span class="v">${pctTxt(ph)}</span></div>
-        <div class="tile"><span class="k">Övertid</span><span class="v">${pctTxt(tie)}</span><span class="s">lika efter 60 min</span></div>
         <div class="tile"><span class="k">${esc(g.away)} vinner</span><span class="v">${pctTxt(1 - ph)}</span></div>
+        <div class="tile"><span class="k">Övertid</span><span class="v">${pctTxt(tie)}</span><span class="s">lika efter 60 min</span></div>
         <div class="tile"><span class="k">Förväntade mål</span><span class="v">${dec(lh, 1)}–${dec(la, 1)}</span></div>
       </div></div>`),
-    panel('Troligaste resultat', `<div class="chart">${hBars(scores.slice(0, 6).map((s) => ({ label: s.s, v: s.p })), { labelW: 56, fmt: (v) => pctTxt(v, 1), W: 440, rowH: 26 })}</div>`, { sub: 'Efter ordinarie tid (60 minuter).' }),
     panel('Säsongsjämförelse', cmp),
     panel('Form och poängbästa', `<div style="display:grid;gap:18px">${hot(g.home)}${hot(g.away)}</div>`),
+    panel('Troligaste resultat', `<div class="chart">${hBars(scores.slice(0, 6).map((s) => ({ label: s.s, v: s.p })), { labelW: 56, fmt: (v) => pctTxt(v, 1), W: 440, rowH: 26 })}</div>`, { sub: 'Efter ordinarie tid (60 minuter).' }),
   ]);
 }
 function matchH2H(g) {
@@ -1484,7 +1486,7 @@ function pageStats() {
     const rows = D.seasons[S.season][S.kind].filter((p) => (isSk ? p.gp : p.gpi) >= S.minGp && (S.team === 'ALL' || p.team === S.team)
       && (!isSk || S.pos === 'ALL' || (posGroup(p.pos) === 'D') === (S.pos === 'D')) && (!S.rk || p.rk) && (!q || normName(p.name).includes(q)))
       .map((p) => isSk ? { ...p, ppgp: p.gp ? p.pts / p.gp : 0, shp: p.sog ? p.g / p.sog : null } : { ...p, gsaa: gsaa(p, S.season) });
-    const nameCol = { k: 'name', label: 'Spelare', l: true, asc: true, h: (r, i) => `<div class="pcell rankcell"><span class="rk-n num">${i + 1}</span>${tb(r.team)}${avatar(r.id, r.name, r.team)}<div class="rk-nm">${pLink(r.id, r.name)}<small>${POS[r.pos] || 'Forward'}</small></div></div>` };
+    const nameCol = { k: 'name', label: 'Spelare', l: true, asc: true, h: (r, i) => `<div class="pcell rankcell"><span class="rk-n num">${i + 1}</span>${tb(r.team)}${avatar(r.id, r.name, r.team)}<div class="rk-nm">${pLink(r.id, isNarrow() ? shortName(r.name) : r.name)}<small>${isNarrow() ? POS_SHORT[r.pos] || 'F' : POS[r.pos] || 'Forward'}</small></div></div>` };
     if (isSk) sortable($('stable'), [nameCol,
       { k: 'gp', label: 'SM', title: 'Spelade matcher' }, { k: 'g', label: 'M', title: 'Mål' }, { k: 'a', label: 'A', title: 'Assist' }, { k: 'pts', label: 'P', title: 'Poäng' },
       { k: 'ppgp', label: 'P/M', title: 'Poäng per match', f: (v) => dec(v, 2) }, { k: 'pm', label: '+/-', f: signed }, { k: 'pim', label: 'Utv', title: 'Utvisningsminuter' },
@@ -2397,7 +2399,7 @@ async function pageDay(want) {
   list.addEventListener('touchend', (e) => {
     if (x0 == null || e.target.closest('.gc-goals')) { x0 = null; return; }
     const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
-    if (Math.abs(dx) > 70 && Math.abs(dy) < 50) { const to = dx < 0 ? next : prev; if (to) location.hash = `#/matcher/${to}`; }
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.6) { const to = dx < 0 ? next : prev; if (to) location.hash = `#/matcher/${to}`; }
   });
 }
 

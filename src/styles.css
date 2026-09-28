@@ -1489,3 +1489,40 @@ ol.lb.nologo:not(.noav) .av { width: 36px; height: 36px; }
 .rankcell { display: flex !important; align-items: center; gap: 8px; } .rankcell .rk-n { width: 20px; flex: none; } .rankcell .tb, .rankcell .av { flex: none; } .rk-nm { min-width: auto; flex: none; }
 
 @media (max-width: 700px) { #stable tr.fav td:first-child { background: color-mix(in srgb, var(--accent) 11%, var(--panel)); } }
+
+/* Team badges: the short name only shows when there is no logo */
+.tb:has(img) .tb-t { visibility: hidden; }
+
+/* Match header: no box behind the score or time; side label above the logo, rank badge and points under the name */
+.band .mscore { background: none; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 0 6px; min-width: 0; text-shadow: 0 2px 12px rgba(0, 0, 0, .35); }
+.mh-side { font: 700 12px var(--display); letter-spacing: .14em; text-transform: uppercase; opacity: .85; }
+.mh-rec { display: inline-flex; align-items: center; gap: 6px; font: 600 14px var(--display); letter-spacing: .03em; }
+.band .mh-rec .gc-rank { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 6px; background: rgba(0, 0, 0, .28); color: #fff; font: 700 12.5px var(--display); }
+.band .mteam .mh-rec { color: #fff; opacity: .92; }
+
+/* Smoother, faster motion: pages fade in (cheap to draw) instead of sliding, with a short stagger */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.board > *, .page-head, main > .panel, .teamgrid, .section-title, .ov-row { animation: fadeIn .22s ease-out both; animation-delay: calc(min(var(--i, 0), 5) * 25ms); }
+
+@media (max-width: 700px) {
+  /* Blur is expensive while scrolling; only the floating menu keeps its glass look */
+  header.top { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--bg); }
+  .datetabs { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--bg); }
+  .bottom-nav { backdrop-filter: blur(14px) saturate(160%); -webkit-backdrop-filter: blur(14px) saturate(160%); background: color-mix(in srgb, var(--panel) 72%, transparent); }
+  /* No shrink on touch: moving the card under the finger can cancel a sideways swipe inside it */
+  .gcard { transition: none; }
+  .gcard:active { transform: none; background: color-mix(in srgb, var(--panel) 92%, var(--text)); }
+  .bottom-nav a { transition: background .15s, color .15s; }
+
+  /* Full player list: tighter to the left edge */
+  #stable th:first-child, #stable td:first-child { padding-left: 2px; padding-right: 6px; }
+  .rankcell { gap: 7px; }
+  .rankcell .rk-n { width: 16px; }
+  .rk-nm a { font-size: 15px; }
+  .band .mh-rec { font-size: 13.5px; }
+}
+
+/* Match header: both team columns start at the top, so the Hemma/Borta labels line up */
+.mhead { align-items: start; } .mhead .mscore { align-self: center; }
+
+@media (max-width: 700px) { #stable td, #stable th { padding-left: 5px; padding-right: 5px; } #stable td:first-child, #stable th:first-child { padding-left: 2px; } }
