@@ -1604,3 +1604,22 @@ ol.lb.nologo:not(.noav) .av { width: 36px; height: 36px; }
 
 /* Player page: the season (or career span) named once, above the tiles */
 .phero-season { font: 700 12.5px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px 2px; }
+
+/* Team page hero: builds on the player hero (.phero); the logo takes the photo's place */
+.thero-img { position: absolute; z-index: 0; right: 7%; top: 50%; translate: 0 -56%; height: 72%; width: auto; max-width: 46%; object-fit: contain;
+  filter: drop-shadow(0 16px 28px rgba(0, 0, 0, .35)); }
+.thero-code { font-size: 150px; letter-spacing: -.01em; }
+.thero .phero-team .gc-rank { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 7px; background: rgba(0, 0, 0, .3); color: #fff; font: 700 14px var(--display); }
+.thero .phero-info h1 { max-width: 60%; }
+.thero-meta { align-items: center; }
+.thero-form { display: inline-flex; }
+.thero-meta .favbtn { margin-left: auto; }
+@media (max-width: 700px) {
+  .thero .phero-top { height: 340px; }
+  .thero-img { right: 50%; translate: 50% 0; top: 34px; height: 54%; max-width: 70%; }
+  .thero-code { font-size: 118px; }
+  .thero .phero-info h1 { max-width: none; font-size: 42px; }
+  .thero-meta .favbtn { margin-left: 0; }
+}
+
+@media (max-width: 700px) { .thero-meta .favbtn { min-height: 0; padding: 7px 14px; font-size: 13px; } .thero-meta { row-gap: 10px; } }

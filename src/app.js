@@ -2067,19 +2067,24 @@ async function pageTeam(code, tab = '') {
   const ta = teamAccent(code);
   if (ta) { app.style.setProperty('--accent', ta.accent); app.style.setProperty('--accent-ink', ta.ink); }
   const [tbg, tfg] = TC[code] || ['#5b6b7e', '#fff'];
-  const hero = `<section class="panel" style="--tc:${tbg};--tt:${tfg}"><div class="hero team band">${tb(code, 'xl')}
-    <div class="info"><div class="crumbs"><a href="#/tabell">Tabell</a> / ${esc(tName(code))}</div><h1>${esc(tName(code))}</h1>
-      <div class="meta"><span>Plats <b>${rank}</b></span><span><b>${r.pts}</b> poäng på <b>${r.gp}</b> matcher</span><span>V–ÖV–ÖF–F <b>${r.w}–${r.otw}–${r.otl}–${r.l}</b></span><span>Mål <b>${r.gf}–${r.ga}</b></span></div>
-      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">${formChips(code)}<button class="favbtn" data-fav="${code}" aria-pressed="${isFav}"><span>${isFav ? '★ Mitt lag' : '☆ Följ laget'}</span></button></div></div></div>
-    <div class="p-body" style="padding-top:16px"><div class="tiles">
-      <div class="tile"><span class="k">Proj. poäng</span><span class="v">${dec(s.proj, 0)}</span><span class="s">80 %: ${s.lo}–${s.hi}</span></div>
-      <div class="tile"><span class="k">Topp 6</span><span class="v">${oddsTxt(s.top6)}</span><span class="s">direkt till kvartsfinal</span></div>
-      <div class="tile"><span class="k">Slutspel</span><span class="v">${oddsTxt(s.top10)}</span><span class="s">topp 10</span></div>
-      <div class="tile"><span class="k">Semifinal</span><span class="v">${oddsTxt(s.semi)}</span></div>
-      <div class="tile"><span class="k">SM-final</span><span class="v">${oddsTxt(s.final)}</span></div>
-      <div class="tile"><span class="k">SM-guld</span><span class="v">${oddsTxt(s.gold)}</span></div>
-      <div class="tile"><span class="k">SHL-kval</span><span class="v">${oddsTxt(s.rel)}</span><span class="s">plats 13–14</span></div>
-    </div></div>${tabs(`/lag/${code}`, tabList, tab)}</section>`;
+  // Top card: the club logo large on a fade in the club colour, the team code as a watermark, the name over it
+  // (the same layout as the player pages). The season's forecast is named once above the tiles.
+  const hero = `<section class="panel phero thero" style="--tc:${tbg};--tt:${tfg}">
+    <div class="phero-top">
+      <span class="phero-num thero-code" aria-hidden="true">${esc(code)}</span>
+      ${LOGOS[code] ? `<img class="thero-img" src="${esc(LOGOS[code])}" alt="" onerror="this.remove()">` : ''}
+      <div class="phero-info">
+        <div class="phero-team"><span class="gc-rank">${rank}</span><span>${r.pts} poäng · ${r.gp} matcher</span></div>
+        <h1>${esc(tName(code))}</h1>
+      </div>
+    </div>
+    <div class="phero-meta thero-meta"><span>V–ÖV–ÖF–F <b>${r.w}–${r.otw}–${r.otl}–${r.l}</b></span><span>Mål <b>${r.gf}–${r.ga}</b></span>
+      <span class="thero-form">${formChips(code)}</span><button class="favbtn" data-fav="${code}" aria-pressed="${isFav}"><span>${isFav ? '★ Mitt lag' : '☆ Följ laget'}</span></button></div>
+    <div class="p-body"><div class="phero-season">Prognos ${CUR.replace('-', '/')}</div><div class="tiles">${[
+      ['Proj. poäng', dec(s.proj, 0)], ['Slutspel', oddsTxt(s.top10)], ['Topp 6', oddsTxt(s.top6)], ['SM-guld', oddsTxt(s.gold)],
+      ['Semifinal', oddsTxt(s.semi)], ['SM-final', oddsTxt(s.final)], ['SHL-kval', oddsTxt(s.rel)],
+    ].map(([k, v]) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('')}</div></div>
+    ${tabs(`/lag/${code}`, tabList, tab)}</section>`;
 
   let body;
   if (tab === 'trupp') body = teamRoster(code, roster);
