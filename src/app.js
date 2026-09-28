@@ -1453,8 +1453,6 @@ function pageStats() {
   const sections = LEADER_SECTIONS();
   render(`
     <div class="page-head"><div><h1>Statistik</h1><p>Topplistor och fullständig statistik för alla SHL-spelare. Tryck på en spelare för hela profilen.</p></div></div>
-    <div class="search m-only stat-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="stat-search" type="search" placeholder="Sök spelare eller lag" autocomplete="off" aria-label="Sök spelare eller lag" enterkeyhint="search"><div class="results" id="stat-results" hidden></div></div>
     <div class="lsec-row">${sections.map((s) => `<section class="panel lsec">
       <div class="p-head"><h2>${s.title}</h2>${s.note ? `<span class="stamp">${esc(s.note)}</span>` : ''}</div>
       <div class="utabs" id="lt-${s.id}" role="tablist">${s.stats.map((st, i) => `<button role="tab" data-k="${st.k}" aria-selected="${i === 0}">${st.label}</button>`).join('')}</div>
@@ -1486,7 +1484,7 @@ function pageStats() {
     const rows = D.seasons[S.season][S.kind].filter((p) => (isSk ? p.gp : p.gpi) >= S.minGp && (S.team === 'ALL' || p.team === S.team)
       && (!isSk || S.pos === 'ALL' || (posGroup(p.pos) === 'D') === (S.pos === 'D')) && (!S.rk || p.rk) && (!q || normName(p.name).includes(q)))
       .map((p) => isSk ? { ...p, ppgp: p.gp ? p.pts / p.gp : 0, shp: p.sog ? p.g / p.sog : null } : { ...p, gsaa: gsaa(p, S.season) });
-    const nameCol = { k: 'name', label: 'Spelare', l: true, asc: true, h: (r, i) => `<div class="pcell"><span class="faint num" style="width:22px;text-align:right">${i + 1}</span>${tb(r.team)}${avatar(r.id, r.name, r.team)}<div>${pLink(r.id, r.name)}<br><small>${esc(r.team)} · ${POS[r.pos] || 'Forward'}</small></div></div>` };
+    const nameCol = { k: 'name', label: 'Spelare', l: true, asc: true, h: (r, i) => `<div class="pcell rankcell"><span class="rk-n num">${i + 1}</span>${tb(r.team)}${avatar(r.id, r.name, r.team)}<div class="rk-nm">${pLink(r.id, r.name)}<small>${POS[r.pos] || 'Forward'}</small></div></div>` };
     if (isSk) sortable($('stable'), [nameCol,
       { k: 'gp', label: 'SM', title: 'Spelade matcher' }, { k: 'g', label: 'M', title: 'Mål' }, { k: 'a', label: 'A', title: 'Assist' }, { k: 'pts', label: 'P', title: 'Poäng' },
       { k: 'ppgp', label: 'P/M', title: 'Poäng per match', f: (v) => dec(v, 2) }, { k: 'pm', label: '+/-', f: signed }, { k: 'pim', label: 'Utv', title: 'Utvisningsminuter' },
@@ -1512,7 +1510,6 @@ function pageStats() {
   $('sr').onchange = (e) => { statsState.rk = !!e.target.value; draw(); };
   $('gs').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; [...$('gs').children].forEach((c) => c.setAttribute('aria-pressed', c === b)); $('gchart').innerHTML = gsaaChart(b.dataset.v); };
   teamOpts(); draw();
-  bindSearch($('stat-search'), $('stat-results'), (it) => { location.hash = it.type === 't' ? `#/lag/${it.id}` : `#/spelare/${it.id}`; });
 
   // Leader sections: switch stat, or jump to the full table sorted by that stat
   const active = {};
@@ -2357,7 +2354,7 @@ function gameCard(g, d) {
   const left = hl ? `<button class="gc-btn" data-embed="${esc(hl.embed)}" data-title="${esc(`${g.home}–${g.away} sammandrag`)}">${PLAY_SVG}Sammandrag</button>`
     : !done && !live && g.arena ? `<span class="gc-arena">${esc(g.arena)}</span>` : '<span></span>';
   return `<article class="gcard ${fav ? 'fav' : ''} ${live ? 'is-live' : ''}" data-href="#/match/${esc(g.id)}" tabindex="0" role="link" aria-label="${esc(`${tName(g.home)} mot ${tName(g.away)}`)}">
-    <div class="gc-head">${chip}${fav ? '<span class="gc-mine">★ Mitt lag</span>' : ''}</div>
+    <div class="gc-head">${chip}${fav ? '<span class="gc-mine" title="Mitt lag" aria-label="Mitt lag">★</span>' : ''}</div>
     ${row(g.home, 'home')}${row(g.away, 'away')}${mid}
     <div class="gc-foot">${left}<span class="card-foot">Matchfakta ›</span></div></article>`;
 }
@@ -2404,16 +2401,10 @@ async function pageDay(want) {
   });
 }
 
-// Hem on phones: the team card. Where the team stands and against whom, current form, the coming games,
+// Hem on phones: the team card. Place and points, current form, the coming games,
 // who is hot right now (points in the last three games) and the season odds on one line.
 function myTeamCard(fav, r, s, recent, det) {
-  const i = TABLE.indexOf(r), rank = i + 1, pts = (k) => TABLE[k]?.pts ?? 0;
-  const gap = i === 0 ? `${r.pts - pts(1)} p före ${esc(tName(TABLE[1].code))}` : `${pts(i - 1) - r.pts} p bakom ${esc(tName(TABLE[i - 1].code))}`;
-  const extra = rank > 10 ? `${pts(9) - r.pts} p till slutspelsplats` : rank > 6 ? `${pts(5) - r.pts} p till topp 6` : '';
-  // Current run of wins or losses
-  const res = GAMES.filter((x) => isFinal(x) && isFavGame(x)).map((x) => (x.home === fav ? x.hs > x.as : x.as > x.hs));
-  let run = 0; for (let k = res.length - 1; k >= 0 && res[k] === res[res.length - 1]; k--) run++;
-  const streak = res.length ? (res[res.length - 1] ? `${run} ${run === 1 ? 'vinst' : 'vinster'} i rad` : `${run} ${run === 1 ? 'förlust' : 'förluster'} i rad`) : '';
+  const rank = TABLE.indexOf(r) + 1;
   const coming = GAMES.filter((x) => !isFinal(x) && isFavGame(x)).slice(0, 5).map((x) => {
     const home = x.home === fav, opp = home ? x.away : x.home, p = dateParts(x.start), ph = x.ph ?? 0.5;
     return `<a class="mt-g" href="#/match/${esc(x.id)}"><span class="mt-g-d">${DAYS[p.wd]}<br>${p.d}/${p.m}</span>${tb(opp, 'md')}<span class="mt-g-h">${home ? 'Hemma' : 'Borta'}</span><span class="mt-g-p num">${pctTxt(home ? ph : 1 - ph)}</span></a>`;
@@ -2428,8 +2419,8 @@ function myTeamCard(fav, r, s, recent, det) {
   const hot = Object.values(form).sort((a, b) => (b.g + b.a) - (a.g + a.a) || b.g - a.g)[0];
   return `<section class="panel m-card myteam-m" style="--tc:${tColor(fav)}"><div class="p-body">
       <a class="mt-head" href="#/lag/${fav}">${tb(fav, 'xl')}<span class="mt-name"><b>${esc(tName(fav))}</b>
-        <span class="mt-pos"><span class="gc-rank">${rank}</span>${r.pts} poäng · ${gap}</span>${extra ? `<span class="mt-pos sub">${extra}</span>` : ''}</span></a>
-      <div class="mt-row"><span class="mt-lbl">Form</span>${formChips(fav)}${streak ? `<span class="mt-streak">${streak}</span>` : ''}</div>
+        <span class="mt-pos"><span class="gc-rank">${rank}</span>${r.pts} poäng · ${r.gp} matcher</span></span></a>
+      <div class="mt-row"><span class="mt-lbl">Form</span>${formChips(fav)}</div>
       ${coming ? `<div class="mt-lbl">Kommande matcher</div><div class="mt-games">${coming}</div>` : ''}
       ${hot && hot.g + hot.a > 0 ? `<a class="mt-hot" href="#/spelare/${encodeURIComponent(hot.id)}">${avatar(hot.id, hot.name, fav).replace(' loading="lazy"', '')}<span><small>Formstark</small><b>${esc(hot.name)}</b></span><span class="mt-hot-v"><b class="num">${hot.g + hot.a} p</b><small>${hot.g}+${hot.a} senaste ${recent.length}</small></span></a>` : ''}
       <div class="mt-odds"><span>Slutspel <b>${oddsTxt(s.top10)}</b></span><span>Topp 6 <b>${oddsTxt(s.top6)}</b></span><span>SM-guld <b>${oddsTxt(s.gold)}</b></span></div>
@@ -2453,7 +2444,7 @@ async function pageHome() {
       ${next ? sec(isLive(next) ? 'Pågår nu' : 'Nästa match', fmtDay(next.start)) + gameCard(next, det[next.id]) : ''}
       ${last ? sec('Senaste match', fmtDay(last.start)) + gameCard(last, det[last.id]) : ''}
       ${sec('Poängliga')}
-      ${card(leaderList(sk, { val: (p) => p.pts, n: 5, avatars: false, logos: false, sub: (p) => `${p.g} mål, ${p.a} assist` }), cardFoot(`#/lag/${fav}/trupp`, 'Hela truppen'))}
+      ${card(leaderList(sk, { val: (p) => p.pts, n: 5, logos: false, sub: (p) => `${p.g} mål, ${p.a} assist` }), cardFoot(`#/lag/${fav}/trupp`, 'Hela truppen'))}
       ${(TD?.news?.[fav] || []).length ? sec(`Nyheter om ${esc(tName(fav))}`) + `<div class="tnews-row">${teamNewsCards(fav, TD.news[fav])}</div>` : ''}`;
   } else {
     const gday = defaultDay(), games = GAMES.filter((g) => g.start.startsWith(gday)).sort((a, b) => a.start.localeCompare(b.start));

@@ -1452,3 +1452,40 @@ ol.lb.noav .r, ol.lb.nologo .r { text-align: left; }
 @media (max-width: 700px) { .gch-play { width: 24px; height: 24px; } .gch-play .ic { width: 11px; height: 11px; } .gchip { gap: 7px; } }
 
 @media (max-width: 700px) { #stable .pcell .av { display: none; } #stable .pcell { gap: 8px; } #stable .pcell > .num { width: 18px !important; } }
+
+/* Lists with photos but no team logo (one team's points list) */
+ol.lb.nologo:not(.noav) li { grid-template-columns: 24px 36px minmax(0, 1fr) auto; }
+ol.lb.nologo:not(.noav) .r { text-align: left; }
+ol.lb.nologo:not(.noav) .av { width: 36px; height: 36px; }
+
+/* Full player list: rank, logo, photo and name on one centred row */
+.rankcell { display: grid; grid-template-columns: 22px auto auto minmax(0, 1fr); gap: 8px; align-items: center; }
+.rankcell .rk-n { text-align: right; color: var(--faint); font-size: 14px; }
+.rk-nm { display: grid; line-height: 1.2; min-width: 0; }
+.rk-nm small { color: var(--muted); }
+
+/* Toggle panes never grow wider than their card (a wide table scrolls inside it instead) */
+.tt, .tt > * { min-width: 0; max-width: 100%; }
+
+@media (max-width: 700px) {
+  ol.lb.nologo:not(.noav) li { padding: 8px 0; gap: 10px; }
+  #stable .pcell .tb { display: inline-grid; }
+  #stable .pcell .av { display: none; }
+  .rankcell { grid-template-columns: 20px 24px minmax(0, 1fr); }
+  .gc-mine { font-size: 17px; line-height: 1; }
+
+  /* Goal scorers and team leaders: one row you swipe sideways, the next chip peeking in at the edge */
+  .gcard .gc-goals { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y;
+    margin: 0 -16px; padding: 0 16px 2px; scroll-snap-type: x proximity; scroll-padding: 0 16px; scrollbar-width: none; }
+  .gcard .gc-goals::-webkit-scrollbar { display: none; }
+  .gcard .gchip { flex: 0 0 auto; width: 188px; scroll-snap-align: start; }
+}
+
+/* Full player list: the name column sizes to its content so it never runs over the numbers */
+.rankcell { grid-template-columns: 22px auto auto auto; } .rk-nm { white-space: nowrap; }
+@media (max-width: 700px) { .rankcell { grid-template-columns: 20px 24px auto; } #stable td:first-child { background: var(--panel); } }
+
+/* Rank, logo and name as a plain row: the name keeps its full width */
+.rankcell { display: flex !important; align-items: center; gap: 8px; } .rankcell .rk-n { width: 20px; flex: none; } .rankcell .tb, .rankcell .av { flex: none; } .rk-nm { min-width: auto; flex: none; }
+
+@media (max-width: 700px) { #stable tr.fav td:first-child { background: color-mix(in srgb, var(--accent) 11%, var(--panel)); } }
