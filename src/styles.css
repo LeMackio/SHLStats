@@ -1888,7 +1888,7 @@ footer#foot p { margin: 0; }
 .gl-per { margin: 8px 0 0; font: 700 12px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .gl-per:first-child { margin-top: 0; }
 .gl-row { display: grid; grid-template-columns: 44px 40px minmax(0, 1fr) 58px 32px; gap: 10px; align-items: center; min-height: 54px;
-  padding: 7px 10px 7px 12px; border-radius: var(--r-in, 12px); background: var(--panel-2); box-shadow: inset 3px 0 0 var(--gc); }
+  padding: 7px 10px 7px 12px; border-radius: var(--r-in, 12px); background: var(--panel-2); }
 .gl-t { font: 600 14px var(--display); color: var(--muted); }
 .gl-av { position: relative; width: 38px; height: 38px; }
 .gl-av .av { width: 38px; height: 38px; }
@@ -1901,7 +1901,7 @@ footer#foot p { margin: 0; }
 .gl-who small a { color: var(--muted); }
 .gl-sc { display: flex; justify-content: center; align-items: baseline; gap: 3px; font: 700 18px var(--display); color: var(--muted); }
 .gl-sc b { font-weight: 700; min-width: 1ch; text-align: center; }
-.gl-sc b.on { color: var(--text); }
+.gl-sc b.on { color: var(--gc); } /* the scoring team's number in its club colour */
 .gl-sc i { font-style: normal; }
 .gl-play { display: grid; place-items: center; width: 32px; }
 .gl-novid { color: var(--faint); font-size: 13px; }
