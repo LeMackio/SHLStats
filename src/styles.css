@@ -1550,3 +1550,54 @@ ol.lb.nologo:not(.noav) .av { width: 36px; height: 36px; }
   .datetabs { top: calc(env(safe-area-inset-top, 0px) + 64px); }
 }
 @media (max-width: 700px) and (prefers-reduced-motion: reduce) { .daylist.in-next, .daylist.in-prev { animation: none; } }
+
+/* Logo badges: no coloured box or letters behind a logo (set in the HTML, so it works in every browser) */
+.tb.logo { background: none; color: transparent; }
+.tb.logo .tb-t { visibility: hidden; }
+
+/* The followed team's game is marked by the star only */
+.gcard.fav { outline: none !important; }
+
+/* Player page hero: the headshot large on a fade in the club colour, the name over it */
+.phero { overflow: hidden; }
+.phero-top { position: relative; height: 340px; overflow: hidden; border-radius: var(--radius) var(--radius) 0 0;
+  background: radial-gradient(120% 90% at 72% 18%, color-mix(in srgb, var(--tc) 88%, #fff 12%) 0%, var(--tc) 38%, color-mix(in srgb, var(--tc) 55%, #06080b) 100%); }
+.phero-top::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(6, 8, 11, .72) 100%); pointer-events: none; }
+.phero-num { position: absolute; left: 18px; top: 4px; font: 900 italic 170px/1 "Archivo", var(--display); font-stretch: 80%; color: rgba(255, 255, 255, .12); letter-spacing: -.02em; pointer-events: none; }
+.phero-img { position: absolute; bottom: 0; right: 6%; height: 104%; width: auto; max-width: 70%; object-fit: contain; object-position: bottom; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .35)); }
+.phero-ini { position: absolute; right: 12%; bottom: 24%; font: 700 110px var(--display); color: rgba(255, 255, 255, .22); }
+.phero-info { position: absolute; left: 22px; right: 22px; bottom: 20px; z-index: 1; display: grid; gap: 8px; color: #fff; }
+.phero-info h1 { margin: 0; font: 900 italic 50px/.92 "Archivo", var(--display); font-stretch: 78%; text-transform: uppercase; letter-spacing: .005em; text-shadow: 0 2px 18px rgba(0, 0, 0, .35); overflow-wrap: anywhere; }
+.phero-info h1 span { display: block; font-size: .5em; font-weight: 800; opacity: .9; margin-bottom: 2px; }
+.phero-team { display: flex; align-items: center; gap: 8px; font: 600 14px var(--display); letter-spacing: .06em; text-transform: uppercase; }
+.phero-team .tb.md { width: 30px; height: 30px; }
+.phero-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 14px 22px 0; font-size: 14px; color: var(--muted); }
+.phero-meta b { color: var(--text); font-weight: 600; }
+.phero > .p-body { padding-top: 14px; }
+
+@media (max-width: 700px) {
+  .phero-top { height: 400px; }
+  .phero-img { right: 50%; translate: 50% 0; max-width: 100%; height: 100%; }
+  .phero-num { font-size: 150px; top: 2px; left: 12px; }
+  .phero-info { left: 16px; right: 16px; bottom: 16px; }
+  .phero-info h1 { font-size: 44px; }
+  .phero-meta { padding: 12px 16px 0; gap: 4px 14px; }
+  .phero > .p-body { padding: 12px 16px 14px; }
+
+  /* Game stats tables: compact, everything visible */
+  #box-home td, #box-home th, #box-away td, #box-away th { padding-left: 5px; padding-right: 5px; }
+  #box-home td:first-child, #box-away td:first-child { padding-left: 2px; }
+}
+
+/* Player hero: the photo (SHL's own background baked in) fades into the club colour from the left and top */
+.phero-img { z-index: 0; -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 42%), linear-gradient(0deg, #000 70%, transparent 100%); -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 42%), linear-gradient(0deg, #000 70%, transparent 100%); mask-composite: intersect; }
+.phero-top::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(90deg, var(--tc) 0%, color-mix(in srgb, var(--tc) 50%, transparent) 22%, transparent 44%); }
+.phero-top::after { z-index: 1; }
+.phero-num { z-index: 1; }
+.phero-info { z-index: 2; }
+@media (max-width: 700px) {
+  .phero-img { right: -14%; translate: none; height: 100%; max-width: none; }
+}
+@media (max-width: 700px) { #gk-table td, #gk-table th { padding-left: 4px; padding-right: 4px; } #gk-table td:first-child { padding-left: 2px; } #gk-table .pcell { gap: 6px; } #gk-table th { letter-spacing: .03em; } }

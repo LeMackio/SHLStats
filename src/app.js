@@ -50,10 +50,10 @@ const strengthTag = (g) => g.ps ? 'STRAFF' : g.en ? 'TOM KASSE' : /^PP/.test(g.s
 
 // Approximate club colours for badge fallbacks and tints: [background, text]
 const TC = {
-  BIF: ['#c8202f', '#fff'], DIF: ['#0b2d6b', '#fff'], FBK: ['#f3c316', '#10220f'], FHC: ['#0f6b3f', '#fff'],
+  BIF: ['#e9a900', '#111'], DIF: ['#0b2d6b', '#fff'], FBK: ['#f3c316', '#10220f'], FHC: ['#0f6b3f', '#fff'],
   HV71: ['#1545a3', '#ffd400'], IFB: ['#11804a', '#fff'], LHC: ['#0a5bb4', '#fff'], LHF: ['#b3122f', '#fff'],
   MIF: ['#d31c35', '#fff'], OHK: ['#1d2330', '#fff'], RBK: ['#1a8a3e', '#fff'], SAIK: ['#1b1b1b', '#f5c400'],
-  TIK: ['#b8233a', '#fff'], VLH: ['#c21f2e', '#fff'], LIF: ['#1a4fa0', '#fff'], IKO: ['#e2231a', '#fff'], MODO: ['#b01f2e', '#fff'],
+  TIK: ['#b8233a', '#fff'], VLH: ['#1c3968', '#f28c28'], LIF: ['#1a4fa0', '#fff'], IKO: ['#e2231a', '#fff'], MODO: ['#b01f2e', '#fff'],
 };
 const tColor = (c) => (TC[c] || ['#5b6b7e'])[0];
 
@@ -237,8 +237,8 @@ function startLive() {
 const tName = (c) => TEAMS[c]?.name || c;
 const tb = (code, size = '') => {
   const [bg, fg] = TC[code] || ['#5b6b7e', '#fff'];
-  const img = LOGOS[code] ? `<img src="${esc(LOGOS[code])}" alt="" loading="lazy" onerror="this.remove()">` : '';
-  return `<span class="tb ${size}" style="--tc:${bg};--tt:${fg}" title="${esc(tName(code))}"><span class="tb-t">${esc(code)}</span>${img}</span>`;
+  const img = LOGOS[code] ? `<img src="${esc(LOGOS[code])}" alt="" loading="lazy" onerror="this.parentNode.classList.remove('logo');this.remove()">` : '';
+  return `<span class="tb ${size} ${img ? 'logo' : ''}" style="--tc:${bg};--tt:${fg}" title="${esc(tName(code))}"><span class="tb-t">${esc(code)}</span>${img}</span>`;
 };
 const teamLink = (code, { name = false, size = '' } = {}) =>
   `<a class="teamlink" href="#/lag/${encodeURIComponent(code)}">${tb(code, size)}${name ? `<span>${esc(tName(code))}</span>` : ''}</a>`;
@@ -1190,8 +1190,8 @@ function matchVideo(d) {
 }
 function matchPlayers(d) {
   const gkRows = ['home', 'away'].flatMap((s) => (d.gk[s] || []).filter((r) => r.soga > 0).map((r) => ({ ...r, team: d[s] })));
-  const gkHtml = `<div class="tscroll"><table class="t"><thead><tr><th class="l">Målvakt</th><th>Skott</th><th>Räddn.</th><th>Insl.</th><th>Rädd%</th></tr></thead><tbody>${gkRows.map((r) =>
-    `<tr><td class="l"><div class="pcell">${tb(r.team)}${avatar(r.id, r.name, r.team)}${pLink(r.id, r.name)}</div></td><td>${r.soga}</td><td>${r.svs}</td><td>${r.ga}</td><td class="hl">${dec(r.svs / r.soga * 100, 1)}</td></tr>`).join('')}</tbody></table></div>`;
+  const gkHtml = `<div class="tscroll"><table class="t" id="gk-table"><thead><tr><th class="l">Målvakt</th><th>Skott</th><th>Räddn.</th><th>Insl.</th><th>Rädd%</th></tr></thead><tbody>${gkRows.map((r) =>
+    `<tr><td class="l"><div class="pcell">${tb(r.team)}${isNarrow() ? '' : avatar(r.id, r.name, r.team)}${pLink(r.id, isNarrow() ? shortName(r.name) : r.name)}</div></td><td>${r.soga}</td><td>${r.svs}</td><td>${r.ga}</td><td class="hl">${dec(r.svs / r.soga * 100, 1)}</td></tr>`).join('')}</tbody></table></div>`;
   return board([
     panel('Målvakter', gkHtml, { cls: 'wide' }),
     ...(isNarrow()
@@ -1203,14 +1203,19 @@ function matchPlayers(d) {
 function boxTable(d, side) {
   const team = d[side];
   const rows = (d.box[side] || []).map((r) => ({ ...r, pts: r.g + r.a, fo: r.fow + r.fol ? r.fow / (r.fow + r.fol) : null }));
-  sortable($(`box-${side}`), [
+  const cols = [
     { k: 'name', label: 'Spelare', l: true, asc: true, h: (r) => playerCell(r, team, `#${r.num ?? '–'} · ${POS_SHORT[r.pos] || ''}`) },
-    { k: 'line', label: 'Kedja', asc: true },
     { k: 'g', label: 'M', title: 'Mål' }, { k: 'a', label: 'A', title: 'Assist' }, { k: 'pts', label: 'P', title: 'Poäng' },
     { k: 'pm', label: '+/-', f: signed }, { k: 'sog', label: 'Skott' }, { k: 'pim', label: 'Utv', title: 'Utvisningsminuter' },
     { k: 'toi', label: 'Istid', f: mmss }, { k: 'hits', label: 'Tackl.' }, { k: 'blk', label: 'Block' },
     { k: 'fo', label: 'Tekn%', f: (v) => dec(v * 100, 0) },
-  ], rows, { key: 'toi' });
+  ];
+  const narrow = isNarrow();
+  const use = narrow
+    ? [{ k: 'name', label: 'Spelare', l: true, asc: true, h: (r) => `<div class="pcell rankcell">${avatar(r.id, r.name, team)}<div class="rk-nm">${pLink(r.id, shortName(r.name))}<small>#${r.num ?? '–'} · ${POS_SHORT[r.pos] || ''}</small></div></div>` },
+      ...cols.filter((c) => ['g', 'a', 'pts', 'pm', 'sog'].includes(c.k))]
+    : cols;
+  sortable($(`box-${side}`), use, rows, { key: narrow ? 'pts' : 'toi' });
 }
 function matchEvents(d) {
   const pens = d.pens.length ? `<div class="timeline">${d.pens.map((x) => {
@@ -1864,15 +1869,20 @@ async function pagePlayer(id, tab = '') {
   const tiles = gk
     ? [['Matcher', cur?.gpi ?? 0], ['Rädd%', cur ? dec(cur.svp, 2) : '–'], ['GAA', cur ? dec(cur.gaa, 2) : '–'], ['Nollor', cur?.so ?? 0], ['GSAA', cur ? dec(gsaa(cur, CUR)) : '–']]
     : [['Matcher', cur?.gp ?? 0], ['Mål', cur?.g ?? 0], ['Assist', cur?.a ?? 0], ['Poäng', cur?.pts ?? 0], ['+/-', cur ? signed(cur.pm) : '–'], ['Istid', cur ? mmss(cur.toi) : '–']];
-  const hero = `<section class="panel" style="--tc:${tColor(team)}"><div class="hero">
-    ${portrait(id, bio.name, team, 'lg')}
-    <div class="info">
-      <div class="crumbs"><a href="#/statistik">Spelare</a> / ${esc(bio.name)}</div>
-      <h1>${esc(bio.name)}</h1>
-      <div class="meta"><span>${teamLink(team, { name: true })}</span><span>#<b>${esc(bio.num ?? '–')}</b></span><span><b>${POS[bio.pos] || 'Forward'}</b></span>
-        <span>Ålder <b>${ageOf(bio.born)}</b>${bio.born ? ` (${fmtDate(bio.born)})` : ''}</span><span>Nation <b>${esc(NAT[bio.nat] || bio.nat || '–')}</b></span>${hw ? `<span><b>${hw}</b></span>` : ''}</div>
-      <div class="tiles" style="margin-top:6px">${tiles.map(([k, v]) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span><span class="s">${CUR}</span></div>`).join('')}</div>
-    </div></div>${tabs(`/spelare/${encodeURIComponent(id)}`, tabList, tab)}</section>`;
+  const [tbg] = TC[team] || ['#3a4a5e'], shot = HS[id];
+  const [first, ...rest] = String(bio.name).split(' ');
+  const hero = `<section class="panel phero" style="--tc:${tbg}">
+    <div class="phero-top">
+      <span class="phero-num" aria-hidden="true">${esc(bio.num ?? '')}</span>
+      ${shot ? `<img class="phero-img" src="${esc(shot[1])}" alt="" onerror="this.remove()">` : `<span class="phero-ini">${esc(initials(bio.name))}</span>`}
+      <div class="phero-info">
+        <div class="phero-team">${tb(team, 'md')}<span>${esc(tName(team))} · #${esc(bio.num ?? '–')} · ${POS[bio.pos] || 'Forward'}</span></div>
+        <h1><span>${esc(first)}</span>${esc(rest.join(' '))}</h1>
+      </div>
+    </div>
+    <div class="phero-meta"><span>Ålder <b>${ageOf(bio.born)}</b></span><span>Nation <b>${esc(NAT[bio.nat] || bio.nat || '–')}</b></span>${hw ? `<span><b>${hw}</b></span>` : ''}${bio.born ? `<span>Född <b>${fmtDate(bio.born)}</b></span>` : ''}</div>
+    <div class="p-body"><div class="tiles">${tiles.map(([k, v]) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span><span class="s">${CUR}</span></div>`).join('')}</div></div>
+    ${tabs(`/spelare/${encodeURIComponent(id)}`, tabList, tab)}</section>`;
 
   const res = (gid, code) => { const g = GAMES_BY_ID[gid]; if (!g) return ''; const r = resultFor(g, code); const mine = g.home === code ? g.hs : g.as, th = g.home === code ? g.as : g.hs;
     return `<a href="#/match/${gid}">${r === 'v' || r === 'ov' ? 'V' : 'F'} ${mine}–${th}${g.ot || g.so ? ' ÖT' : ''}</a>`; };
@@ -2580,8 +2590,15 @@ document.addEventListener('click', (e) => {
 
 // Two team colours that can be told apart: if they are too alike, the away side switches to its second colour or a neutral steel
 const colorDist = (a, b) => { const [r1, g1, b1] = hexToRgb(a), [r2, g2, b2] = hexToRgb(b), rm = (r1 + r2) / 2; return Math.sqrt((2 + rm / 256) * (r1 - r2) ** 2 + 4 * (g1 - g2) ** 2 + (2 + (255 - rm) / 256) * (b1 - b2) ** 2); };
+const readable = (c) => {
+  const panel = getComputedStyle(document.documentElement).getPropertyValue('--panel').trim() || '#212934';
+  const toward = lum(panel) < 0.2 ? '#ffffff' : '#000000';
+  let x = c;
+  for (let i = 0; i < 5 && contrast(x, panel) < 2.4; i++) x = mixHex(x, toward, 0.22);
+  return x;
+};
 function pairColors(h, a) {
-  const hc = tColor(h); let ac = tColor(a);
+  const hc = readable(tColor(h)); let ac = readable(tColor(a));
   if (colorDist(hc, ac) < 170) {
     const alt = (TC[a] || [])[1];
     ac = alt && colorDist(hc, alt) >= 170 && lum(alt) > 0.03 && lum(alt) < 0.85 ? alt : colorDist(hc, '#8fa3b8') >= 170 ? '#8fa3b8' : '#e3b75a';

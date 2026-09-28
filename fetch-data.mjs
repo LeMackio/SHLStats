@@ -403,7 +403,7 @@ await inBatches(codes, 4, async (code) => {
     const groups = await get(`/sports-v2/athletes/by-team-uuid/${uuid}`);
     rosters[code] = groups.flatMap((grp) => grp.players.map((p) => {
       const srcset = p.renderedLatestPortrait?.srcset;
-      const sm = pickSize(srcset, 100), lg = pickSize(srcset, 280);
+      const sm = pickSize(srcset, 100), lg = pickSize(srcset, 640) || pickSize(srcset, 280);
       if (sm && lg) headshots[p.uuid] = [sm, lg];
       return { id: p.uuid, name: p.fullName, num: p.jerseyNumber, pos: grp.positionCode, nat: p.nationality };
     }));
