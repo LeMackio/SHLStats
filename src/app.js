@@ -2303,7 +2303,7 @@ const isFavGame = (g) => !!FAV && (g.home === FAV || g.away === FAV);
 const PLAY_SVG = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>';
 // "See more" links at the bottom of a card, the same everywhere
 const cardFoot = (href, label) => `<a class="card-foot" href="${href}">${label} ›</a>`;
-let DAY_SHOWN = null;
+let DAY_SHOWN = null, DAY_ENTER = 0; // DAY_ENTER: which side the next day slides in from (1 = from the right)
 
 // Goals and live state for the finished and live games in a list
 async function detailsFor(games) {
@@ -2376,6 +2376,7 @@ async function pageDay(want) {
   if (!days.length) return render(panel('Matcher', '<p class="empty-state">Inget spelschema ännu.</p>'));
   let day = /^\d{4}-\d{2}-\d{2}$/.test(want) ? want : defaultDay();
   if (!days.includes(day)) day = days.find((d) => d >= day) || days[days.length - 1];
+  if (DAY_SHOWN && DAY_SHOWN !== day && !DAY_ENTER) DAY_ENTER = day > DAY_SHOWN ? 1 : -1; // tapped a date
   DAY_SHOWN = day;
   const i = days.indexOf(day), prev = days[i - 1], next = days[i + 1], home = defaultDay();
   const games = GAMES.filter((g) => g.start.startsWith(day)).sort((a, b) => isFavGame(b) - isFavGame(a) || a.start.localeCompare(b.start));
@@ -2392,15 +2393,40 @@ async function pageDay(want) {
   // Centre the chosen day in the date row
   const tabs = $('datetabs'), on = tabs.querySelector('.on');
   if (on) tabs.scrollLeft = on.offsetLeft - (tabs.clientWidth - on.offsetWidth) / 2;
-  // Swipe sideways on the games to change day
-  let x0 = null, y0 = null;
+  // Swipe sideways on the games to change day: the list follows the finger, slides out, and the new day slides in
   const list = $('daylist');
-  list.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  if (DAY_ENTER) { list.classList.add(DAY_ENTER > 0 ? 'in-next' : 'in-prev'); DAY_ENTER = 0; }
+  let x0 = null, y0 = null, dragging = false;
+  const reset = () => { list.style.transition = 'transform .22s cubic-bezier(.2, .8, .2, 1), opacity .22s'; list.style.transform = ''; list.style.opacity = ''; };
+  list.addEventListener('touchstart', (e) => {
+    x0 = e.target.closest('.gc-goals') ? null : e.touches[0].clientX; y0 = e.touches[0].clientY; dragging = false;
+  }, { passive: true });
+  list.addEventListener('touchmove', (e) => {
+    if (x0 == null) return;
+    const dx = e.touches[0].clientX - x0, dy = e.touches[0].clientY - y0;
+    if (!dragging) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { x0 = null; return; } // scrolling up or down
+      if (Math.abs(dx) > 12) dragging = true; else return;
+    }
+    const damp = (dx < 0 && !next) || (dx > 0 && !prev) ? 0.25 : 0.9; // resist at the first and last day
+    list.style.transition = 'none';
+    list.style.transform = `translate3d(${dx * damp}px, 0, 0)`;
+    list.style.opacity = String(1 - Math.min(0.45, Math.abs(dx) / 700));
+  }, { passive: true });
   list.addEventListener('touchend', (e) => {
-    if (x0 == null || e.target.closest('.gc-goals')) { x0 = null; return; }
-    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.6) { const to = dx < 0 ? next : prev; if (to) location.hash = `#/matcher/${to}`; }
+    if (x0 == null || !dragging) { x0 = null; return; }
+    const dx = e.changedTouches[0].clientX - x0, to = dx < 0 ? next : prev;
+    x0 = null; dragging = false;
+    if (Math.abs(dx) > 70 && to) {
+      list.style.transition = 'transform .17s ease-in, opacity .17s ease-in';
+      list.style.transform = `translate3d(${dx < 0 ? -60 : 60}%, 0, 0)`; list.style.opacity = '0';
+      DAY_ENTER = dx < 0 ? 1 : -1;
+      setTimeout(() => { location.hash = `#/matcher/${to}`; }, 160);
+    } else reset();
   });
+  list.addEventListener('touchcancel', () => { x0 = null; dragging = false; reset(); });
+  // Load the neighbouring days in the background so switching needs no loading screen
+  for (const dd of [prev, next]) if (dd) for (const x of GAMES) if (x.start.startsWith(dd) && isFinal(x)) loadGame(x.id);
 }
 
 // Hem on phones: the team card. Place and points, current form, the coming games,

@@ -167,7 +167,7 @@ async function fetchGame(g) {
       });
     } else if (e.type === 'penalty') {
       pens.push({ p: periodNo(e.period), t: e.time, team: side, player: pRef(e.player, side), desc: e.variant?.description || '', off: e.offence || '' });
-    } else if (e.type === 'shot') {
+    } else if (e.type === 'shot' && e.goalSection > 0) { // on goal only; the feed's shot events also include blocked and missed shots
       shots.push({ p: periodNo(e.period), t: e.time, team: side, x: e.locationX, y: e.locationY });
     }
   }
@@ -176,6 +176,7 @@ async function fetchGame(g) {
     .map((p) => ({ p, h: stat('home', p).G ?? 0, a: stat('away', p).G ?? 0, hs: stat('home', p).SOG ?? 0, as: stat('away', p).SOG ?? 0 }));
   const first = Array.isArray(pbp) ? pbp[0] : null;
   return {
+    v: 2, // cache version: 2 = shots on goal only
     id: g.id, start: g.start, home: g.home, away: g.away, hs: g.hs, as: g.as, ot: g.ot, so: g.so, state: g.state,
     arena: first?.arena || '', att: first?.attendance || null,
     periods, team: { home: stat('home', 0), away: stat('away', 0) },
@@ -183,11 +184,16 @@ async function fetchGame(g) {
   };
 }
 
+// The feed's shots on goal are right when each team's shots minus goals equals the other goalie's saves
+const sogOk = (d) => ['home', 'away'].every((side) => {
+  const me = d.team?.[side] || {}, them = d.team?.[side === 'home' ? 'away' : 'home'] || {};
+  return me.SOG > me.G && them.Saves === me.SOG - me.G;
+});
 const gameDetails = {};
 const toFetch = [];
 for (const g of cur.games) {
   const file = `cache/games/${g.id}.json`;
-  if (isFinal(g) && existsSync(file)) {
+  if (isFinal(g) && existsSync(file) && readJson(file).v === 2) {
     const d = readJson(file); // older cached games may still say "shootout"
     for (const k of ['goals', 'pens', 'shots']) d[k] = d[k].map((x) => ({ ...x, p: periodNo(x.p) })).sort((a, b) => a.p - b.p || String(a.t).localeCompare(String(b.t)));
     gameDetails[g.id] = d;
@@ -199,19 +205,21 @@ await inBatches(toFetch, 3, async (g) => {
   try {
     const d = await fetchGame(g);
     gameDetails[g.id] = d;
-    if (isFinal(g)) writeJson(`cache/games/${g.id}.json`, d);
+    // Cache once the official shot numbers are consistent (the feed sometimes fixes them a while after the game)
+    if (isFinal(g) && (sogOk(d) || Date.now() - Date.parse(g.start.replace(' ', 'T') + '+02:00') > 2 * 864e5)) writeJson(`cache/games/${g.id}.json`, d);
   } catch (e) { gameFails++; console.warn('game failed', g.id, e.message); }
 });
 
 // The feed's "SOG" (shots on goal) field actually counts goals, so shots on goal are counted from the
-// play-by-play instead: saved shots plus goals (not empty-net), per period and in total. Saves follow from them.
+// play-by-play instead: shots on goal (goalSection > 0) plus goals, per period and in total. Saves follow from them.
 for (const d of Object.values(gameDetails)) {
+  if (sogOk(d)) continue; // the feed's own numbers are the official ones
   const sog = (side, p) => d.shots.filter((x) => x.team === side && x.p < 5 && (p == null || x.p === p)).length
-    + d.goals.filter((x) => x.team === side && !x.en && x.p < 5 && (p == null || x.p === p)).length;
+    + d.goals.filter((x) => x.team === side && x.p < 5 && (p == null || x.p === p)).length; // SHL counts empty-net goals as shots on goal too
   for (const side of ['home', 'away']) d.team[side] = { ...d.team[side], SOG: sog(side) };
   for (const side of ['home', 'away']) {
     const other = side === 'home' ? 'away' : 'home';
-    d.team[side].Saves = d.team[other].SOG - d.goals.filter((x) => x.team === other && !x.en && x.p < 5).length;
+    d.team[side].Saves = d.team[other].SOG - d.goals.filter((x) => x.team === other && x.p < 5).length;
   }
   d.periods = d.periods.map((p) => (p.p < 5 ? { ...p, hs: sog('home', p.p), as: sog('away', p.p) } : p));
 }
@@ -253,13 +261,13 @@ const shotTodo = [];
 for (const s of [cur, prev]) for (const g of s.games.filter(isFinal)) {
   const file = `cache/shots/${g.id}.json`;
   const cached = readJson(file, null);
-  if (cached) shotGames[g.id] = { ...cached, season: s.label };
+  if (cached?.v === 2) shotGames[g.id] = { ...cached, season: s.label };
   else shotTodo.push([s, g]);
 }
 await inBatches(shotTodo, 4, async ([s, g]) => {
   try {
     const { shots, strengthCheck } = processShots(await get(`/gameday/play-by-play/${g.id}`));
-    const entry = { home: g.home, away: g.away, start: g.start, shots, strengthCheck };
+    const entry = { v: 2, home: g.home, away: g.away, start: g.start, shots, strengthCheck };
     writeJson(`cache/shots/${g.id}.json`, entry);
     shotGames[g.id] = { ...entry, season: s.label };
   } catch (e) { shotFails++; }

@@ -1526,3 +1526,27 @@ ol.lb.nologo:not(.noav) .av { width: 36px; height: 36px; }
 .mhead { align-items: start; } .mhead .mscore { align-self: center; }
 
 @media (max-width: 700px) { #stable td, #stable th { padding-left: 5px; padding-right: 5px; } #stable td:first-child, #stable th:first-child { padding-left: 2px; } }
+
+/* Match header: the name always takes two lines' room, so rank and points sit at the same height on both sides */
+.mhead .mteam b { min-height: 2.1em; display: flex; align-items: center; justify-content: center; }
+
+@media (max-width: 700px) {
+  /* Swiping chips: no text selection, no grey tap flash, and the big card stays as it is */
+  .gcard, .gcard * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  .gcard:active { background: var(--panel); }
+  .gchip { transition: background .12s; }
+  .gchip:active { background: color-mix(in srgb, var(--accent) 22%, var(--panel-2)); }
+
+  /* Day switching: the new day slides in from the side it came from */
+  .daylist { will-change: transform; }
+  .daylist.in-next { animation: dayInNext .24s cubic-bezier(.2, .8, .2, 1) both; }
+  .daylist.in-prev { animation: dayInPrev .24s cubic-bezier(.2, .8, .2, 1) both; }
+  @keyframes dayInNext { from { transform: translate3d(48px, 0, 0); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes dayInPrev { from { transform: translate3d(-48px, 0, 0); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* Header: the title sits a little lower, clear of the very top edge */
+  .top-in { padding-top: 14px; padding-bottom: 10px; min-height: 64px; }
+  body:not(.is-home) .m-title { line-height: 1.15; padding-top: 2px; }
+  .datetabs { top: calc(env(safe-area-inset-top, 0px) + 64px); }
+}
+@media (max-width: 700px) and (prefers-reduced-motion: reduce) { .daylist.in-next, .daylist.in-prev { animation: none; } }

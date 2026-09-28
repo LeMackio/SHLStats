@@ -38,6 +38,7 @@ export function processShots(pbp) {
     }
     // Shootout attempts (period 5, or "shootout" in the feed) are not part of the game's shots
     if ((e.type !== 'shot' && e.type !== 'goal') || !side || e.locationX == null || typeof e.period !== 'number' || e.period >= 5) continue;
+    if (e.type === 'shot' && !(e.goalSection > 0)) continue; // blocked or missed: not a shot on goal
 
     const opp = other(side), own = skaters(side, e.s), them = skaters(opp, e.s);
     const str = own > them ? 'PP' : own < them ? 'SH' : 'EV';

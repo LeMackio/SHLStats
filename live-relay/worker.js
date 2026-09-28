@@ -38,7 +38,8 @@ async function game(id) {
   const list = Array.isArray(pbp) ? pbp : [];
   const name = (p) => (p ? `${p.firstName} ${p.familyName}`.trim() : null);
   const latest = list.reduce((a, e) => (!a || e.eventId > a.eventId ? e : a), null);
-  const events = list.filter((e) => ['goal', 'penalty', 'shot'].includes(e.type)).map((e) => ({
+  // Shot events with a positive goalSection are shots on goal; the rest were blocked or missed
+  const events = list.filter((e) => ['goal', 'penalty'].includes(e.type) || (e.type === 'shot' && e.goalSection > 0)).map((e) => ({
     type: e.type, p: e.period, t: e.time, side: e.eventTeam?.place,
     player: name(e.player), num: e.player?.jerseyToday ?? null,
     ...(e.type === 'goal' ? { a1: name(e.assists?.first), a2: name(e.assists?.second), str: e.goalStatus || 'EQ', en: !!e.isEmptyNetGoal, ps: !!e.isPenaltyShot, score: [e.homeGoals, e.awayGoals] } : {}),
