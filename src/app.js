@@ -39,12 +39,12 @@ const POS_SHORT = { D: 'B', LD: 'B', RD: 'B', CE: 'C', C: 'C', LW: 'VF', RW: 'HF
 const posGroup = (p) => p === 'GK' ? 'G' : ['D', 'LD', 'RD'].includes(p) ? 'D' : 'F';
 const NAT = { SE: 'Sverige', FI: 'Finland', NO: 'Norge', DK: 'Danmark', CA: 'Kanada', US: 'USA', CZ: 'Tjeckien', SK: 'Slovakien', CH: 'Schweiz', DE: 'Tyskland', AT: 'Österrike', LV: 'Lettland', RU: 'Ryssland', FR: 'Frankrike', SI: 'Slovenien', IT: 'Italien', BY: 'Belarus', KZ: 'Kazakstan', GB: 'Storbritannien', NL: 'Nederländerna', PL: 'Polen', HU: 'Ungern', UA: 'Ukraina', EE: 'Estland', LT: 'Litauen', JP: 'Japan', AU: 'Australien' };
 const OFFENCE = {
-  HOOK: 'Hakning', TRIP: 'Fällning', SLASH: 'Slag', ROUGH: 'Ruffighet', HOLD: 'Fasthållning', 'HO-ST': 'Fasthållning av klubba',
-  INTRF: 'Obstruktion', INTERF: 'Obstruktion', 'TOO-M': 'För många spelare på isen', 'HI-ST': 'Hög klubba', CROSS: 'Crosscheck',
-  BOARD: 'Boarding', CHARG: 'Charging', DIV: 'Filmning', ELBOW: 'Armbåge', 'DE-GA': 'Fördröjning av spelet', DELAY: 'Fördröjning av spelet',
-  UNSP: 'Osportsligt uppträdande', 'UN-SP': 'Osportsligt uppträdande', FIGHT: 'Slagsmål', KNEE: 'Knä', 'HE-CO': 'Huvudtackling',
-  'CH-HE': 'Huvudtackling', 'CH-BE': 'Tackling bakifrån', SPEAR: 'Spjutning', KICK: 'Sparkning', 'IL-EQ': 'Otillåten utrustning',
-  'BR-ST': 'Bruten klubba', THROW: 'Kastad klubba', 'CL-FA': 'Täppa puck', 'HA-PA': 'Handpass', 'LE-BE': 'Lämnar spelarbåset',
+  HOOK: 'Hooking', TRIP: 'Tripping', SLASH: 'Slashing', ROUGH: 'Roughing', HOLD: 'Holding', 'HO-ST': 'Holding the stick',
+  INTRF: 'Interference', INTERF: 'Interference', 'TOO-M': 'Too many men', 'HI-ST': 'High-sticking', CROSS: 'Cross-checking',
+  BOARD: 'Boarding', CHARG: 'Charging', DIV: 'Diving', ELBOW: 'Elbowing', 'DE-GA': 'Delay of game', DELAY: 'Delay of game',
+  UNSP: 'Unsportsmanlike conduct', 'UN-SP': 'Unsportsmanlike conduct', FIGHT: 'Fighting', KNEE: 'Kneeing', 'HE-CO': 'Check to the head',
+  'CH-HE': 'Check to the head', 'CH-BE': 'Checking from behind', SPEAR: 'Spearing', KICK: 'Kicking', 'IL-EQ': 'Illegal equipment',
+  'BR-ST': 'Broken stick', THROW: 'Throwing the stick', 'CL-FA': 'Closing hand on puck', 'HA-PA': 'Hand pass', 'LE-BE': 'Leaving the bench',
 };
 const strengthTag = (g) => g.ps ? 'STRAFF' : g.en ? 'TOM KASSE' : /^PP/.test(g.str) ? 'PP' : /^(SH|BP)/.test(g.str) ? 'BP' : '';
 
@@ -452,6 +452,17 @@ const IMPACT_W = {
   D: { p60: .20, toi: .25, pm: .20, s60: .05, blk: .10, hit: .05, dis: .05, pp: .05, fin: .05 },
 };
 const MIN_GP = 10;
+// Goalies get their own card: save %, saves above an average goalie, goals against, shutouts, wins and workload
+const GK_METRICS = [
+  { k: 'svp', label: 'Räddningsprocent', f: (x) => x.sv / Math.max(1, x.sv + x.ga) },
+  { k: 'gsaa', label: 'Räddat över snittet', f: (x) => x.gsaa / Math.max(1, x.mins) * 60 },
+  { k: 'gaa', label: 'Få insläppta', f: (x) => -x.ga / Math.max(1, x.mins) * 60 },
+  { k: 'so', label: 'Nollor', f: (x) => x.so / Math.max(1, x.gp) },
+  { k: 'win', label: 'Vinster', f: (x) => x.wins / Math.max(1, x.gp) },
+  { k: 'load', label: 'Arbetsbörda', f: (x) => x.gp },
+];
+const GK_W = { svp: .35, gsaa: .30, gaa: .15, so: .08, win: .07, load: .05 };
+const GK_MIN_GP = 5;
 let CARD = new Map();
 function buildCards() {
   const W = { [PREV]: 1, [CUR]: 1.5 };
@@ -491,6 +502,31 @@ function buildCards() {
     x.role = x.grp === 'F' ? ['1:a kedjan', '2:a kedjan', '3:e kedjan', 'Djupet'][Math.min(3, Math.floor(i / 3))] : ['1:a backpar', '2:a backpar', '3:e backpar'][Math.min(2, Math.floor(i / 2))];
   });
   CARD = new Map(list.map((x) => [x.id, x]));
+
+  // Goalies, compared with other goalies (same weighting of the two seasons)
+  const gks = new Map();
+  for (const season of [PREV, CUR]) for (const g of D.seasons[season].goalies) {
+    if (!g.gpi || !g.mins) continue;
+    const w = W[season];
+    const x = gks.get(g.id) || { id: g.id, name: g.name, born: g.born, nat: g.nat, pos: 'GK', grp: 'G', gp: 0, sv: 0, ga: 0, mins: 0, so: 0, wins: 0, gsaa: 0 };
+    x.team = g.team; x.num = g.num;
+    x.gp += g.gpi * w; x.sv += g.sv * w; x.ga += g.ga * w; x.mins += g.mins * w; x.so += g.so * w; x.wins += (g.w_ || 0) * w; x.gsaa += gsaa(g, season) * w;
+    gks.set(g.id, x);
+  }
+  const glist = [...gks.values()];
+  for (const x of glist) { x.vals = Object.fromEntries(GK_METRICS.map((m) => [m.k, m.f(x)])); x.metrics = GK_METRICS; x.minGp = GK_MIN_GP; }
+  const gpool = glist.filter((x) => x.gp >= GK_MIN_GP);
+  const gsorted = Object.fromEntries(GK_METRICS.map((m) => [m.k, gpool.map((x) => x.vals[m.k]).sort((a, b) => a - b)]));
+  for (const x of glist) {
+    x.pct = Object.fromEntries(GK_METRICS.map((m) => [m.k, pctOf(gsorted[m.k], x.vals[m.k])]));
+    x.composite = Object.entries(GK_W).reduce((sum, [k, w]) => sum + w * x.pct[k], 0);
+  }
+  const gcomp = gpool.map((x) => x.composite).sort((a, b) => a - b);
+  for (const x of glist) x.impact = pctOf(gcomp, x.composite);
+  const gByTeam = {};
+  for (const x of glist) (gByTeam[x.team] ??= []).push(x);
+  for (const arr of Object.values(gByTeam)) arr.sort((a, b) => b.mins - a.mins).forEach((x, i) => { x.role = ['Förstemålvakt', 'Andremålvakt', 'Tredjemålvakt'][Math.min(2, i)]; });
+  for (const x of glist) CARD.set(x.id, x);
 }
 const LOW = [217, 72, 95], MID = [128, 140, 156], HIGH = [74, 146, 224];
 const pColor = (p) => {
@@ -498,12 +534,12 @@ const pColor = (p) => {
   return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',')})`;
 };
 function cardHtml(x, { link = true } = {}) {
-  const grpName = x.grp === 'D' ? 'backar' : 'forwards';
-  const rows = METRICS.map((m) => {
+  const grpName = x.grp === 'G' ? 'målvakter' : x.grp === 'D' ? 'backar' : 'forwards', minGp = x.minGp || MIN_GP;
+  const rows = (x.metrics || METRICS).map((m) => {
     const p = x.pct[m.k];
     return `<div class="metric"><span>${m.label}</span><span class="bar"><i style="width:${Math.max(3, p * 100)}%;background:${pColor(p)}"></i></span><span class="pct num" style="color:${pColor(p)}">${Math.round(p * 100)}%</span></div>`;
   }).join('');
-  const small = x.gp < MIN_GP ? `<span class="small-sample">Litet underlag (${Math.round(x.gp)} viktade matcher). Tolka rankningarna försiktigt.</span>` : '';
+  const small = x.gp < minGp ? `<span class="small-sample">Litet underlag (${Math.round(x.gp)} viktade matcher). Tolka rankningarna försiktigt.</span>` : '';
   return `<article class="pcard" style="--tc:${tColor(x.team)}">
     <div class="pc-top">
       ${portrait(x.id, x.name, x.team, 'sm')}
@@ -512,7 +548,7 @@ function cardHtml(x, { link = true } = {}) {
         <div class="pc-meta">
           <span>${teamLink(x.team, { name: true })}</span>
           <span>#<b>${esc(x.num ?? '–')}</b></span>
-          <span>Pos <b>${POS_SHORT[x.pos] || 'F'}</b></span>
+          <span>Pos <b>${x.grp === 'G' ? 'MV' : POS_SHORT[x.pos] || 'F'}</b></span>
           <span>Ålder <b>${ageOf(x.born)}</b></span>
           <span>Roll <b>${x.role || '–'}</b></span>
         </div>
@@ -520,7 +556,7 @@ function cardHtml(x, { link = true } = {}) {
       <div class="pc-war"><span class="lbl">Påverkan</span><span class="big num" style="color:${pColor(x.impact)}">${Math.round(x.impact * 100)}%</span></div>
     </div>
     <div class="pc-grid">${rows}</div>
-    <div class="pc-foot"><span>Viktat urval ${PREV} + ${CUR}, percentil bland SHL-${grpName} (minst ${MIN_GP} matcher). ${small}</span><span class="mark">SHLSTATS</span></div>
+    <div class="pc-foot"><span>Viktat urval ${PREV} + ${CUR}, percentil bland SHL-${grpName} (minst ${minGp} matcher). ${small}</span><span class="mark">SHLSTATS</span></div>
   </article>`;
 }
 
@@ -998,7 +1034,7 @@ async function pageMatch(id, tab = '') {
   }
   render(head + body);
   if ((done || live) && d && tab === 'spelare') for (const side of ['home', 'away']) boxTable(d, side);
-  if (!done && !live && (tab === '' || tab === 'uppstallning')) applyOfficialLineups(g);
+  if (!done && !live && tab === 'uppstallning') applyOfficialLineups(g);
 }
 
 function goalEvents(d, { compact = false } = {}) {
@@ -1036,9 +1072,9 @@ function matchSummary(d, done = true) {
   return board([
     d.live ? liveBanner(d) : '',
     panel('Mål', goalEvents(d), { cls: 'wide' }),
+    panel('Lagstatistik', teamCompare(d)),
     d.shots?.length || d.live ? panel('Matchbild', momentumChart(d), { cls: 'wide', sub: d.live ? 'Skott på mål minut för minut, uppdateras under matchen.' : 'Skott på mål minut för minut.' }) : '',
     done ? matchRecap(d) : '',
-    panel('Lagstatistik', teamCompare(d)),
     per ? panel('Periodresultat', per) : '',
   ]);
 }
@@ -1260,7 +1296,7 @@ function boxTable(d, side) {
 function matchEvents(d) {
   const pens = d.pens.length ? `<div class="timeline">${d.pens.map((x) => {
     const team = d[x.team];
-    return `<div class="ev"><span class="t">P${x.p} ${esc(x.t)}</span>${tb(team)}<div class="who">${x.player ? pLink(x.player.id, x.player.name) : 'Lagstraff'}<small>${esc(OFFENCE[x.off] || x.off)}</small></div><span class="muted">${esc(x.desc.replace('Team Penalty', 'Lagstraff'))}</span></div>`;
+    return `<div class="ev"><span class="t">P${x.p} ${esc(x.t)}</span>${tb(team)}<div class="who">${x.player ? pLink(x.player.id, x.player.name) : 'Bench minor'}<small>${esc(OFFENCE[x.off] || x.off)}</small></div><span class="muted">${esc(x.desc.replace('Team Penalty', 'Bench minor'))}</span></div>`;
   }).join('')}</div>` : '<p class="empty-state">Inga utvisningar.</p>';
   return board([
     panel('Skottkarta', `<div class="chart">${rinkMap(d)}</div>`, { sub: `${esc(tName(d.home))} anfaller åt höger, ${esc(tName(d.away))} åt vänster. Ungefärliga positioner.`, cls: 'wide' }),
@@ -1339,7 +1375,6 @@ function matchPreview(g) {
     panel('Säsongsjämförelse', cmp),
     panel('Form och poängbästa', `<div style="display:grid;gap:18px">${hot(g.home)}${hot(g.away)}</div>`),
     panel('Troligaste resultat', `<div class="chart">${hBars(scores.slice(0, 6).map((s) => ({ label: s.s, v: s.p })), { labelW: 56, fmt: (v) => pctTxt(v, 1), W: 440, rowH: 26 })}</div>`, { sub: 'Efter ordinarie tid (60 minuter).' }),
-    lineupPanel(g),
   ]);
 }
 function matchH2H(g) {
@@ -1375,10 +1410,7 @@ function linesHtml(L, code) {
 function lineupHtml(code, official = null) {
   const L = official || D.lineups[code];
   if (!L) return '<p class="empty-state">Ingen uppställning ännu. Den visas efter lagets första match.</p>';
-  const note = official
-    ? '<p class="lu-note ok">Lagets inlämnade uppställning för matchen.</p>'
-    : `<p class="lu-note">Från senaste matchen (${fmtDate(L.date)} mot ${esc(tName(L.opp))}, <a href="#/match/${L.gid}">matchfakta</a>). Byts mot lagets riktiga uppställning när den lämnas in, ungefär en timme före nedsläpp.</p>`;
-  return linesHtml(L, code) + note;
+  return linesHtml(L, code);
 }
 // The line-up card for a coming game: one team at a time, with a label that says whether it is the real line-up yet
 const lineupPanel = (g) => panel('Uppställning <span class="lu-status">Trolig</span>',
@@ -2033,7 +2065,7 @@ async function pagePlayer(id, tab = '') {
       let c = 0; const pts = log.map((r) => (c += r[4] + r[5]));
       trend = panel('Poängutveckling', `<div class="chart">${lineChart([{ pts, color: 'var(--accent)', area: true }], { xLabels: log.map((r) => GAMES_BY_ID[r[0]] ? `${dateParts(GAMES_BY_ID[r[0]].start).d}/${dateParts(GAMES_BY_ID[r[0]].start).m}` : ''), yFmt: (v) => Math.round(v) })}</div>`, { sub: `Ackumulerade poäng ${CUR}.` });
     }
-    const card = !gk && CARD.get(id) ? panel('Spelarkort', cardHtml(CARD.get(id), { link: false }), { sub: 'Percentiler jämfört med andra SHL-spelare på samma position.' }) : '';
+    const card = CARD.get(id) ? panel('Spelarkort', cardHtml(CARD.get(id), { link: false }), { sub: gk ? 'Percentiler jämfört med andra SHL-målvakter.' : 'Percentiler jämfört med andra SHL-spelare på samma position.' }) : '';
     const recent = clips.slice(-3).reverse();
     const latestClips = recent.length ? panel('Senaste målen', `<div class="clips">${recent.map(([gid, cid, thumb, embed, date, opp]) => clipCard({ id: cid, thumb, embed }, `Mot ${esc(tName(opp))}`, fmtDay(date))).join('')}</div>`,
       { more: clips.length > 3 ? moreLink(`#/spelare/${encodeURIComponent(id)}/mal`, 'Alla mål') : '' }) : '';
@@ -2223,7 +2255,10 @@ function teamOverview(code, teamGames, news = []) {
   // Top row: the points list on the left, upcoming games above the latest results on the right
   return board([
     `<div class="ov-row r-two wide">
-      ${panel('Poängliga', leaderList(sk, { val: (p) => p.pts, n: 8, logos: false }), { more: moreLink(`#/lag/${code}/trupp`, 'Hela truppen') })}
+      <div class="stack">
+        ${panel('Poängliga', leaderList(sk, { val: (p) => p.pts, n: 8, logos: false }), { more: moreLink(`#/lag/${code}/trupp`, 'Hela truppen') })}
+        ${panel('Säsongsstatistik', statTiles)}
+      </div>
       <div class="stack">
         ${panel('Kommande matcher', next.length ? gameList(next, { dated: true }) : '<p class="empty-state">Inga fler matcher.</p>', { more: moreLink(`#/lag/${code}/schema`, 'Hela schemat') })}
         ${panel('Senaste resultat', last.length ? gameList(last, { dated: true }) : '<p class="empty-state">Inga spelade matcher ännu.</p>')}
@@ -2233,7 +2268,6 @@ function teamOverview(code, teamGames, news = []) {
     clips.length ? panel('Senaste målen', `<div class="clips">${clips.map((c) => clipCard(c, clipTitle(c), clipSub(c))).join('')}</div>`) : '',
     panel('Slutspelsodds över tid', hist),
     panel('Slutplacering', rankDist, { sub: 'Chans att sluta på varje placering efter grundserien.' }),
-    panel('Säsongsstatistik', statTiles),
     panel('Trolig kvartsfinalmotståndare', `<div class="chart">${qfHtml}</div>`, { sub: 'Om laget når kvartsfinal: andel av simuleringarna mot varje lag.' }),
   ]);
 }

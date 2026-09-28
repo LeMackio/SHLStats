@@ -1690,3 +1690,10 @@ a.lu-p:hover { background: color-mix(in srgb, var(--accent) 12%, var(--panel-2))
 .set-tog input:checked + i { background: var(--accent); box-shadow: none; }
 .set-tog input:checked + i::after { translate: 18px 0; }
 .set-tog input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Line-ups: an empty slot is just space */
+.lu-p.empty { border: 0; background: none; min-height: 0; }
+/* Matcher: five dates visible in the date row */
+@media (max-width: 700px) { .datetabs a { flex: 0 0 20%; padding-left: 0; padding-right: 0; } }
+/* Framed headshots (Statistik and cards): no fade at the bottom */
+.portrait img { -webkit-mask-image: none; mask-image: none; }
