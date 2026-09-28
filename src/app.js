@@ -463,6 +463,7 @@ const GK_METRICS = [
 ];
 const GK_W = { svp: .35, gsaa: .30, gaa: .15, so: .08, win: .07, load: .05 };
 const GK_MIN_GP = 5;
+const SHRINK_GP = 15, GK_SHRINK_GP = 8; // how many average games a small sample is blended with (see buildCards)
 let CARD = new Map();
 function buildCards() {
   const W = { [PREV]: 1, [CUR]: 1.5 };
@@ -485,8 +486,17 @@ function buildCards() {
     let eq = lo; while (eq < sorted.length && sorted[eq] === v) eq++;
     return (lo + (eq - lo) / 2) / Math.max(1, sorted.length);
   };
+  // A few games say little: every value is pulled toward the average regular, as if the player had also played
+  // SHRINK_GP average games. After a full season the player's own numbers dominate; after three games they barely move him.
+  const shrink = (members, pool, metrics, k) => {
+    for (const m of metrics) {
+      const avg = pool.reduce((t, x) => t + x.vals[m.k], 0) / Math.max(1, pool.length);
+      for (const x of members) x.vals[m.k] = (x.vals[m.k] * x.gp + avg * k) / (x.gp + k);
+    }
+  };
   for (const grp of ['F', 'D']) {
     const pool = list.filter((x) => x.grp === grp && x.gp >= MIN_GP);
+    shrink(list.filter((x) => x.grp === grp), pool, METRICS, SHRINK_GP);
     const sortedBy = Object.fromEntries(METRICS.map((m) => [m.k, pool.map((x) => x.vals[m.k]).sort((a, b) => a - b)]));
     const members = list.filter((x) => x.grp === grp);
     for (const x of members) {
@@ -498,7 +508,7 @@ function buildCards() {
   }
   const byTeam = {};
   for (const x of list) (byTeam[x.team + x.grp] ??= []).push(x);
-  for (const arr of Object.values(byTeam)) arr.filter((x) => x.gp >= 3).sort((a, b) => b.vals.toi - a.vals.toi).forEach((x, i) => {
+  for (const arr of Object.values(byTeam)) arr.filter((x) => x.gp >= 3).sort((a, b) => b.toiSec / b.gp - a.toiSec / a.gp).forEach((x, i) => {
     x.role = x.grp === 'F' ? ['1:a kedjan', '2:a kedjan', '3:e kedjan', 'Djupet'][Math.min(3, Math.floor(i / 3))] : ['1:a backpar', '2:a backpar', '3:e backpar'][Math.min(2, Math.floor(i / 2))];
   });
   CARD = new Map(list.map((x) => [x.id, x]));
@@ -516,6 +526,7 @@ function buildCards() {
   const glist = [...gks.values()];
   for (const x of glist) { x.vals = Object.fromEntries(GK_METRICS.map((m) => [m.k, m.f(x)])); x.metrics = GK_METRICS; x.minGp = GK_MIN_GP; }
   const gpool = glist.filter((x) => x.gp >= GK_MIN_GP);
+  shrink(glist, gpool, GK_METRICS.filter((m) => m.k !== 'load'), GK_SHRINK_GP); // workload is games played, nothing to pull in
   const gsorted = Object.fromEntries(GK_METRICS.map((m) => [m.k, gpool.map((x) => x.vals[m.k]).sort((a, b) => a - b)]));
   for (const x of glist) {
     x.pct = Object.fromEntries(GK_METRICS.map((m) => [m.k, pctOf(gsorted[m.k], x.vals[m.k])]));
@@ -1832,7 +1843,7 @@ async function pageEdge() {
     <div class="ov-row r-two">
       ${panel('Var målen görs', `<div class="chart">${goalRateMap(E.shots.map((s) => ({ x: s[2], y: s[3], g: s[4], en: s[7] })))}</div>`, { sub: 'Andel skott på mål som blir mål, per område. Ljusare = oftare mål. Rutor med färre än 8 skott visas inte.' })}
       ${panel('Så räknas xG', `<div class="method" style="grid-template-columns:1fr">
-        <div><p>Modellen är tränad på ${E.model.shots.toLocaleString('sv-SE')} skott på mål från ${E.model.trainedOn.join(' och ')}. Den räknar ut sannolikheten att ett skott blir mål utifrån avstånd, vinkel, om det är en retur, spelläge och om kassen är tom. Summerat över alla skott förväntar den sig ${E.model.xg.toLocaleString('sv-SE')} mål, och det blev ${E.model.goals.toLocaleString('sv-SE')}.</p></div>
+        <div><p>Modellen är tränad på ${E.model.shots.toLocaleString('sv-SE')} skott på mål från ${E.model.trainedOn.join(' och ')}. Den räknar ut sannolikheten att ett skott blir mål utifrån avstånd, vinkel, om det är en retur, spelläge, om det är övertid (3 mot 3) och om kassen är tom. Summerat över alla skott förväntar den sig ${E.model.xg.toLocaleString('sv-SE')} mål, och det blev ${E.model.goals.toLocaleString('sv-SE')}.</p></div>
         <div><p>Farliga skott är skott med minst ${Math.round(E.model.zones.hd * 100)} % chans att bli mål. Ligans räddningsprocent är ${dec(lgSv * 100, 1)} totalt.</p></div>
         <div><p>SHL publicerar ingen spårningsdata, så skottfart, skridskofart och missade eller blockerade skott finns inte med. Modellen ser bara skott som går på mål.</p></div>
       </div>

@@ -82,6 +82,7 @@ const FEATURES = [
   ['Powerplay', (s) => (s.str === 'PP' ? 1 : 0)],
   ['Boxplay', (s) => (s.str === 'SH' ? 1 : 0)],
   ['Tom kasse', (s) => s.en],
+  ['Övertid', (s) => (s.p === 4 ? 1 : 0)], // 3 mot 3: more open play, about a third more goals than the same shots in regulation
 ];
 const usable = (s) => !s.ps && s.p <= 4;
 
