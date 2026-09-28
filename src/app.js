@@ -2796,6 +2796,18 @@ const ROUTES = [
 ];
 const NAV_OF = { match: 'matcher', spelare: 'statistik', lag: 'tabell', avancerat: 'nexus' };
 let lastPath = '';
+// Desktop menu: the highlight pill slides to the current page (hidden on pages outside the menu)
+function moveNavInd() {
+  const ind = document.querySelector('nav.main .nav-ind'), a = document.querySelector('nav.main a.on');
+  if (!ind) return;
+  if (!a || !a.offsetWidth) { ind.style.opacity = '0'; return; }
+  ind.style.opacity = '1';
+  ind.style.width = `${a.offsetWidth}px`;
+  ind.style.transform = `translateX(${a.offsetLeft}px)`;
+  if (!ind.dataset.ready) requestAnimationFrame(() => { ind.dataset.ready = '1'; }); // no slide in from the left on first load
+}
+addEventListener('resize', moveNavInd);
+document.fonts?.ready.then(moveNavInd);
 async function route() {
   const path = decodeURIComponent(location.hash.replace(/^#/, '')) || '/';
   const seg = path.split('/')[1] || '';
@@ -2804,6 +2816,7 @@ async function route() {
     a.classList.toggle('on', on);
     if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
+  moveNavInd();
   document.body.classList.remove('search-open');
   document.body.classList.toggle('is-home', path === '/'); // the settings button shows on Hem (phones)
   const TITLES = { matcher: 'Matcher', statistik: 'Statistik', tabell: 'Tabell', media: 'Media', match: 'Match', spelare: 'Spelare', lag: 'Lag', nyheter: 'Nyheter', nexus: 'Nexus', avancerat: 'Nexus' };
