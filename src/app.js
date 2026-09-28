@@ -718,16 +718,19 @@ function standingsTable({ mode = 'full' } = {}) {
 }
 const legendHtml = `<div class="legend"><span><i style="background:var(--accent)"></i>Kvartsfinal (1–6)</span><span><i style="background:color-mix(in srgb, var(--accent) 60%, var(--muted))"></i>Play in (7–10)</span><span><i style="background:var(--bad)"></i>SHL-kval (13–14)</span></div>`;
 
-// A game as a clickable row. Inside a day group the date is already in the heading, so it's left out.
+// A game as a clickable row, built like the game cards: when on the left, one line per team (logo, name, table
+// position, then the score or the win chance), and a link on the right. Inside a day group the date is in the heading.
 function gameRow(g, { dated = false } = {}) {
-  const done = isFinal(g), live = isLive(g);
-  const side = (c, lose, cls) => `<div class="side ${cls} ${lose ? 'lose' : ''}">${tb(c, 'md')}<b class="full">${esc(tName(c))}</b><b class="short">${esc(c)}</b></div>`;
-  const mid = done || live
-    ? `<div class="res num">${g.hs}–${g.as}<small>${statusTxt(g)}</small></div>`
-    : `<div class="res">${fmtTime(g.start)}<small>Nedsläpp</small></div>`;
-  const end = done ? `<span class="cta">${g.hv ? '<span class="vid-dot">Video</span>' : ''}<span class="cta-txt">Matchfakta</span><span class="chev">›</span></span>` : live ? '<span class="tag bad">LIVE</span>' : oddsBar(g.ph);
+  const done = isFinal(g), live = isLive(g), ph = g.ph ?? 0.5;
+  const team = (c, s) => {
+    const score = s === 'home' ? g.hs : g.as, other = s === 'home' ? g.as : g.hs, rank = TABLE.findIndex((t) => t.code === c) + 1;
+    const right = done || live ? `<span class="gr-num num">${score ?? 0}</span>` : `<span class="gr-pct num" title="Vinstchans">${pctTxt(s === 'home' ? ph : 1 - ph)}</span>`;
+    return `<div class="gr-t ${done && score < other ? 'lose' : ''}">${tb(c, 'md')}<b>${esc(tName(c))}</b>${rank ? `<span class="gr-rank" title="Tabellplats">${rank}</span>` : '<span></span>'}${right}</div>`;
+  };
+  const when = live ? '<span class="tag bad">LIVE</span>' : done ? `<span class="gr-st">${esc(statusTxt(g))}</span>` : `<span class="gr-time num">${fmtTime(g.start)}</span>`;
+  const end = `${done && g.hv ? '<span class="vid-dot">Video</span>' : ''}<span class="gr-link">Matchfakta</span><span class="chev">›</span>`;
   const fav = FAV && (g.home === FAV || g.away === FAV);
-  return `<a class="grow ${dated ? 'dated' : ''} ${fav ? 'fav' : ''}" href="#/match/${g.id}">${dated ? `<span class="time">${fmtDay(g.start)}</span>` : ''}${side(g.home, done && g.hs < g.as, 'home')}${mid}${side(g.away, done && g.as < g.hs, 'away')}${end}</a>`;
+  return `<a class="grow ${fav ? 'fav' : ''}" href="#/match/${g.id}"><div class="gr-when">${dated ? `<span class="gr-day">${fmtDay(g.start)}</span>` : ''}${when}</div><div class="gr-teams">${team(g.home, 'home')}${team(g.away, 'away')}</div><div class="gr-end">${end}</div></a>`;
 }
 const gameList = (games, opts) => `<div class="day">${games.map((g) => gameRow(g, opts)).join('')}</div>`;
 
@@ -2827,9 +2830,7 @@ async function boot() {
   TABLE = D.standings; SIM = D.sim; MODEL = D.model;
   if (FAV && !CODES.includes(FAV)) FAV = null;
   stampTxt = new Date(D.updated).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Stockholm' });
-  $('foot').innerHTML = `<p style="margin:0 0 8px">Uppdaterad ${esc(stampTxt)}. <button class="linkbtn" id="reload-data">Hämta senaste</button></p>
-    SHLstats är ett fristående fanprojekt utan koppling till SHL. Resultat, statistik, bilder och videor från shl.se. Prognoserna bygger på en egen modell och är inga garantier.`;
-  $('reload-data').onclick = () => location.reload();
+  $('foot').innerHTML = `<p class="foot-upd">Uppdaterad ${esc(stampTxt)}</p><p class="foot-sig"><span class="brand-word">SHL<em>stats</em></span> by M</p>`;
   buildCards();
   // Menu icons (top menu on desktop, bottom bar on phones)
   const NAV_ICON = { '': 'home', statistik: 'chart', tabell: 'table', matcher: 'calendar', nexus: 'target', media: 'play' };

@@ -297,32 +297,28 @@ ol.lb .v { font: 700 17px var(--display); font-variant-numeric: tabular-nums; }
 .day h3 { margin: 6px 0 0; font: 700 15px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 /* Game rows adapt to the width of their container, not the window */
 .day { container-type: inline-size; }
-.grow { display: grid; grid-template-columns: minmax(0, 1fr) 84px minmax(0, 1fr) minmax(96px, 150px); gap: 12px; align-items: center;
-  padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--text); text-decoration: none !important; }
-.grow.dated { grid-template-columns: 70px minmax(0, 1fr) 84px minmax(0, 1fr) minmax(96px, 150px); }
-.grow .short { display: none; }
-.grow .cta { font-size: 13px; color: var(--muted); display: flex; justify-content: flex-end; align-items: center; gap: 10px; white-space: nowrap; }
-.grow .chev { font-size: 18px; line-height: 1; color: var(--faint); }
-.grow:hover { border-color: var(--accent); }
-.grow .time { font: 600 14px var(--display); color: var(--muted); letter-spacing: .04em; }
-.grow .side { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.grow .side.away { justify-content: flex-end; flex-direction: row-reverse; }
-.grow .side b { font: 700 17px var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.grow .res { text-align: center; font: 700 22px var(--display); }
-.grow .res small { display: block; font: 600 11px var(--display); color: var(--muted); letter-spacing: .08em; }
-.grow .lose b { color: var(--muted); }
+/* A game row: when | the two teams, one line each | link. Every line uses the same columns, so logos, names,
+   table positions and scores sit in straight lines down the list. */
+.grow { display: grid; grid-template-columns: 78px minmax(0, 1fr) 150px; gap: 16px; align-items: center;
+  padding: 10px 14px; border-radius: 12px; background: var(--panel-2); color: var(--text); text-decoration: none !important; }
+.gr-when { display: grid; gap: 3px; justify-items: start; }
+.gr-day { font: 600 13px var(--display); color: var(--muted); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.gr-time { font: 700 20px/1 var(--display); }
+.gr-st { font: 700 12px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.gr-teams { display: grid; gap: 6px; min-width: 0; }
+.gr-t { display: grid; grid-template-columns: 26px minmax(0, 1fr) 26px 52px; gap: 10px; align-items: center; min-height: 26px; }
+.gr-t b { font: 700 16.5px var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-rank { display: inline-grid; place-items: center; min-width: 22px; height: 20px; padding: 0 5px; border-radius: 6px; background: var(--panel); color: var(--muted); font: 700 12px var(--display); justify-self: start; }
+.gr-num { font: 700 22px/1 var(--display); text-align: right; }
+.gr-pct { font: 600 14.5px var(--display); color: var(--muted); text-align: right; }
+.gr-t.lose b, .gr-t.lose .gr-num { color: var(--muted); }
+.gr-end { display: flex; align-items: center; justify-content: flex-end; gap: 12px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.grow .chev { font-size: 20px; line-height: 1; color: var(--faint); }
 .oddsbar { display: flex; height: 22px; border-radius: 6px; overflow: hidden; font: 700 12px/22px var(--display); }
 .oddsbar span { text-align: center; min-width: 26px; color: var(--accent-ink); }
-@container (max-width: 600px) {
-  .grow .full, .grow .cta-txt { display: none; }
-  .grow .short { display: inline; }
-  .grow { grid-template-columns: minmax(0, 1fr) 70px minmax(0, 1fr) 100px; gap: 8px; }
-  .grow.dated { grid-template-columns: 60px minmax(0, 1fr) 70px minmax(0, 1fr) 100px; }
-}
-@container (max-width: 400px) {
-  .grow, .grow.dated { grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr); }
-  .grow .time, .grow .oddsbar, .grow .cta { grid-column: 1 / -1; }
-  .grow .cta { text-align: center; }
+@container (max-width: 480px) {
+  .grow { grid-template-columns: 64px minmax(0, 1fr) 16px; gap: 12px; padding: 10px 12px; }
+  .gr-link, .grow .vid-dot { display: none; }
 }
 
 /* ---------- match page ---------- */
@@ -1749,3 +1745,9 @@ a.lu-p:hover { background: color-mix(in srgb, var(--accent) 12%, var(--panel-2))
   :root:not([data-theme]) img.brand-mark { box-sizing: border-box; width: 52px; padding-left: 52px; filter: none; background: var(--brand-ink);
     -webkit-mask: url(icons/logo-mark.png?v=3) center / contain no-repeat; mask: url(icons/logo-mark.png?v=3) center / contain no-repeat; }
 }
+
+/* Footer (computers): when the data was last updated, and the signature */
+footer#foot { display: grid; justify-items: center; gap: 6px; padding-top: 12px; padding-bottom: 36px; text-align: center; }
+footer#foot p { margin: 0; }
+.foot-sig { display: flex; align-items: baseline; gap: 7px; color: var(--muted); font: 600 14px var(--display); letter-spacing: .04em; }
+.foot-sig .brand-word { font-size: 19px; }
