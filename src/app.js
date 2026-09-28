@@ -2068,22 +2068,22 @@ async function pageTeam(code, tab = '') {
   if (ta) { app.style.setProperty('--accent', ta.accent); app.style.setProperty('--accent-ink', ta.ink); }
   const [tbg, tfg] = TC[code] || ['#5b6b7e', '#fff'];
   // Top card: the club logo large on a fade in the club colour, the team code as a watermark, the name over it
-  // (the same layout as the player pages). The season's forecast is named once above the tiles.
+  // (the same layout as the player pages). Below: form and key numbers, then the odds as a ladder from SHL-kval up to SM-guld.
   const hero = `<section class="panel phero thero" style="--tc:${tbg};--tt:${tfg}">
     <div class="phero-top">
       <span class="phero-num thero-code" aria-hidden="true">${esc(code)}</span>
+      <button class="favbtn thero-fav" data-fav="${code}" aria-pressed="${isFav}"><span>${isFav ? '★ Mitt lag' : '☆ Följ laget'}</span></button>
       ${LOGOS[code] ? `<img class="thero-img" src="${esc(LOGOS[code])}" alt="" onerror="this.remove()">` : ''}
       <div class="phero-info">
         <div class="phero-team"><span class="gc-rank">${rank}</span><span>${r.pts} poäng · ${r.gp} matcher</span></div>
         <h1>${esc(tName(code))}</h1>
       </div>
     </div>
-    <div class="phero-meta thero-meta"><span>V–ÖV–ÖF–F <b>${r.w}–${r.otw}–${r.otl}–${r.l}</b></span><span>Mål <b>${r.gf}–${r.ga}</b></span>
-      <span class="thero-form">${formChips(code)}</span><button class="favbtn" data-fav="${code}" aria-pressed="${isFav}"><span>${isFav ? '★ Mitt lag' : '☆ Följ laget'}</span></button></div>
-    <div class="p-body"><div class="phero-season">Prognos ${CUR.replace('-', '/')}</div><div class="tiles">${[
-      ['Proj. poäng', dec(s.proj, 0)], ['Slutspel', oddsTxt(s.top10)], ['Topp 6', oddsTxt(s.top6)], ['SM-guld', oddsTxt(s.gold)],
-      ['Semifinal', oddsTxt(s.semi)], ['SM-final', oddsTxt(s.final)], ['SHL-kval', oddsTxt(s.rel)],
-    ].map(([k, v]) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('')}</div></div>
+    <div class="phero-meta thero-meta"><span class="thero-form">${formChips(code)}</span>
+      <span class="thero-stats"><span>Mål <b>${r.gf}–${r.ga}</b></span><span>Proj. <b>${dec(s.proj, 0)} p</b></span></span></div>
+    <div class="p-body"><div class="phero-season">Prognos ${CUR.replace('-', '/')}</div><div class="odds-ladder">${[
+      ['SM-guld', s.gold], ['SM-final', s.final], ['Semifinal', s.semi], ['Topp 6', s.top6], ['Slutspel', s.top10], ['SHL-kval', s.rel, 'bad'],
+    ].map(([k, p, cls = '']) => `<div class="ol-row ${cls}"><span class="ol-k">${k}</span><span class="ol-bar"><i style="width:${Math.max(0, Math.min(100, p * 100))}%"></i></span><span class="ol-v num">${oddsTxt(p)}</span></div>`).join('')}</div></div>
     ${tabs(`/lag/${code}`, tabList, tab)}</section>`;
 
   let body;

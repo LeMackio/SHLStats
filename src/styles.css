@@ -1623,3 +1623,21 @@ ol.lb.nologo:not(.noav) .av { width: 36px; height: 36px; }
 }
 
 @media (max-width: 700px) { .thero-meta .favbtn { min-height: 0; padding: 7px 14px; font-size: 13px; } .thero-meta { row-gap: 10px; } }
+
+/* Team card: form on the left, key numbers on the right */
+.thero-meta { justify-content: space-between; flex-wrap: nowrap; }
+.thero-stats { display: inline-flex; gap: 14px; white-space: nowrap; }
+.thero-fav { position: absolute; z-index: 3; top: 14px; right: 14px; min-height: 0; padding: 6px 12px; font-size: 13px;
+  background: rgba(8, 11, 16, .38); color: #fff; border-color: rgba(255, 255, 255, .3); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.thero-fav[aria-pressed="true"] { background: rgba(255, 255, 255, .9); color: #10151c; border-color: transparent; }
+
+/* Odds ladder: SM-guld at the top down to SHL-kval at the bottom */
+.odds-ladder { display: grid; gap: 7px; }
+.ol-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 58px; gap: 12px; align-items: center; }
+.ol-k { font: 700 13px var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.ol-bar { height: 10px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
+.ol-bar i { display: block; height: 100%; border-radius: 999px; background: var(--accent); min-width: 4px; }
+.ol-v { text-align: right; font: 700 18px var(--display); }
+.ol-row.bad .ol-bar i { background: var(--bad); }
+.ol-row.bad { margin-top: 4px; padding-top: 9px; border-top: 1px solid var(--line); }
+@media (max-width: 700px) { .thero-meta { gap: 10px; } .thero-stats { gap: 12px; font-size: 13.5px; } }
