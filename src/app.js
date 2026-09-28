@@ -706,7 +706,7 @@ function standingsTable({ mode = 'full' } = {}) {
   const shade = (p, color = 'var(--accent)') => p <= 0.005 ? '' : `background:color-mix(in srgb, ${color} ${Math.round(8 + p * 62)}%, transparent)`;
   const head = {
     stats: `<th class="rank">#</th><th class="l">Lag</th><th>SM</th><th>V</th><th class="hide-sm">ÖV</th><th class="hide-sm">ÖF</th><th>F</th><th class="hide-sm">GM–IM</th><th>+/-</th><th>P</th>`,
-    proj: `<th class="rank">#</th><th class="l">Lag</th><th>P</th><th>Proj.<small>poäng</small></th><th class="hide-sm">Topp 6</th><th>Slutspel<small>topp 10</small></th><th class="hide-sm">SHL-kval</th><th>Guld</th>`,
+    proj: `<th class="rank">#</th><th class="l">Lag</th><th>P</th><th title="Projicerade poäng">Proj.</th><th class="hide-sm">Topp 6</th><th title="Topp 10">Slutspel</th><th class="hide-sm">SHL-kval</th><th>Guld</th>`,
     full: `<th class="rank">#</th><th class="l">Lag</th><th>SM</th><th>V</th><th>ÖV</th><th>ÖF</th><th>F</th><th>GM–IM</th><th>P</th><th>Takt<small>52 matcher</small></th><th>Proj.<small>poäng</small></th>
        <th>Topp 6<small>direkt KF</small></th><th>Slutspel<small>topp 10</small></th><th>SHL-kval<small>plats 13–14</small></th><th>SM-guld</th>`,
   }[mode];
@@ -936,7 +936,8 @@ function pageOverview() {
     ${newsHero()}
     ${section('table', 'Tabell')}
     ${row('r-leaders', [
-      panel('Tabell', `<div id="ov-table">${standingsTable({ mode: tableMode })}</div>${legendHtml}`,
+      // Both versions are drawn on top of each other and only one is shown, so switching never changes the card's size
+      panel('Tabell', `<div id="ov-table" class="ov-tstack">${['stats', 'proj'].map((m) => `<div data-mode="${m}" ${m === tableMode ? '' : 'aria-hidden="true" class="off"'}>${standingsTable({ mode: m })}</div>`).join('')}</div>${legendHtml}`,
         { more: seg('ov-table-mode', [['stats', 'Tabell'], ['proj', 'Odds']], tableMode), foot: `${moreLink('#/tabell', 'Hela tabellen')}<span class="stamp">Uppdaterad ${esc(stampTxt)}</span>` }),
       panel('Spelare', '<div id="ov-sk" class="fill"></div>', { more: seg('ov-sk-stat', [['pts', 'Poäng'], ['g', 'Mål'], ['a', 'Assist']], 'pts'), foot: moreLink('#/statistik', 'All statistik') }),
       panel('Målvakter', '<div id="ov-gk" class="fill"></div>', { more: seg('ov-gk-stat', [['svp', 'Rädd%'], ['gaa', 'GAA'], ['gsaa', 'GSAA']], 'svp'),
@@ -959,9 +960,12 @@ function pageOverview() {
   // Toggles: table vs. predictions, and the stat shown in each top-10 list
   const bindSeg = (id, draw) => {
     const el = $(id);
-    el.onclick = (e) => { const b = e.target.closest('button'); if (!b) return; [...el.children].forEach((c) => c.setAttribute('aria-pressed', c === b)); draw(b.dataset.v); };
+    el.onclick = (e) => { const b = e.target.closest('button'); if (!b) return; el.querySelectorAll(':scope > button').forEach((c) => c.setAttribute('aria-pressed', c === b)); draw(b.dataset.v); };
   };
-  bindSeg('ov-table-mode', (v) => { store.set('shlstats-ovtable', v); $('ov-table').innerHTML = standingsTable({ mode: v }); });
+  bindSeg('ov-table-mode', (v) => {
+    store.set('shlstats-ovtable', v);
+    $('ov-table').querySelectorAll('[data-mode]').forEach((d) => { const on = d.dataset.mode === v; d.classList.toggle('off', !on); if (on) d.removeAttribute('aria-hidden'); else d.setAttribute('aria-hidden', 'true'); });
+  });
   const SK_OPTS = { pts: [(p) => p.pts * 1000 + p.g, (p) => p.pts], g: [(p) => p.g * 1000 + p.pts, (p) => p.g], a: [(p) => p.a * 1000 + p.pts, (p) => p.a] };
   const drawSk = (k) => {
     const [order, val] = SK_OPTS[k];
@@ -1057,15 +1061,24 @@ async function pageMatch(id, tab = '') {
   if (!done && !live && tab === 'uppstallning') applyOfficialLineups(g);
 }
 
-function goalEvents(d, { compact = false } = {}) {
+// The goals, period by period. Every row has the same columns (time, scorer, score, video), and the video
+// slot is kept even without a clip, so the scores always line up.
+function goalEvents(d) {
   const pName = (p) => p === 4 ? 'Övertid' : p >= 5 ? 'Straffar' : `Period ${p}`;
   const periods = [...new Set(d.goals.map((x) => x.p))].sort();
   if (!d.goals.length) return '<p class="empty-state">Inga mål i matchen.</p>';
-  return `<div class="timeline">${periods.map((p) => `<h4>${pName(p)}</h4>` + d.goals.filter((x) => x.p === p).map((x) => {
-    const team = d[x.team], st = strengthTag(x);
+  const [hc, ac] = pairColors(d.home, d.away);
+  return `<div class="glist">${periods.map((p) => `<h4 class="gl-per">${pName(p)}</h4>` + d.goals.filter((x) => x.p === p).map((x) => {
+    const team = d[x.team], st = strengthTag(x), home = x.team === 'home';
     const assists = [x.a1, x.a2].filter(Boolean).map((a) => pLink(a.id, a.name)).join(', ');
-    return `<div class="ev"><span class="t">${esc(x.t)}</span>${tb(team)}<div class="who">${pLink(x.scorer?.id, x.scorer?.name || 'Okänd')}${st ? `<span class="tag">${st}</span>` : ''}<small>${assists ? 'Assist: ' + assists : 'Ingen assist'}</small></div>
-      <span class="ev-end"><span class="sc">${x.score[0]}–${x.score[1]}</span>${x.clip && safeEmbed(x.clip.embed) ? `<button class="playic" data-embed="${esc(x.clip.embed)}" data-title="${esc(`${x.scorer?.name || 'Mål'} ${x.score[0]}–${x.score[1]}`)}" aria-label="Spela upp målet">${PLAY_SVG}</button>` : ''}</span></div>`;
+    const clip = x.clip && safeEmbed(x.clip.embed) ? x.clip : null;
+    return `<div class="gl-row" style="--gc:${home ? hc : ac}">
+      <span class="gl-t num">${x.p >= 5 ? 'Straff' : esc(x.t)}</span>
+      <span class="gl-av">${avatar(x.scorer?.id, x.scorer?.name || '?', team)}${tb(team)}</span>
+      <div class="gl-who"><span class="gl-name">${pLink(x.scorer?.id, x.scorer?.name || 'Okänd')}${st ? `<span class="tag">${st}</span>` : ''}</span><small>${assists ? `Assist: ${assists}` : 'Ingen assist'}</small></div>
+      <span class="gl-sc num"><b class="${home ? 'on' : ''}">${x.score[0]}</b><i>–</i><b class="${home ? '' : 'on'}">${x.score[1]}</b></span>
+      <span class="gl-play">${clip ? `<button class="playic" data-embed="${esc(clip.embed)}" data-title="${esc(`${x.scorer?.name || 'Mål'} ${x.score[0]}–${x.score[1]}`)}" aria-label="Spela upp målet">${PLAY_SVG}</button>` : '<span class="gl-novid" title="Ingen video">–</span>'}</span>
+    </div>`;
   }).join('')).join('')}</div>`;
 }
 function teamCompare(d) {
@@ -1091,7 +1104,7 @@ function matchSummary(d, done = true) {
     ${['home', 'away'].map((s) => `<tr><td class="l">${teamLink(d[s], { name: true })}</td>${d.periods.map((p) => `<td>${s === 'home' ? p.h : p.a}</td>`).join('')}<td class="hl">${s === 'home' ? d.hs : d.as}</td><td>${d.team[s].SOG ?? '–'}</td></tr>`).join('')}</tbody></table></div>` : '';
   return board([
     d.live ? liveBanner(d) : '',
-    panel('Mål', goalEvents(d), { cls: 'wide' }),
+    panel('Mål', goalEvents(d)), // half width on computers, with Lagstatistik beside it
     panel('Lagstatistik', teamCompare(d)),
     d.shots?.length || d.live ? panel('Matchbild', momentumChart(d), { cls: 'wide', sub: d.live ? 'Skott på mål minut för minut, uppdateras under matchen.' : 'Skott på mål minut för minut.' }) : '',
     done ? matchRecap(d) : '',
