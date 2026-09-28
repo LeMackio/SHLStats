@@ -1789,3 +1789,6 @@ footer#foot p { margin: 0; }
 .mts-res small { font-size: 11px; color: var(--muted); }
 .mts-foot { display: flex; align-items: center; justify-content: space-between; padding-top: 2px; font-size: 13px; }
 .mts-foot .linkbtn { color: var(--faint); font-size: 13px; }
+
+/* The news and the team card beside it meet in a straight seam: the news is rounded only on the outer (left) corners */
+@media (min-width: 901px) { .newshero .news { border-radius: var(--radius) 0 0 var(--radius) !important; } }
