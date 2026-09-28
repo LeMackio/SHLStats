@@ -802,27 +802,37 @@ function newsHero() {
   const fav = FAV && SIM[FAV] ? FAV : null;
   return `<section class="panel mday newshero"><div class="mday-grid">${newsBox()}${fav ? myTeamSide(fav) : pickerSide()}</div></section>`;
 }
+// Your team next to the news (computers), built like the team page hero: club-colour header with the logo large,
+// then form, the season odds, the last result and the next three games with the win chance
 function myTeamSide(fav) {
   const r = TABLE.find((t) => t.code === fav), s = SIM[fav];
-  const next = GAMES.find((x) => !isFinal(x) && (x.home === fav || x.away === fav));
-  const last = [...GAMES].reverse().find((x) => isFinal(x) && (x.home === fav || x.away === fav));
-  const mini = (g, lbl) => g
-    ? `<a class="mini-game" href="#/match/${g.id}"><span class="mini-lbl">${lbl}</span>
-        <span class="mg-teams">${tb(g.home, 'md')}<b class="num">${isFinal(g) ? `${g.hs}–${g.as}` : fmtTime(g.start)}</b>${tb(g.away, 'md')}</span>
-        <span class="mg-sub">${fmtDay(g.start)}${isFinal(g) && (g.ot || g.so) ? ' · ÖT' : ''}</span></a>`
-    : `<div class="mini-game"><span class="mini-lbl">${lbl}</span><span class="mg-sub">Ingen match</span></div>`;
-  return `<div class="mday-side">
-      <span class="mini-lbl">Mitt lag</span>
-      <a class="mday-teamname" href="#/lag/${fav}">${tb(fav, 'lg')}<span><b>${esc(tName(fav))}</b><small>Plats ${TABLE.indexOf(r) + 1} · ${r.pts} poäng · ${r.gp} matcher</small></span></a>
-      ${formChips(fav)}
-      <div class="mday-stats">
-        <div><b>${oddsTxt(s.top10)}</b><span>Slutspel</span></div>
-        <div><b>${oddsTxt(s.top6)}</b><span>Topp 6</span></div>
-        <div><b>${oddsTxt(s.gold)}</b><span>SM-guld</span></div>
-        <div><b>${dec(s.proj, 0)}</b><span>Proj. poäng</span></div>
+  const mine = (x) => x.home === fav || x.away === fav;
+  const last = [...GAMES].reverse().find((x) => isFinal(x) && mine(x));
+  const coming = GAMES.filter((x) => !isFinal(x) && mine(x)).slice(0, 3);
+  const line = (g) => {
+    const home = g.home === fav, opp = home ? g.away : g.home, p = dateParts(g.start);
+    let right;
+    if (isFinal(g)) {
+      const us = home ? g.hs : g.as, them = home ? g.as : g.hs, won = us > them;
+      right = `<span class="mts-res num"><i class="${won ? 'w' : 'l'}">${won ? 'V' : 'F'}</i>${us}–${them}${g.ot || g.so ? '<small>ÖT</small>' : ''}</span>`;
+    } else if (isLive(g)) right = '<span class="tag bad">LIVE</span>';
+    else right = `<span class="mts-pct num" title="Vinstchans">${pctTxt(home ? g.ph ?? 0.5 : 1 - (g.ph ?? 0.5))}</span>`;
+    return `<a class="mts-g" href="#/match/${esc(g.id)}"><span class="mts-d">${DAYS[p.wd]} ${p.d}/${p.m}${isFinal(g) ? '' : `<small>${fmtTime(g.start)}</small>`}</span>${tb(opp, 'md')}<span class="mts-opp"><b>${esc(tName(opp))}</b><small>${home ? 'Hemma' : 'Borta'}</small></span>${right}</a>`;
+  };
+  return `<div class="mday-side mts" style="--tc:${tColor(fav)}">
+      <a class="mts-hero" href="#/lag/${fav}">
+        ${LOGOS[fav] ? `<img class="mts-logo" src="${esc(LOGOS[fav])}" alt="">` : ''}
+        <span class="mts-lbl">★ Mitt lag</span>
+        <b class="mts-name">${esc(tName(fav))}</b>
+        <span class="mts-pos"><span class="mts-rank">${TABLE.indexOf(r) + 1}</span>${r.pts} poäng · ${r.gp} matcher</span>
+      </a>
+      <div class="mts-body">
+        <div class="mts-row"><span class="mts-k">Form</span>${formChips(fav)}</div>
+        <div class="mts-odds"><div><b class="num">${oddsTxt(s.top10)}</b><span>Slutspel</span></div><div><b class="num">${oddsTxt(s.top6)}</b><span>Topp 6</span></div><div><b class="num">${oddsTxt(s.gold)}</b><span>SM-guld</span></div></div>
+        ${last ? `<div class="mts-k">Senaste match</div>${line(last)}` : ''}
+        ${coming.length ? `<div class="mts-k">Kommande matcher</div><div class="mts-list">${coming.map(line).join('')}</div>` : ''}
+        <div class="mts-foot"><button class="linkbtn" data-fav="${fav}">Sluta följa</button><a class="more-link" href="#/lag/${fav}">Lagsidan ›</a></div>
       </div>
-      <div class="mini-games">${mini(last, 'Senaste match')}${mini(next, 'Nästa match')}</div>
-      <button class="linkbtn" data-fav="${fav}">Sluta följa ${esc(fav)}</button>
     </div>`;
 }
 function pickerSide() {

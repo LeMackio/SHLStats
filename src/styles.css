@@ -1751,3 +1751,41 @@ footer#foot { display: grid; justify-items: center; gap: 6px; padding-top: 12px;
 footer#foot p { margin: 0; }
 .foot-sig { display: flex; align-items: baseline; gap: 7px; color: var(--muted); font: 600 14px var(--display); letter-spacing: .04em; }
 .foot-sig .brand-word { font-size: 19px; }
+
+/* Your team next to the news (computers): club-colour header like the team page hero, then the details */
+.mday-side.mts { padding: 0; gap: 0; justify-content: flex-start; }
+.mts-hero { position: relative; overflow: hidden; display: grid; gap: 6px; padding: 18px 20px 16px; color: #fff; text-decoration: none !important;
+  background: radial-gradient(120% 110% at 80% 20%, color-mix(in srgb, var(--tc) 88%, #fff 12%) 0%, var(--tc) 40%, color-mix(in srgb, var(--tc) 55%, #06080b) 100%); }
+.mts-hero > * { position: relative; z-index: 1; }
+.mts-logo { position: absolute !important; z-index: 0 !important; right: -14px; top: 50%; translate: 0 -50%; height: 128%; width: auto; opacity: .3; filter: drop-shadow(0 10px 20px rgba(0, 0, 0, .3)); }
+.mts-lbl { font: 700 11.5px var(--display); letter-spacing: .1em; text-transform: uppercase; color: rgba(255, 255, 255, .82); }
+.mts-name { font: 900 italic 30px/.95 "Archivo", var(--display); font-stretch: 78%; text-transform: uppercase; text-shadow: 0 2px 14px rgba(0, 0, 0, .35); max-width: 82%; }
+.mts-pos { display: flex; align-items: center; gap: 8px; font: 600 13.5px var(--display); letter-spacing: .03em; color: rgba(255, 255, 255, .9); }
+.mts-rank { display: inline-grid; place-items: center; min-width: 24px; height: 22px; padding: 0 6px; border-radius: 7px; background: rgba(0, 0, 0, .3); color: #fff; font: 700 13px var(--display); }
+.mts-hero:hover .mts-name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.mts-body { display: grid; gap: 10px; padding: 14px 16px 12px; }
+.mts-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mts-k { font: 700 11.5px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.mts-body > .mts-k { margin: 2px 0 -4px; }
+.mts-odds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.mts-odds div { display: grid; justify-items: center; gap: 1px; padding: 8px 4px; border-radius: var(--r-in, 10px); background: var(--panel-2); }
+.mts-odds b { font: 700 19px/1.1 var(--display); }
+.mts-odds span { font: 600 10.5px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mts-list { display: grid; gap: 5px; }
+.mts-g { display: grid; grid-template-columns: 62px 24px minmax(0, 1fr) auto; gap: 9px; align-items: center; padding: 7px 10px; border-radius: var(--r-in, 10px);
+  background: var(--panel-2); color: var(--text); text-decoration: none !important; }
+.mts-g:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+.mts-g .tb.md { width: 24px; height: 24px; }
+.mts-d { display: grid; font: 600 12.5px/1.2 var(--display); letter-spacing: .03em; text-transform: uppercase; color: var(--muted); }
+.mts-d small { font-size: 12px; color: var(--text); }
+.mts-opp { display: grid; min-width: 0; line-height: 1.15; }
+.mts-opp b { font: 700 15px var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mts-opp small { font-size: 11.5px; color: var(--muted); }
+.mts-pct { font: 700 15px var(--display); color: var(--muted); }
+.mts-res { display: inline-flex; align-items: center; gap: 6px; font: 700 17px var(--display); }
+.mts-res i { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; font: 700 11.5px var(--display); font-style: normal; color: #fff; }
+.mts-res i.w { background: var(--good); }
+.mts-res i.l { background: var(--bad); }
+.mts-res small { font-size: 11px; color: var(--muted); }
+.mts-foot { display: flex; align-items: center; justify-content: space-between; padding-top: 2px; font-size: 13px; }
+.mts-foot .linkbtn { color: var(--faint); font-size: 13px; }
