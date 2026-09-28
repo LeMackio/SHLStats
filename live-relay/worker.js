@@ -103,7 +103,10 @@ const hashId = async (s) => b64u(await crypto.subtle.digest('SHA-256', new TextE
 // A web push "tickle" without a payload: the service worker then fetches the text from /push/events.
 // That only needs a VAPID signature (no payload encryption).
 async function vapidHeader(env, endpoint) {
-  const key = await crypto.subtle.importKey('jwk', JSON.parse(env.VAPID_PRIVATE), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  // Accept the key pasted either as plain JSON or in escaped form ({\"kty\":...} or with surrounding quotes)
+  let raw = String(env.VAPID_PRIVATE).trim();
+  if (raw.startsWith('"')) raw = JSON.parse(raw);
+  const key = await crypto.subtle.importKey('jwk', JSON.parse(raw.replace(/\\"/g, '"')), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
   const head = b64uText(JSON.stringify({ typ: 'JWT', alg: 'ES256' }));
   const body = b64uText(JSON.stringify({ aud: new URL(endpoint).origin, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: SITE }));
   const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, new TextEncoder().encode(`${head}.${body}`));

@@ -4,3 +4,4 @@ node_modules/
 
 # Private web push key (paste into Cloudflare as a secret, never commit)
 live-relay/vapid-keys.local.json
+live-relay/vapid-private.local.txt
