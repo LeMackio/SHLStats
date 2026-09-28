@@ -1761,6 +1761,73 @@ function goalRateMap(shots) {
   return svg + '</svg>';
 }
 
+// Rättvis tabell: the standings as the chances say they should look. For every game, both teams' xG
+// (empty-net shots left out) give the chance of a win in regulation and of a draw going to overtime; that is
+// turned into expected points (3 for a win, 2 or 1 for an overtime result, so 1.5 on average for a draw).
+function fairTable(E) {
+  const pois = (l) => { const p = [Math.exp(-l)]; for (let k = 1; k <= 12; k++) p.push(p[k - 1] * l / k); return p; };
+  const perGame = new Map(); // game index -> { home xG, away xG }
+  for (const s of E.shots) {
+    if (s[7] || s[9] == null) continue;
+    const gm = E.games[s[9]]; if (!gm) continue;
+    const x = perGame.get(s[9]) || { h: 0, a: 0 };
+    if (s[6] === gm[1]) x.h += s[5] / 1000; else x.a += s[5] / 1000;
+    perGame.set(s[9], x);
+  }
+  const T = Object.fromEntries(TABLE.map((r) => [r.code, { code: r.code, gp: 0, pts: 0, xpts: 0, xgf: 0, xga: 0, gf: 0, ga: 0 }]));
+  for (const [gi, x] of perGame) {
+    const [id, home, away] = E.games[gi], g = GAMES_BY_ID[id];
+    if (!g || !isFinal(g) || !T[home] || !T[away]) continue;
+    const ph = pois(x.h), pa = pois(x.a);
+    let win = 0, draw = 0, loss = 0;
+    ph.forEach((a, i) => pa.forEach((b, j) => { if (i > j) win += a * b; else if (i === j) draw += a * b; else loss += a * b; }));
+    const tot = win + draw + loss; win /= tot; draw /= tot; loss /= tot;
+    const extra = g.ot || g.so;
+    const real = (us, them) => us > them ? (extra ? 2 : 3) : extra ? 1 : 0;
+    for (const [c, xf, xa, gf, ga, pw, pl] of [[home, x.h, x.a, g.hs, g.as, win, loss], [away, x.a, x.h, g.as, g.hs, loss, win]]) {
+      const t = T[c];
+      t.gp++; t.xgf += xf; t.xga += xa; t.gf += gf; t.ga += ga;
+      t.xpts += 3 * pw + 1.5 * draw; t.pts += real(gf, ga);
+    }
+  }
+  const rows = Object.values(T).filter((t) => t.gp);
+  const realRank = new Map([...rows].sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga)).map((t, i) => [t.code, i + 1]));
+  rows.sort((a, b) => b.xpts - a.xpts);
+  const mx = Math.max(1, ...rows.map((t) => Math.abs(t.pts - t.xpts)));
+  const body = rows.map((t, i) => {
+    const diff = t.pts - t.xpts, move = realRank.get(t.code) - (i + 1);
+    return `<tr><td class="rank">${i + 1}</td>
+      <td class="l"><a class="teamcell" href="#/lag/${t.code}">${tb(t.code, 'md')}<div class="nm"><b>${esc(tName(t.code))}</b></div></a></td>
+      <td>${t.gp}</td><td class="hl">${dec(t.xpts, 1)}</td><td>${t.pts}</td>
+      <td class="ft-diff"><span class="ft-bar ${diff >= 0 ? 'up' : 'down'}" style="--w:${Math.abs(diff) / mx * 50}%"></span><b class="num">${diff >= 0 ? '+' : ''}${dec(diff, 1)}</b></td>
+      <td class="ft-move ${move > 0 ? 'up' : move < 0 ? 'down' : ''}" title="Verklig placering: ${realRank.get(t.code)}">${move > 0 ? `▼ ${move}` : move < 0 ? `▲ ${-move}` : '–'}</td>
+      <td>${dec(t.xgf / Math.max(0.001, t.xgf + t.xga) * 100, 1)}</td></tr>`;
+  }).join('');
+  return `<div class="tscroll"><table class="t fairt" style="min-width:480px"><thead><tr><th class="rank">#</th><th class="l">Lag</th><th>M</th><th title="Förväntade poäng utifrån chanserna">xPoäng</th><th>Poäng</th><th>Tur</th><th title="Verklig placering jämfört med den rättvisa">Tabell</th><th>xG%</th></tr></thead><tbody>${body}</tbody></table></div>
+    <p class="note">Tur = verkliga poäng minus xPoäng. Plus betyder fler poäng än chanserna motiverar (skärpa, målvakt eller tur), minus färre. Tabell visar hur många platser laget ligger högre (▲) eller lägre (▼) i den riktiga tabellen.</p>`;
+}
+
+// Liknande spelare: the players whose player card (percentiles, same position) is closest to the chosen one
+function similarPlayers(x, n = 5) {
+  const current = new Set([...skaters(), ...goalies()].map((p) => p.id));
+  const keys = (x.metrics || METRICS).map((m) => m.k);
+  return [...CARD.values()]
+    .filter((y) => y.id !== x.id && y.grp === x.grp && current.has(y.id) && y.gp >= (y.minGp || MIN_GP))
+    .map((y) => ({ y, d: Math.sqrt(keys.reduce((t, k) => t + (x.pct[k] - y.pct[k]) ** 2, 0) / keys.length) }))
+    .sort((a, b) => a.d - b.d).slice(0, n)
+    .map(({ y, d }) => ({ y, sim: Math.max(0, 1 - d * 2), shared: (x.metrics || METRICS).filter((m) => x.pct[m.k] >= 0.7 && y.pct[m.k] >= 0.7).sort((a, b) => (y.pct[b.k] + x.pct[b.k]) - (y.pct[a.k] + x.pct[a.k])).slice(0, 3).map((m) => m.label) }));
+}
+function similarHtml(x) {
+  const list = similarPlayers(x);
+  const posName = x.grp === 'G' ? 'målvakter' : x.grp === 'D' ? 'backar' : 'forwards';
+  return `<div class="sim-head">${avatar(x.id, x.name, x.team, 'md')}<div class="sim-who"><a href="#/spelare/${encodeURIComponent(x.id)}"><b>${esc(x.name)}</b></a><span>${tb(x.team)}${esc(tName(x.team))} · Påverkan ${Math.round(x.impact * 100)} %</span></div></div>
+    ${list.length ? `<ol class="sim-list">${list.map(({ y, sim, shared }, i) => `<li><a class="sim-row" href="#/spelare/${encodeURIComponent(y.id)}">
+      <span class="sim-r num">${i + 1}</span>${avatar(y.id, y.name, y.team, 'md')}
+      <span class="sim-n"><b>${esc(y.name)}</b><small>${tb(y.team)}${esc(y.team)}${shared.length ? ` · ${esc(shared.join(', '))}` : ''}</small></span>
+      <span class="sim-v"><b class="num">${Math.round(sim * 100)} %</b><span class="sim-bar"><i style="width:${sim * 100}%"></i></span></span></a></li>`).join('')}</ol>`
+      : `<p class="empty-state">Inga jämförbara ${posName} än.</p>`}`;
+}
+
 async function pageEdge() {
   setTitle('Nexus');
   if (!EDGE) app.innerHTML = skeleton();
@@ -1831,6 +1898,14 @@ async function pageEdge() {
     </section>
 
     <div class="ov-row r-two">
+      ${panel('Rättvis tabell', fairTable(E), { sub: 'Tabellen som den borde se ut om varje match slutat som chanserna (xG) sa.' })}
+      <section class="panel"><div class="p-head"><h2>Liknande spelare</h2><p class="p-sub">Spelarna med mest lika spelarkort, jämfört med andra på samma position.</p></div>
+        <div class="p-body sim-body"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="sim-search" type="search" placeholder="Sök spelare eller målvakt" autocomplete="off" aria-label="Sök spelare att jämföra"><div class="results" id="sim-results" hidden></div></div>
+          <div class="chips" id="sim-picks"></div><div id="sim-slot"></div></div></section>
+    </div>
+
+    <div class="ov-row r-two">
       <section class="panel"><div class="p-head"><h2>Spelarkort</h2><p class="p-sub">Percentiler från ett viktat urval av två säsonger.</p></div>
         <div class="p-body"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
           <input id="card-search" type="search" placeholder="Sök spelare" autocomplete="off" aria-label="Sök spelare"><div class="results" id="card-results" hidden></div></div>
@@ -1838,7 +1913,7 @@ async function pageEdge() {
       ${panel('Lag: xG för och mot', `<div class="chart">${teamScatter(teamRows, { xk: 'xgfpg', yk: 'xgapg', xLabel: 'xG för per match', what: ['xG för', 'xG mot'] })}</div>`, { sub: 'Förväntade mål per match. Bäst är uppe till höger: många chanser framåt, få bakåt.' })}
     </div>
     <div class="ov-row r-one">
-      ${panel('Lag: xG-tabell', '<div class="tscroll"><table class="t stick" id="xg-teams" style="min-width:640px"></table></div>', { sub: 'Avslut = gjorda mål minus xG (skärpa framåt). Målvakt = xG mot minus insläppta (målvaktsspel).' })}
+      ${panel('Lag: xG-statistik', '<div class="tscroll"><table class="t stick" id="xg-teams" style="min-width:640px"></table></div>', { sub: 'Avslut = gjorda mål minus xG (skärpa framåt). Målvakt = xG mot minus insläppta (målvaktsspel).' })}
     </div>
     <div class="ov-row r-two">
       ${panel('Var målen görs', `<div class="chart">${goalRateMap(E.shots.map((s) => ({ x: s[2], y: s[3], g: s[4], en: s[7] })))}</div>`, { sub: 'Andel skott på mål som blir mål, per område. Ljusare = oftare mål. Rutor med färre än 8 skott visas inte.' })}
@@ -1981,6 +2056,17 @@ async function pageEdge() {
   $('card-picks').onclick = (e) => { const b = e.target.closest('button'); if (b) showCard(CARD.get(b.dataset.id)); };
   bindSearch($('card-search'), $('card-results'), (it) => showCard(CARD.get(it.id)), (it) => it.type === 'p' && CARD.has(it.id));
   showCard(cardPicks[0]);
+
+  // Similar players: quick picks (a forward, a defenceman and a goalie from the top) and search
+  const simPicks = [...topCards('F', 3), ...topCards('D', 2), [...CARD.values()].filter((x) => x.grp === 'G' && x.gp >= GK_MIN_GP).sort((a, b) => b.composite - a.composite)[0]].filter(Boolean);
+  const showSim = (x) => {
+    if (!x) return;
+    $('sim-slot').innerHTML = similarHtml(x);
+    $('sim-picks').innerHTML = simPicks.map((p) => `<button class="chip" data-id="${esc(p.id)}" aria-pressed="${p.id === x.id}">${esc(p.name)}</button>`).join('');
+  };
+  $('sim-picks').onclick = (e) => { const b = e.target.closest('button'); if (b) showSim(CARD.get(b.dataset.id)); };
+  bindSearch($('sim-search'), $('sim-results'), (it) => showSim(CARD.get(it.id)), (it) => it.type === 'p' && CARD.has(it.id));
+  showSim(simPicks[0]);
 }
 
 /* ---------- Spelare ---------- */
@@ -2807,18 +2893,59 @@ const ROUTES = [
 ];
 const NAV_OF = { match: 'matcher', spelare: 'statistik', lag: 'tabell', avancerat: 'nexus' };
 let lastPath = '';
-// Desktop menu: the highlight pill slides to the current page (hidden on pages outside the menu)
-function moveNavInd() {
-  const ind = document.querySelector('nav.main .nav-ind'), a = document.querySelector('nav.main a.on');
-  if (!ind) return;
-  if (!a || !a.offsetWidth) { ind.style.opacity = '0'; return; }
+// Sliding highlights: in menus, toggles and tabs the highlight glides to the chosen option instead of jumping.
+// One indicator per group, kept in step with the selection by watching the page. When a group is drawn anew
+// (many toggles re-render their card), it starts where the old one was, so the slide still shows.
+const SLIDERS = [
+  { sel: 'nav.main', item: 'a', on: '.on', kind: 'pill' },
+  { sel: '.bottom-nav', item: 'a', on: '.on', kind: 'pill' },
+  { sel: '.seg', item: 'button', on: '[aria-pressed="true"]', kind: 'pill' },
+  { sel: '.theme-toggle', item: 'button', on: '[aria-pressed="true"]', kind: 'pill' },
+  { sel: '.utabs', item: 'button', on: '[aria-selected="true"]', kind: 'line' },
+  { sel: '.tabs', item: 'a', on: '.on', kind: 'line' },
+  { sel: '.ltop10', item: 'li', on: '.on', kind: 'pill' },
+];
+const SLIDE_LAST = new Map();
+function syncSlider(box, spec) {
+  let ind = box.querySelector(':scope > .sl-ind');
+  if (!ind) {
+    ind = document.createElement('span');
+    ind.className = `sl-ind sl-${spec.kind}`; ind.setAttribute('aria-hidden', 'true');
+    box.prepend(ind);
+    if (!box.classList.contains('has-ind')) box.classList.add('has-ind');
+    if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
+  }
+  const items = [...box.querySelectorAll(`:scope > ${spec.item}`)];
+  const on = items.find((el) => el.matches(spec.on));
+  if (!on || !on.offsetWidth) { ind.style.opacity = '0'; return; }
+  const key = box.id || `${spec.sel}|${items.map((el) => el.textContent.trim()).join('|')}`;
+  const r = { x: on.offsetLeft, y: on.offsetTop, w: on.offsetWidth, h: on.offsetHeight };
+  const place = (p) => {
+    ind.style.width = `${p.w}px`;
+    if (spec.kind === 'pill') { ind.style.height = `${p.h}px`; ind.style.transform = `translate(${p.x}px, ${p.y}px)`; }
+    else ind.style.transform = `translateX(${p.x}px)`;
+  };
+  if (!ind.dataset.ready) {
+    const prev = SLIDE_LAST.get(key);
+    if (prev && (prev.x !== r.x || prev.w !== r.w)) { place(prev); void ind.offsetWidth; ind.dataset.ready = '1'; }
+    else requestAnimationFrame(() => { ind.dataset.ready = '1'; }); // first time: appear in place, no slide in from the side
+  }
   ind.style.opacity = '1';
-  ind.style.width = `${a.offsetWidth}px`;
-  ind.style.transform = `translateX(${a.offsetLeft}px)`;
-  if (!ind.dataset.ready) requestAnimationFrame(() => { ind.dataset.ready = '1'; }); // no slide in from the left on first load
+  place(r);
+  SLIDE_LAST.set(key, r);
 }
-addEventListener('resize', moveNavInd);
-document.fonts?.ready.then(moveNavInd);
+let slideQueued = false;
+function syncSliders() {
+  if (slideQueued) return;
+  slideQueued = true;
+  requestAnimationFrame(() => {
+    slideQueued = false;
+    for (const spec of SLIDERS) for (const box of document.querySelectorAll(spec.sel)) syncSlider(box, spec);
+  });
+}
+new MutationObserver(syncSliders).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-pressed', 'aria-selected', 'class', 'hidden'] });
+addEventListener('resize', syncSliders);
+document.fonts?.ready.then(syncSliders);
 async function route() {
   const path = decodeURIComponent(location.hash.replace(/^#/, '')) || '/';
   const seg = path.split('/')[1] || '';
@@ -2827,7 +2954,6 @@ async function route() {
     a.classList.toggle('on', on);
     if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
-  moveNavInd();
   document.body.classList.remove('search-open');
   document.body.classList.toggle('is-home', path === '/'); // the settings button shows on Hem (phones)
   const TITLES = { matcher: 'Matcher', statistik: 'Statistik', tabell: 'Tabell', media: 'Media', match: 'Match', spelare: 'Spelare', lag: 'Lag', nyheter: 'Nyheter', nexus: 'Nexus', avancerat: 'Nexus' };

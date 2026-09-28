@@ -151,7 +151,7 @@ nav.main a.on { color: var(--accent); background: color-mix(in srgb, var(--accen
 .results .empty { padding: 8px; color: var(--muted); }
 .theme-toggle { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
 .theme-toggle button { border: 0; background: none; width: 30px; height: 26px; border-radius: 999px; cursor: pointer; color: var(--muted); display: grid; place-items: center; }
-.theme-toggle button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.theme-toggle button[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 24%, transparent); color: var(--accent); }
 .theme-toggle svg { width: 15px; height: 15px; }
 
 /* ---------- layout ---------- */
@@ -180,7 +180,7 @@ main { max-width: 1320px; margin: 0 auto; padding: 22px 16px 64px; display: grid
 .controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 .seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 2px; flex-wrap: wrap; }
 .seg button { border: 0; background: none; padding: 5px 11px; border-radius: 6px; cursor: pointer; color: var(--muted); font: 600 14px var(--display); letter-spacing: .05em; text-transform: uppercase; }
-.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 24%, transparent); color: var(--text); }
 .field { display: inline-flex; align-items: center; gap: 6px; font: 600 13px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .field select, .field input { background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px; padding: 4px 8px; font: 500 14px var(--body); text-transform: none; letter-spacing: 0; color: var(--text); }
 .field input[type=number] { width: 62px; }
@@ -1803,8 +1803,75 @@ footer#foot p { margin: 0; }
   nav.main a:hover { background: none; color: var(--text); text-decoration: none; }
   nav.main a.on { background: none; color: var(--text); }
   nav.main a.on .ic { color: var(--accent); }
-  .nav-ind { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; width: 0; border-radius: 999px; opacity: 0; pointer-events: none;
-    background: color-mix(in srgb, var(--accent) 22%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent); }
-  .nav-ind[data-ready] { transition: transform .32s cubic-bezier(.3, .8, .3, 1), width .32s cubic-bezier(.3, .8, .3, 1), opacity .2s; }
 }
 @media (min-width: 980px) { nav.main { margin-left: 8px; } }
+
+/* Sliding highlights (app.js adds one .sl-ind to each menu, toggle and tab row and moves it to the chosen option).
+   Pills: a tinted pill behind the chosen option. Lines: an underline that glides between tabs. */
+.sl-ind { position: absolute; z-index: 0; left: 0; top: 0; width: 0; opacity: 0; pointer-events: none; }
+.sl-ind[data-ready] { transition: transform .34s cubic-bezier(.3, .8, .3, 1), width .34s cubic-bezier(.3, .8, .3, 1), height .34s cubic-bezier(.3, .8, .3, 1), opacity .2s; }
+.sl-pill { border-radius: 999px; background: color-mix(in srgb, var(--accent) 24%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent); }
+.sl-line { top: auto; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--accent); }
+.has-ind > button, .has-ind > a { position: relative; z-index: 1; transition: color .2s; }
+@media (prefers-reduced-motion: reduce) { .sl-ind[data-ready] { transition: none; } }
+
+/* Toggles: one modern look everywhere. Soft track, normal-case labels, the chosen option in a tinted pill with full-strength text */
+.seg { background: color-mix(in srgb, var(--panel-2) 85%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent); }
+.seg button { font: 600 13.5px var(--body); letter-spacing: .01em; text-transform: none; padding: 6px 13px; }
+.seg button:hover { color: var(--text); }
+.seg.has-ind button[aria-pressed="true"], .theme-toggle.has-ind button[aria-pressed="true"] { background: none; color: var(--text); }
+.theme-toggle.has-ind button[aria-pressed="true"] { color: var(--accent); }
+@media (max-width: 700px) {
+  .seg button { font-size: 14px; padding: 8px 12px; }
+  .bottom-nav.has-ind a.on { background: none; box-shadow: none; }
+  .bottom-nav .sl-pill { background: color-mix(in srgb, var(--accent) 26%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 14%, transparent); border-radius: 22px; }
+}
+
+/* Tabs: normal-case labels with the underline gliding between them */
+.tabs a, .utabs button { font: 600 14.5px var(--body); letter-spacing: .01em; text-transform: none; }
+.tabs.has-ind a.on, .utabs.has-ind button[aria-selected="true"] { border-bottom-color: transparent; }
+
+/* Nexus: Rättvis tabell */
+.fairt td.ft-diff { position: relative; min-width: 84px; }
+.fairt th, .fairt td { padding-left: 6px; padding-right: 6px; }
+.ft-bar { position: absolute; top: 50%; height: 14px; translate: 0 -50%; border-radius: 4px; width: var(--w); opacity: .28; }
+.ft-bar.up { left: 50%; background: var(--good); }
+.ft-bar.down { right: 50%; background: var(--bad); }
+.fairt td.ft-diff b { position: relative; }
+.ft-move { font: 700 12.5px var(--display); color: var(--faint); white-space: nowrap; }
+.ft-move.up { color: var(--good); }
+.ft-move.down { color: var(--bad); }
+
+/* Nexus: Liknande spelare */
+.sim-head { display: flex; align-items: center; gap: 12px; margin: 12px 0 10px; }
+.sim-who { display: grid; gap: 2px; min-width: 0; }
+.sim-who b { font: 700 19px var(--display); color: var(--text); }
+.sim-who span { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.sim-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sim-row { display: grid; grid-template-columns: 18px auto minmax(0, 1fr) 96px; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 12px;
+  background: var(--panel-2); color: var(--text); text-decoration: none !important; transition: background .15s, box-shadow .15s; }
+.sim-row:hover { background: color-mix(in srgb, var(--accent) 9%, var(--panel-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+.sim-r { font: 700 14px var(--display); color: var(--faint); }
+.sim-n { display: grid; min-width: 0; }
+.sim-n b { font: 700 16px var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sim-n small { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.sim-v { display: grid; gap: 4px; justify-items: end; }
+.sim-v b { font: 700 17px var(--display); }
+.sim-bar { width: 100%; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--line) 80%, transparent); overflow: hidden; }
+.sim-bar i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+
+/* Leader top-10 lists: the highlighted player gets the same sliding tinted pill as the toggles */
+.ltop10.has-ind li.on { background: color-mix(in srgb, var(--accent) 10%, var(--panel-2)); color: var(--text); }
+.ltop10.has-ind li.on a { color: var(--text); }
+.ltop10.has-ind li.on .r { color: var(--accent); }
+.ltop10 .sl-pill { z-index: 2; border-radius: var(--r-in, 10px); background: color-mix(in srgb, var(--accent) 12%, transparent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 65%, transparent); }
+.has-ind > li { position: relative; z-index: 1; }
+
+/* Chips (quick picks): normal-case labels like the toggles */
+.chip { font: 600 13px var(--body); letter-spacing: .01em; text-transform: none; padding: 4px 12px; }
+.chip:hover { color: var(--text); }
+
+/* Similar players card: content from the top, even when the card beside it is taller */
+.p-body.sim-body { align-content: start; justify-content: flex-start; }
+.sim-body .chips { margin-top: 10px; }
