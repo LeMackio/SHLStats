@@ -1384,3 +1384,71 @@ dialog.sheet { display: none; }
 @media (max-width: 700px) { :root[data-theme="light"] .gcard.fav { outline: none; } }
 
 @media (max-width: 700px) { .crumbs { display: none; } } /* the back arrow in the header replaces the breadcrumb trail on phones */
+
+/* Leader lists: rank flush left, no extra indent; one team's list drops the repeated logo */
+ol.lb .r { text-align: left; }
+ol.lb.noav li { grid-template-columns: 24px 32px minmax(0, 1fr) auto; }
+ol.lb.nologo li { grid-template-columns: 24px minmax(0, 1fr) auto; }
+
+@media (max-width: 700px) {
+  ol.lb.noav li { padding: 8px 0; gap: 10px; }
+  ol.lb.noav .r { font-size: 15px; color: var(--muted); }
+
+  /* Sideways card rows start at the page margin, not the screen edge */
+  .tnews-row { margin: 0 -12px; padding: 0 12px 4px; scroll-padding: 0 12px; }
+
+  /* Game cards: rank badge beside the name; goals and leaders in two tidy columns, all of them visible */
+  .gc-nm { display: flex; align-items: center; gap: 8px; }
+  .gc-nm b { min-width: 0; }
+  .gc-rank { flex: none; }
+  .gcard .gc-goals { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; overflow: visible; margin: 0; padding: 0; }
+  .gchip { max-width: none; min-width: 0; padding: 7px 8px; gap: 8px; }
+  .gchip .av { width: 30px; height: 30px; }
+  .gch-who b { font-size: 14px; }
+  .gch-who small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+  a.gchip { cursor: pointer; color: var(--text); }
+  .gchip.empty { grid-template-columns: 1fr; min-height: 46px; }
+  .gcard > .gc-lbl { margin-bottom: -4px; }
+  .datetabs a.today span::after { content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); margin-left: 4px; vertical-align: 2px; }
+
+  /* Hem: team card */
+  .myteam-m .p-body { gap: 14px; }
+  .mt-name { gap: 4px; }
+  .mt-pos { display: flex; align-items: center; gap: 7px; font-size: 14px; color: var(--text); }
+  .mt-pos.sub { color: var(--muted); font-size: 13.5px; }
+  .mt-lbl { font: 700 12.5px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .mt-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .mt-streak { font-size: 13.5px; color: var(--muted); }
+  .mt-games { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: -6px; }
+  .mt-g { display: grid; justify-items: center; gap: 4px; padding: 8px 2px; border-radius: var(--r-in); background: var(--panel-2); color: var(--text); text-decoration: none !important; }
+  .mt-g .tb.md { width: 30px; height: 30px; }
+  .mt-g-d { font: 600 12px var(--display); letter-spacing: .03em; text-transform: uppercase; color: var(--muted); }
+  .mt-g-h { font-size: 12px; color: var(--muted); }
+  .mt-g-p { font: 700 14px var(--display); }
+  .mt-hot { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; border-radius: var(--r-in); background: var(--panel-2); color: var(--text); text-decoration: none !important; }
+  .mt-hot .av { width: 38px; height: 38px; }
+  .mt-hot > span { display: grid; min-width: 0; }
+  .mt-hot small { font-size: 12.5px; color: var(--muted); }
+  .mt-hot b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mt-hot-v { justify-items: end; }
+  .mt-hot-v b { font: 700 20px var(--display); color: var(--accent); }
+  .mt-odds { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; color: var(--muted); padding-top: 2px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .mt-odds b { color: var(--text); font-family: var(--display); font-size: 15px; margin-left: 3px; }
+
+  /* Statistik: filters in a two-column grid with labels above */
+  #alla .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
+  #alla .controls > .seg { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
+  #alla .controls .field { display: grid; gap: 5px; min-width: 0; }
+  #alla .controls .field select, #alla .controls .field input { width: 100%; min-height: 42px; font-size: 16px; }
+  #alla .controls .field:last-child { grid-column: 1 / -1; }
+  #alla .controls .field[hidden] { display: none; }
+  #stable .pcell .tb { display: none; }
+}
+
+@media (max-width: 700px) { .mt-g-d { text-align: center; line-height: 1.25; } }
+
+ol.lb.noav .r, ol.lb.nologo .r { text-align: left; }
+
+@media (max-width: 700px) { .gch-play { width: 24px; height: 24px; } .gch-play .ic { width: 11px; height: 11px; } .gchip { gap: 7px; } }
+
+@media (max-width: 700px) { #stable .pcell .av { display: none; } #stable .pcell { gap: 8px; } #stable .pcell > .num { width: 18px !important; } }

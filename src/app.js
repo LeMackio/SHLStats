@@ -692,9 +692,9 @@ function gameRow(g, { dated = false } = {}) {
 }
 const gameList = (games, opts) => `<div class="day">${games.map((g) => gameRow(g, opts)).join('')}</div>`;
 
-function leaderList(rows, { val, fmt = (v) => v, team = (r) => r.team, n = 10, sub = null, avatars = true }) {
+function leaderList(rows, { val, fmt = (v) => v, team = (r) => r.team, n = 10, sub = null, avatars = true, logos = true }) {
   if (!rows.length) return '<p class="empty-state">Ingen statistik ännu.</p>';
-  return `<ol class="lb ${avatars ? '' : 'noav'}">${rows.slice(0, n).map((r, i) => `<li><span class="r num">${i + 1}.</span>${tb(team(r), avatars ? '' : 'md')}${avatars ? avatar(r.id, r.name, team(r)) : ''}<span class="n">${pLink(r.id, r.name)}${sub ? `<small>${sub(r)}</small>` : ''}</span><span class="v">${fmt(val(r))}</span></li>`).join('')}</ol>`;
+  return `<ol class="lb ${avatars ? '' : 'noav'} ${logos ? '' : 'nologo'}">${rows.slice(0, n).map((r, i) => `<li><span class="r num">${i + 1}</span>${logos ? tb(team(r), avatars ? '' : 'md') : ''}${avatars ? avatar(r.id, r.name, team(r)) : ''}<span class="n">${pLink(r.id, r.name)}${sub ? `<small>${sub(r)}</small>` : ''}</span><span class="v">${fmt(val(r))}</span></li>`).join('')}</ol>`;
 }
 function leaderTile(title, rows, { val, fmt = (v) => v, n = 5 }) {
   if (!rows.length) return `<div class="ltile"><h3>${title}</h3><span class="faint">Inga spelare ännu.</span></div>`;
@@ -1334,27 +1334,33 @@ function pageTable(tab = '') {
     <section class="panel tabs-only">${tabs('/tabell', [['', 'Tabell', '', 'table'], ['odds', 'Odds', '', 'trophy']], tab)}</section>`;
   const foot = `<span class="stamp">Uppdaterad ${esc(stampTxt)}</span>`;
   if (tab === '') return teamStatsTab(head);
-  const heat =`<div class="tscroll"><table class="t stick" style="min-width:760px"><thead><tr><th class="l">Lag</th>${CODES.map((_, i) => `<th>${i + 1}</th>`).join('')}</tr></thead><tbody>${TABLE.map((r) => {
-    const s = SIM[r.code];
-    return `<tr class="${r.code === FAV ? 'fav' : ''}"><td class="l">${teamLink(r.code, { name: true })}</td>${s.rank.map((p, i) => {
-      const c = i < 6 ? 'var(--accent)' : i < 10 ? 'color-mix(in srgb, var(--accent) 55%, var(--faint))' : i >= 12 ? 'var(--bad)' : 'var(--faint)';
-      return `<td style="background:color-mix(in srgb, ${c} ${Math.round(Math.min(1, p * 2.2) * 75)}%, transparent);font-size:12.5px" title="${esc(r.code)} slutar ${i + 1}:a: ${pctTxt(p, 1)}">${p >= 0.005 ? Math.round(p * 100) : ''}</td>`;
-    }).join('')}</tr>`;
-  }).join('')}</tbody></table></div>`;
-  const W = cw(640), rowH = isNarrow() ? 30 : 26, left = isNarrow() ? 84 : 150, right = 20, top = 22;
-  const rows = [...TABLE].sort((a, b) => SIM[b.code].proj - SIM[a.code].proj);
+  // Poängprognos and Slutplacering share one layout: the same rows (ordered by projected points) and the same team labels
+  const narrow = isNarrow(), W = cw(640), rowH = narrow ? 30 : 26, left = narrow ? 84 : 150, right = narrow ? 6 : 20, top = 22;
+  const rows = [...TABLE].sort((a, b) => SIM[b.code].proj - SIM[a.code].proj), H = top + rows.length * rowH + 6;
+  const label = (r, y) => `<text x="${left - 32}" y="${y + 4.5}" text-anchor="end" font-size="13.5" style="fill:var(--text);font-weight:${r.code === FAV ? 700 : 500}">${esc(narrow ? r.code : tName(r.code))}</text>
+      ${LOGOS[r.code] ? `<image href="${esc(LOGOS[r.code])}" x="${left - 26}" y="${y - 10}" width="20" height="20"/>` : ''}`;
+  // Final placing: one cell per position, all 14 visible without scrolling
+  const n = CODES.length, cell = (W - left - right) / n;
+  let heat = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Slutplacering">`;
+  for (let k = 0; k < n; k++) heat += `<text x="${left + k * cell + cell / 2}" y="${top - 8}" text-anchor="middle" font-size="11" style="fill:var(--faint)">${k + 1}</text>`;
+  rows.forEach((r, i) => {
+    const y = top + i * rowH + rowH / 2;
+    heat += label(r, y) + SIM[r.code].rank.map((p, k) => {
+      const c = k < 6 ? 'var(--accent)' : k < 10 ? 'color-mix(in srgb, var(--accent) 55%, var(--faint))' : k >= 12 ? 'var(--bad)' : 'var(--faint)', x0 = left + k * cell;
+      return `<rect x="${x0 + 1}" y="${y - rowH / 2 + 2}" width="${cell - 2}" height="${rowH - 4}" rx="3" style="fill:${c};fill-opacity:${p < 0.005 ? 0.05 : Math.min(0.9, 0.14 + p * 1.6)}"><title>${esc(tName(r.code))} slutar ${k + 1}:a: ${pctTxt(p, 1)}</title></rect>`
+        + (p >= 0.05 ? `<text x="${x0 + cell / 2}" y="${y + 4}" text-anchor="middle" font-size="${narrow ? 11 : 12}" font-weight="600" style="fill:var(--text)">${Math.round(p * 100)}</text>` : '');
+    }).join('');
+  });
+  heat += '</svg>';
   const lo = Math.min(...rows.map((r) => SIM[r.code].lo)), hi = Math.max(...rows.map((r) => SIM[r.code].hi));
-  const minX = Math.floor(lo / 10) * 10, maxX = Math.ceil(hi / 10) * 10;
+  const minX = Math.floor(lo / 10) * 10, maxX = Math.ceil(hi / 10) * 10, step = narrow && maxX - minX > 60 ? 20 : 10;
   const x = (v) => left + (v - minX) / (maxX - minX || 1) * (W - left - right);
-  let range = `<svg viewBox="0 0 ${W} ${top + rows.length * rowH + 6}" role="img" aria-label="Poängprognos">`;
-  for (let t = minX; t <= maxX; t += 10) range += `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 4}" y2="${top + rows.length * rowH}" style="stroke:var(--line)"/><text x="${x(t)}" y="${top - 8}" text-anchor="middle" font-size="11" style="fill:var(--faint)">${t}</text>`;
+  let range = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Poängprognos">`;
+  for (let t = minX; t <= maxX; t += step) range += `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 4}" y2="${top + rows.length * rowH}" style="stroke:var(--line)"/><text x="${x(t)}" y="${top - 8}" text-anchor="middle" font-size="11" style="fill:var(--faint)">${t}</text>`;
   rows.forEach((r, i) => {
     const s = SIM[r.code], y = top + i * rowH + rowH / 2;
-    range += `<text x="${left - 32}" y="${y + 4}" text-anchor="end" font-size="13.5" style="fill:var(--text);font-weight:${r.code === FAV ? 700 : 400}">${esc(isNarrow() ? r.code : tName(r.code))}</text>
-      ${LOGOS[r.code] ? `<image href="${esc(LOGOS[r.code])}" x="${left - 26}" y="${y - 10}" width="20" height="20"/>` : ''}
-      <line x1="${x(s.lo)}" x2="${x(s.hi)}" y1="${y}" y2="${y}" style="stroke:color-mix(in srgb, ${tColor(r.code)} 70%, var(--accent))" stroke-width="8" stroke-linecap="round" opacity=".55"/>
-      <circle cx="${x(s.proj)}" cy="${y}" r="6" style="fill:var(--text)"><title>${esc(tName(r.code))}: ${dec(s.proj, 0)} poäng (${s.lo}–${s.hi})</title></circle>
-      <circle cx="${x(r.pts)}" cy="${y}" r="3" style="fill:var(--accent)"/>`;
+    range += label(r, y) + `<line x1="${x(s.lo)}" x2="${x(s.hi)}" y1="${y}" y2="${y}" style="stroke:color-mix(in srgb, ${tColor(r.code)} 70%, var(--accent))" stroke-width="8" stroke-linecap="round" opacity=".55"/>
+      <circle cx="${x(s.proj)}" cy="${y}" r="6" style="fill:var(--text)"><title>${esc(tName(r.code))}: ${dec(s.proj, 0)} poäng (${s.lo}–${s.hi})</title></circle>`;
   });
   range += '</svg>';
   const explain = `<details class="explain"><summary>Hur räknas oddsen?</summary><div class="method">
@@ -1365,8 +1371,8 @@ function pageTable(tab = '') {
   render(`${head}
     ${board([
       panel('Odds', standingsTable({ mode: 'proj' }) + legendHtml + explain, { cls: 'wide', sub: '10 000 simuleringar av resten av grundserien och slutspelet.', foot }),
-      panel('Poängprognos', `<div class="chart">${range}</div>`, { sub: 'Stapeln visar 80 % av utfallen, den stora pricken är snittet och den lilla pricken är dagens poäng.' }),
-      panel('Slutplacering', heat, { sub: 'Chans i procent att sluta på varje placering efter 52 omgångar.' }),
+      panel('Poängprognos', `<div class="chart">${range}</div>`, { sub: 'Poäng efter 52 omgångar. Stapeln visar 80 % av utfallen och pricken är snittet.' }),
+      panel('Slutplacering', `<div class="chart">${heat}</div>`, { sub: 'Chans i procent att sluta på varje placering efter 52 omgångar.' }),
     ])}`);
 }
 
@@ -1390,8 +1396,8 @@ const LEADER_SECTIONS = () => {
         { k: 'so', label: 'Nollor', v: (g) => g.so, tie: (g) => g.svp },
         { k: 'gsaa', label: 'GSAA', v: (g) => gsaa(g, CUR), f: (x) => (x > 0 ? '+' : '') + dec(x) },
       ] },
-    { id: 'df', title: 'Backar', rows: sk.filter((p) => posGroup(p.pos) === 'D'), stats: skStats.slice(0, 3), all: { kind: 'skaters', pos: 'D' } },
-    { id: 'rk', title: 'Rookies', note: 'Första SHL-säsongen', rows: sk.filter((p) => p.rk), stats: skStats.slice(0, 3), all: { kind: 'skaters', pos: 'ALL', rk: true } },
+    { id: 'df', title: 'Backar', rows: sk.filter((p) => posGroup(p.pos) === 'D'), stats: skStats, all: { kind: 'skaters', pos: 'D' } },
+    { id: 'rk', title: 'Rookies', note: 'Första SHL-säsongen', rows: sk.filter((p) => p.rk), stats: skStats, all: { kind: 'skaters', pos: 'ALL', rk: true } },
   ];
 };
 // The big card on the left of a leader section, for any player in its top 10
@@ -1480,7 +1486,7 @@ function pageStats() {
     const rows = D.seasons[S.season][S.kind].filter((p) => (isSk ? p.gp : p.gpi) >= S.minGp && (S.team === 'ALL' || p.team === S.team)
       && (!isSk || S.pos === 'ALL' || (posGroup(p.pos) === 'D') === (S.pos === 'D')) && (!S.rk || p.rk) && (!q || normName(p.name).includes(q)))
       .map((p) => isSk ? { ...p, ppgp: p.gp ? p.pts / p.gp : 0, shp: p.sog ? p.g / p.sog : null } : { ...p, gsaa: gsaa(p, S.season) });
-    const nameCol = { k: 'name', label: 'Spelare', l: true, asc: true, h: (r, i) => `<div class="pcell"><span class="faint num" style="width:22px;text-align:right">${i + 1}</span>${tb(r.team)}${avatar(r.id, r.name, r.team)}<div>${pLink(r.id, r.name)}<br><small>${POS[r.pos] || 'Forward'}</small></div></div>` };
+    const nameCol = { k: 'name', label: 'Spelare', l: true, asc: true, h: (r, i) => `<div class="pcell"><span class="faint num" style="width:22px;text-align:right">${i + 1}</span>${tb(r.team)}${avatar(r.id, r.name, r.team)}<div>${pLink(r.id, r.name)}<br><small>${esc(r.team)} · ${POS[r.pos] || 'Forward'}</small></div></div>` };
     if (isSk) sortable($('stable'), [nameCol,
       { k: 'gp', label: 'SM', title: 'Spelade matcher' }, { k: 'g', label: 'M', title: 'Mål' }, { k: 'a', label: 'A', title: 'Assist' }, { k: 'pts', label: 'P', title: 'Poäng' },
       { k: 'ppgp', label: 'P/M', title: 'Poäng per match', f: (v) => dec(v, 2) }, { k: 'pm', label: '+/-', f: signed }, { k: 'pim', label: 'Utv', title: 'Utvisningsminuter' },
@@ -1964,8 +1970,9 @@ function teamStatsTab(head) {
   });
   render(`${head}
     ${board([
-      ...(narrow ? [panel('Tabell', standingsTable({ mode: 'stats' }) + legendHtml, { cls: 'wide' }),
-        panel('Lagstatistik', '<div class="tscroll"><table class="t stick" id="ttable" style="min-width:860px"></table></div>', { cls: 'wide', sub: 'Tryck på en kolumnrubrik för att sortera.' })]
+      ...(narrow ? [panel('Tabell', `<div class="tt"><div class="seg tt-seg"><button data-tt="std" aria-pressed="true">Tabell</button><button data-tt="adv" aria-pressed="false">Avancerat</button></div>
+          <div data-pane="std">${standingsTable({ mode: 'stats' })}${legendHtml}</div>
+          <div data-pane="adv" hidden><div class="tscroll"><table class="t stick" id="ttable" style="min-width:860px"></table></div><p class="note">Tryck på en kolumnrubrik för att sortera.</p></div></div>`, { cls: 'wide' })]
       : [panel('Tabell', `<div class="tscroll"><table class="t stick" id="ttable" style="min-width:1040px"></table></div>${legendHtml}`,
         { sub: 'Tryck på en kolumnrubrik för att sortera. Skott, powerplay, boxplay, tekningar och tacklingar räknas från matchdata.', cls: 'wide', foot: `<span class="stamp">Uppdaterad ${esc(stampTxt)}</span>` })]),
       panel('Anfall mot försvar', `<div class="chart">${teamScatter(rows)}</div>`, { sub: 'Gjorda och insläppta mål per match. Bäst är uppe till höger.' }),
@@ -2325,7 +2332,7 @@ function gameCard(g, d) {
     const r = TABLE.find((t) => t.code === c), score = s === 'home' ? g.hs : g.as, other = s === 'home' ? g.as : g.hs;
     const right = done || live ? `<span class="gc-num num">${score ?? 0}</span>` : `<span class="gc-pct num" title="Vinstchans">${pctTxt(s === 'home' ? ph : 1 - ph)}</span>`;
     return `<div class="gc-row ${done && score < other ? 'lose' : ''}">${tb(c, 'md')}
-      <div class="gc-nm"><b>${esc(tName(c))}</b>${r ? `<span class="gc-meta"><span class="gc-rank">${TABLE.indexOf(r) + 1}</span>${r.pts} p<i>·</i>${r.gp} SM</span>` : ''}</div>${right}</div>`;
+      <div class="gc-nm"><b>${esc(tName(c))}</b>${r ? `<span class="gc-rank" title="Tabellplats">${TABLE.indexOf(r) + 1}</span>` : ''}</div>${right}</div>`;
   };
   let mid = '';
   if (done || live) {
@@ -2333,14 +2340,18 @@ function gameCard(g, d) {
     const chipOf = (x) => {
       const c = x.clip && safeEmbed(x.clip.embed) ? x.clip : null, tag = strengthTag(x);
       const when = x.p >= 5 ? 'Straff' : x.p === 4 ? `ÖT ${x.t}` : `P${x.p} ${x.t}`;
-      const inner = `${avatar(x.scorer?.id, x.scorer?.name || '?', g[x.team]).replace(' loading="lazy"', '')}<span class="gch-who"><b>${esc(shortName(x.scorer?.name) || 'Mål')}</b><small>${esc(g[x.team])} ${x.score[0]}–${x.score[1]} · ${esc(when)}${tag ? ` · ${esc(tag)}` : ''}</small></span>${c ? `<span class="gch-play">${PLAY_SVG}</span>` : ''}`;
+      const inner = `${avatar(x.scorer?.id, x.scorer?.name || '?', g[x.team]).replace(' loading="lazy"', '')}<span class="gch-who"><b>${esc(shortName(x.scorer?.name) || 'Mål')}</b><small>${x.score[0]}–${x.score[1]} · ${esc(when)}${tag ? ` · ${esc(tag)}` : ''}</small></span>${c ? `<span class="gch-play">${PLAY_SVG}</span>` : ''}`;
       return c ? `<button class="gchip" data-embed="${esc(c.embed)}" data-title="${esc(`${x.scorer?.name || 'Mål'} ${x.score[0]}–${x.score[1]}`)}">${inner}</button>` : `<div class="gchip">${inner}</div>`;
     };
     mid = goals.length ? `<div class="gc-goals">${goals.map(chipOf).join('')}</div>`
       : (g.hs || g.as) ? '<p class="gc-note">Målskyttarna visas efter nästa uppdatering.</p>' : live ? '<p class="gc-note">Inga mål ännu.</p>' : '';
   } else {
-    const top = (c) => skaters().filter((p) => p.team === c).sort((a, b) => b.pts - a.pts || b.g - a.g).slice(0, 2);
-    mid = `<div class="gc-tops"><span class="gc-lbl">Poängbäst</span>${[g.home, g.away].map((c) => `<div>${tb(c)}<span>${top(c).map((p) => `${esc(shortName(p.name))} <b class="num">${p.pts}</b>`).join('<i>·</i>') || 'Inga poäng än'}</span></div>`).join('')}</div>`;
+    // Each team's leading goal scorer and assist maker, shown like the goal chips on a played game
+    const lead = (c, k) => skaters().filter((p) => p.team === c && p[k] > 0).sort((a, b) => b[k] - a[k] || b.pts - a.pts)[0];
+    const leadChip = (c, k) => { const p = lead(c, k); return p
+      ? `<a class="gchip" href="#/spelare/${encodeURIComponent(p.id)}">${avatar(p.id, p.name, c).replace(' loading="lazy"', '')}<span class="gch-who"><b>${esc(shortName(p.name))}</b><small>${esc(c)} · ${p[k]} ${k === 'g' ? 'mål' : 'assist'}</small></span></a>`
+      : `<div class="gchip empty"><span class="gch-who"><small>${esc(c)} · inga ${k === 'g' ? 'mål' : 'assist'} än</small></span></div>`; };
+    mid = `<div class="gc-lbl">Lagens bästa</div><div class="gc-goals">${leadChip(g.home, 'g')}${leadChip(g.away, 'g')}${leadChip(g.home, 'a')}${leadChip(g.away, 'a')}</div>`;
   }
   const hl = done && d?.hl && safeEmbed(d.hl.embed) ? d.hl : null;
   const left = hl ? `<button class="gc-btn" data-embed="${esc(hl.embed)}" data-title="${esc(`${g.home}–${g.away} sammandrag`)}">${PLAY_SVG}Sammandrag</button>`
@@ -2374,7 +2385,7 @@ async function pageDay(want) {
   if (DAY_SHOWN !== day) return; // moved on to another day while loading
   const tabsHtml = days.map((dd) => {
     const p = dateParts(dd), l = dayLabel(dd);
-    return `<a href="#/matcher/${dd}" class="${dd === day ? 'on' : ''}" ${dd === day ? 'aria-current="page"' : ''}><b>${l || DAYS[p.wd]}</b><span>${p.d} ${MONTHS[p.m - 1]}</span></a>`;
+    return `<a href="#/matcher/${dd}" class="${dd === day ? 'on' : ''} ${l === 'Idag' ? 'today' : ''}" ${dd === day ? 'aria-current="page"' : ''}><b>${DAYS[p.wd]}</b><span>${p.d} ${MONTHS[p.m - 1]}</span></a>`;
   }).join('');
   render(`<nav class="datetabs" id="datetabs" aria-label="Matchdagar">${tabsHtml}</nav>
     <div class="daylist" id="daylist">${games.map((g) => gameCard(g, det[g.id])).join('')}</div>
@@ -2393,6 +2404,37 @@ async function pageDay(want) {
   });
 }
 
+// Hem on phones: the team card. Where the team stands and against whom, current form, the coming games,
+// who is hot right now (points in the last three games) and the season odds on one line.
+function myTeamCard(fav, r, s, recent, det) {
+  const i = TABLE.indexOf(r), rank = i + 1, pts = (k) => TABLE[k]?.pts ?? 0;
+  const gap = i === 0 ? `${r.pts - pts(1)} p före ${esc(tName(TABLE[1].code))}` : `${pts(i - 1) - r.pts} p bakom ${esc(tName(TABLE[i - 1].code))}`;
+  const extra = rank > 10 ? `${pts(9) - r.pts} p till slutspelsplats` : rank > 6 ? `${pts(5) - r.pts} p till topp 6` : '';
+  // Current run of wins or losses
+  const res = GAMES.filter((x) => isFinal(x) && isFavGame(x)).map((x) => (x.home === fav ? x.hs > x.as : x.as > x.hs));
+  let run = 0; for (let k = res.length - 1; k >= 0 && res[k] === res[res.length - 1]; k--) run++;
+  const streak = res.length ? (res[res.length - 1] ? `${run} ${run === 1 ? 'vinst' : 'vinster'} i rad` : `${run} ${run === 1 ? 'förlust' : 'förluster'} i rad`) : '';
+  const coming = GAMES.filter((x) => !isFinal(x) && isFavGame(x)).slice(0, 5).map((x) => {
+    const home = x.home === fav, opp = home ? x.away : x.home, p = dateParts(x.start), ph = x.ph ?? 0.5;
+    return `<a class="mt-g" href="#/match/${esc(x.id)}"><span class="mt-g-d">${DAYS[p.wd]}<br>${p.d}/${p.m}</span>${tb(opp, 'md')}<span class="mt-g-h">${home ? 'Hemma' : 'Borta'}</span><span class="mt-g-p num">${pctTxt(home ? ph : 1 - ph)}</span></a>`;
+  }).join('');
+  // Hot right now: most points for this team over its last three games
+  const form = {};
+  for (const x of recent) {
+    const d = det[x.id]; if (!d) continue;
+    const side = d.home === fav ? 'home' : 'away';
+    for (const p of d.box?.[side] || []) if (p.id) { const f = (form[p.id] ??= { id: p.id, name: p.name, g: 0, a: 0 }); f.g += p.g; f.a += p.a; }
+  }
+  const hot = Object.values(form).sort((a, b) => (b.g + b.a) - (a.g + a.a) || b.g - a.g)[0];
+  return `<section class="panel m-card myteam-m" style="--tc:${tColor(fav)}"><div class="p-body">
+      <a class="mt-head" href="#/lag/${fav}">${tb(fav, 'xl')}<span class="mt-name"><b>${esc(tName(fav))}</b>
+        <span class="mt-pos"><span class="gc-rank">${rank}</span>${r.pts} poäng · ${gap}</span>${extra ? `<span class="mt-pos sub">${extra}</span>` : ''}</span></a>
+      <div class="mt-row"><span class="mt-lbl">Form</span>${formChips(fav)}${streak ? `<span class="mt-streak">${streak}</span>` : ''}</div>
+      ${coming ? `<div class="mt-lbl">Kommande matcher</div><div class="mt-games">${coming}</div>` : ''}
+      ${hot && hot.g + hot.a > 0 ? `<a class="mt-hot" href="#/spelare/${encodeURIComponent(hot.id)}">${avatar(hot.id, hot.name, fav).replace(' loading="lazy"', '')}<span><small>Formstark</small><b>${esc(hot.name)}</b></span><span class="mt-hot-v"><b class="num">${hot.g + hot.a} p</b><small>${hot.g}+${hot.a} senaste ${recent.length}</small></span></a>` : ''}
+      <div class="mt-odds"><span>Slutspel <b>${oddsTxt(s.top10)}</b></span><span>Topp 6 <b>${oddsTxt(s.top6)}</b></span><span>SM-guld <b>${oddsTxt(s.gold)}</b></span></div>
+    </div>${cardFoot(`#/lag/${fav}`, 'Lagsidan')}</section>`;
+}
 // Hem on phones: the news, then your team, or the league in general when no team is followed
 async function pageHome() {
   setTitle('');
@@ -2403,18 +2445,15 @@ async function pageHome() {
   if (fav) {
     const r = TABLE.find((t) => t.code === fav), s = SIM[fav];
     const next = GAMES.find((x) => !isFinal(x) && isFavGame(x)), last = [...GAMES].reverse().find((x) => isFinal(x) && isFavGame(x));
-    const det = await detailsFor([next, last]);
+    const recent = GAMES.filter((x) => isFinal(x) && isFavGame(x)).slice(-3);
+    const det = await detailsFor([next, last, ...recent]);
     let TD = null; try { TD = await loadTeams(); } catch { /* the page works without team news */ }
     const sk = skaters().filter((p) => p.team === fav).sort((a, b) => b.pts - a.pts || b.g - a.g);
-    body = `<section class="panel m-card myteam-m" style="--tc:${tColor(fav)}"><div class="p-body">
-        <a class="mt-head" href="#/lag/${fav}">${tb(fav, 'xl')}<span class="mt-name"><b>${esc(tName(fav))}</b><span class="gc-meta"><span class="gc-rank">${TABLE.indexOf(r) + 1}</span>${r.pts} p<i>·</i>${r.gp} SM<i>·</i>${r.gf}–${r.ga}</span></span></a>
-        <div class="mt-form">${formChips(fav)}</div>
-        <div class="mt-stats"><div><b>${oddsTxt(s.top10)}</b><span>Slutspel</span></div><div><b>${oddsTxt(s.top6)}</b><span>Topp 6</span></div><div><b>${oddsTxt(s.gold)}</b><span>SM-guld</span></div><div><b>${dec(s.proj, 0)}</b><span>Proj. poäng</span></div></div>
-      </div>${cardFoot(`#/lag/${fav}`, 'Lagsidan')}</section>
+    body = `${myTeamCard(fav, r, s, recent, det)}
       ${next ? sec(isLive(next) ? 'Pågår nu' : 'Nästa match', fmtDay(next.start)) + gameCard(next, det[next.id]) : ''}
       ${last ? sec('Senaste match', fmtDay(last.start)) + gameCard(last, det[last.id]) : ''}
       ${sec('Poängliga')}
-      ${card(leaderList(sk, { val: (p) => p.pts, n: 5, avatars: false, sub: (p) => `${p.g} mål, ${p.a} assist` }), cardFoot(`#/lag/${fav}/trupp`, 'Hela truppen'))}
+      ${card(leaderList(sk, { val: (p) => p.pts, n: 5, avatars: false, logos: false, sub: (p) => `${p.g} mål, ${p.a} assist` }), cardFoot(`#/lag/${fav}/trupp`, 'Hela truppen'))}
       ${(TD?.news?.[fav] || []).length ? sec(`Nyheter om ${esc(tName(fav))}`) + `<div class="tnews-row">${teamNewsCards(fav, TD.news[fav])}</div>` : ''}`;
   } else {
     const gday = defaultDay(), games = GAMES.filter((g) => g.start.startsWith(gday)).sort((a, b) => a.start.localeCompare(b.start));
@@ -2449,15 +2488,24 @@ async function pageMedia(range = '') {
   // Dream goals: the lowest chance of scoring (xG). Best goals: big moments first (winners, overtime, shorthanded), then difficulty.
   const real = clips.filter((c) => c.xg != null && !c.en);
   const dream = [...real].sort((a, b) => a.xg - b.xg).slice(0, 5), dreamIds = new Set(dream.map((c) => c.id));
-  const weight = (c) => (c.gwg ? 2 : 0) + (c.p === 4 ? 2 : 0) + (/^(SH|BP)/.test(c.str || '') ? 1 : 0) + (1 - c.xg) * 1.5;
-  const best = real.filter((c) => !dreamIds.has(c.id)).sort((a, b) => weight(b) - weight(a)).slice(0, 10);
+  // Difficulty is the goal's place among all goals by xG (0–1); the biggest moment (winner, overtime or shorthanded) adds a little.
+  // At most two goals per game, one per player and two overtime goals, so the list stays varied.
+  const byXg = [...real].sort((a, b) => b.xg - a.xg), diff = new Map(byXg.map((c, k) => [c.id, byXg.length > 1 ? k / (byXg.length - 1) : 1]));
+  const weight = (c) => diff.get(c.id) * 2 + Math.max(c.gwg ? 0.35 : 0, c.p === 4 ? 0.35 : 0, /^(SH|BP)/.test(c.str || '') ? 0.35 : 0);
+  const best = [], perGame = {}, players = new Set();
+  for (const c of real.filter((x) => !dreamIds.has(x.id)).sort((a, b) => weight(b) - weight(a))) {
+    const who = c.scorer?.id || c.scorer?.name;
+    if ((perGame[c.gid] || 0) >= 2 || (who && players.has(who)) || (c.p === 4 && best.filter((x) => x.p === 4).length >= 2)) continue;
+    best.push(c); perGame[c.gid] = (perGame[c.gid] || 0) + 1; if (who) players.add(who);
+    if (best.length === 10) break;
+  }
   const who = (c) => esc(c.scorer?.name || 'Mål');
   const tag = (c) => [c.p === 4 ? 'Avgjorde i ÖT' : c.gwg ? 'Matchvinnare' : '', /^(SH|BP)/.test(c.str || '') ? 'Boxplay' : ''].filter(Boolean).join(' · ');
   const bestTitle = range === 'dag' ? 'Dagens bästa mål' : range === 'lag' ? `${esc(tName(FAV))}s bästa mål` : 'Veckans bästa mål';
   const tabs = [['dag', 'Matchdagen'], ['vecka', 'Veckan'], ...(FAV ? [['lag', `${tb(FAV)}${esc(FAV)}`]] : [])];
   render(`<div class="seg media-tabs" id="media-range">${tabs.map(([k, l]) => `<button data-r="${k}" aria-pressed="${range === k}">${l}</button>`).join('')}</div>
-    ${best.length ? `<div class="m-sec"><h2>${bestTitle}</h2><p>Matchvinnare, övertidsmål och svåra lägen först.</p></div>
-      <div class="clips mclips hrow ranked">${best.map((c, i) => clipCard(c, `<span class="rank-n">${i + 1}</span>${who(c)}`, [`${esc(c.team)} mot ${esc(c.opp)}`, tag(c)].filter(Boolean).join(' · '))).join('')}</div>` : ''}
+    ${best.length ? `<div class="m-sec"><h2>${bestTitle}</h2><p>Svåra lägen och stora ögonblick, högst två mål per match.</p></div>
+      <div class="clips mclips hrow ranked">${best.map((c) => clipCard(c, who(c), [`${esc(c.team)} mot ${esc(c.opp)}`, tag(c)].filter(Boolean).join(' · '))).join('')}</div>` : ''}
     ${dream.length ? `<div class="m-sec"><h2>Drömmål</h2><p>Målen från de svåraste lägena, enligt xG.</p></div>
       <div class="clips mclips hrow">${dream.map((c) => clipCard(c, who(c), `${esc(c.team)} mot ${esc(c.opp)} · ${dec(c.xg * 100, c.xg < 0.1 ? 1 : 0)} % chans`)).join('')}</div>` : ''}
     ${hls.length ? `<div class="m-sec"><h2>Matchsammandrag</h2></div><div class="clips mclips hrow">${hls.map((h) => clipCard(h, `${esc(h.home)} ${h.hs}–${h.as} ${esc(h.away)}`, fmtDay(h.date))).join('')}</div>` : ''}
