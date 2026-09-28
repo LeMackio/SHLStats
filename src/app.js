@@ -1868,10 +1868,12 @@ async function pagePlayer(id, tab = '') {
   const hw = [bio.h ? `${bio.h} cm` : '', bio.w ? `${bio.w} kg` : ''].filter(Boolean).join(', ');
   const tiles = gk
     ? [['Matcher', cur?.gpi ?? 0], ['Rädd%', cur ? dec(cur.svp, 2) : '–'], ['GAA', cur ? dec(cur.gaa, 2) : '–'], ['Nollor', cur?.so ?? 0], ['GSAA', cur ? dec(gsaa(cur, CUR)) : '–']]
-    : [['Matcher', cur?.gp ?? 0], ['Mål', cur?.g ?? 0], ['Assist', cur?.a ?? 0], ['Poäng', cur?.pts ?? 0], ['+/-', cur ? signed(cur.pm) : '–'], ['Istid', cur ? mmss(cur.toi) : '–']];
+    : [['Matcher', cur?.gp ?? 0], ['Poäng', cur?.pts ?? 0], ['Mål', cur?.g ?? 0], ['Assist', cur?.a ?? 0], ['+/-', cur ? signed(cur.pm) : '–'], ['Istid', cur ? mmss(cur.toi) : '–']];
+  // The top card's tiles and their label; the Karriär tab swaps in the career totals
+  let heroTiles = tiles, heroLabel = `Grundserien ${CUR.replace('-', '/')}`;
   const [tbg] = TC[team] || ['#3a4a5e'], shot = HS[id];
   const [first, ...rest] = String(bio.name).split(' ');
-  const hero = `<section class="panel phero" style="--tc:${tbg}">
+  const hero = () => `<section class="panel phero" style="--tc:${tbg}">
     <div class="phero-top">
       <span class="phero-num" aria-hidden="true">${esc(bio.num ?? '')}</span>
       ${shot ? `<img class="phero-img" src="${esc(shot[1])}" alt="" onerror="this.remove()">` : `<span class="phero-ini">${esc(initials(bio.name))}</span>`}
@@ -1881,7 +1883,7 @@ async function pagePlayer(id, tab = '') {
       </div>
     </div>
     <div class="phero-meta"><span>Ålder <b>${ageOf(bio.born)}</b></span><span>Nation <b>${esc(NAT[bio.nat] || bio.nat || '–')}</b></span>${hw ? `<span><b>${hw}</b></span>` : ''}${bio.born ? `<span>Född <b>${fmtDate(bio.born)}</b></span>` : ''}</div>
-    <div class="p-body"><div class="tiles">${tiles.map(([k, v]) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span><span class="s">${CUR}</span></div>`).join('')}</div></div>
+    <div class="p-body"><div class="phero-season">${esc(heroLabel)}</div><div class="tiles">${heroTiles.map(([k, v]) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('')}</div></div>
     ${tabs(`/spelare/${encodeURIComponent(id)}`, tabList, tab)}</section>`;
 
   const res = (gid, code) => { const g = GAMES_BY_ID[gid]; if (!g) return ''; const r = resultFor(g, code); const mine = g.home === code ? g.hs : g.as, th = g.home === code ? g.as : g.hs;
@@ -1901,20 +1903,20 @@ async function pagePlayer(id, tab = '') {
     let sumTiles, t;
     if (gk) {
       const sv = tot(3), ga = tot(4), mins = tot(10);
-      sumTiles = [['Säsonger', seasons, span], ['Matcher', tot(2), 'grundserien'], ['Rädd%', sv + ga ? dec(sv / (sv + ga) * 100, 2) : '–', 'karriären'], ['GAA', mins ? dec(ga * 60 / mins, 2) : '–', 'karriären'], ['Nollor', tot(7), 'totalt'], ['Vinster', tot(8), 'totalt']];
+      sumTiles = [['Matcher', tot(2)], ['Rädd%', sv + ga ? dec(sv / (sv + ga) * 100, 2) : '–'], ['GAA', mins ? dec(ga * 60 / mins, 2) : '–'], ['Nollor', tot(7)], ['Säsonger', seasons], ['Vinster', tot(8)]];
       const b = { gp: bestOf(2), sv: bestOf(3), svp: bestOf(5), gaa: bestOf(6, true), so: bestOf(7), w: bestOf(8) };
       t = `<table class="t"><thead><tr><th class="l">Säsong</th><th class="l">Lag</th><th>SM</th><th>Räddn.</th><th>Insl.</th><th>Rädd%</th><th>GAA</th><th>Nollor</th><th>V</th><th>F</th></tr></thead><tbody>${careerRows.map((r) =>
         `<tr><td class="l">${r[0]}</td><td class="l">${teamLink(r[1], { name: true })}</td>${cell(r[2], r[2], b.gp)}${cell(r[3], r[3], b.sv)}<td>${r[4]}</td>${r[2] >= 10 ? cell(r[5], dec(r[5], 2), b.svp, 'hl') : `<td class="hl">${dec(r[5], 2)}</td>`}${r[2] >= 10 ? cell(r[6], dec(r[6], 2), b.gaa) : `<td>${dec(r[6], 2)}</td>`}${cell(r[7], r[7], b.so)}${cell(r[8], r[8] ?? '–', b.w)}<td>${r[9] ?? '–'}</td></tr>`).join('')}
         ${careerRows.length > 1 ? `<tr class="total"><td class="l"><b>Totalt</b></td><td></td><td><b>${tot(2)}</b></td><td><b>${sv}</b></td><td><b>${ga}</b></td><td class="hl">${sv + ga ? dec(sv / (sv + ga) * 100, 2) : '–'}</td><td><b>${mins ? dec(ga * 60 / mins, 2) : '–'}</b></td><td><b>${tot(7)}</b></td><td><b>${tot(8)}</b></td><td><b>${tot(9)}</b></td></tr>` : ''}</tbody></table>`;
     } else {
       const gp = tot(2);
-      sumTiles = [['Säsonger', seasons, span], ['Matcher', gp, 'grundserien'], ['Mål', tot(3), 'totalt'], ['Assist', tot(4), 'totalt'], ['Poäng', tot(5), 'totalt'], ['Poäng/match', gp ? dec(tot(5) / gp, 2) : '–', 'karriären']];
+      sumTiles = [['Matcher', gp], ['Poäng', tot(5)], ['Mål', tot(3)], ['Assist', tot(4)], ['Säsonger', seasons], ['Poäng/match', gp ? dec(tot(5) / gp, 2) : '–']];
       const b = { gp: bestOf(2), g: bestOf(3), a: bestOf(4), p: bestOf(5), pm: bestOf(6), sog: bestOf(8), ppg: bestOf(10) };
       t = `<table class="t"><thead><tr><th class="l">Säsong</th><th class="l">Lag</th><th>SM</th><th>M</th><th>A</th><th>P</th><th>P/M</th><th>+/-</th><th>Utv</th><th>PPM</th><th>Skott</th><th>Istid</th></tr></thead><tbody>${careerRows.map((r) =>
         `<tr><td class="l">${r[0]}</td><td class="l">${teamLink(r[1], { name: true })}</td>${cell(r[2], r[2], b.gp)}${cell(r[3], r[3], b.g)}${cell(r[4], r[4], b.a)}${cell(r[5], r[5], b.p, 'hl')}<td>${dec(r[2] ? r[5] / r[2] : 0, 2)}</td>${cell(r[6], signed(r[6]), b.pm)}<td>${r[7]}</td>${cell(r[10] ?? 0, r[10] ?? '–', b.ppg)}${cell(r[8], r[8], b.sog)}<td>${mmss(r[9])}</td></tr>`).join('')}
         ${careerRows.length > 1 ? `<tr class="total"><td class="l"><b>Totalt</b></td><td></td><td><b>${gp}</b></td><td><b>${tot(3)}</b></td><td><b>${tot(4)}</b></td><td class="hl">${tot(5)}</td><td><b>${gp ? dec(tot(5) / gp, 2) : '–'}</b></td><td><b>${signed(tot(6))}</b></td><td><b>${tot(7)}</b></td><td><b>${tot(10)}</b></td><td><b>${tot(8)}</b></td><td></td></tr>` : ''}</tbody></table>`;
     }
-    const summary = `<section class="panel"><div class="p-body"><div class="tiles">${sumTiles.map(([k, v, s]) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span><span class="s">${s}</span></div>`).join('')}</div></div></section>`;
+    heroTiles = sumTiles; heroLabel = `SHL-karriär ${span}`;
 
     // Teams played for, most recent first, with their season spans
     const clubs = new Map();
@@ -1932,7 +1934,7 @@ async function pagePlayer(id, tab = '') {
         ? lineChart([{ pts: chrono.map((r) => Math.max(80, +r[5] || 0)), color: 'var(--accent)' }], { xLabels: chrono.map((r) => r[0]), yFmt: (v) => dec(v, 1), yMin: Math.max(80, Math.floor(Math.min(...chrono.map((r) => +r[5] || 100)) - 1)), yMax: Math.min(100, Math.ceil(Math.max(...chrono.map((r) => +r[5] || 0)) + 1)) })
         : hBars(chrono.map((r) => ({ label: `${r[0]} ${r[1]}`, v: r[5] })), { fmt: (v) => v, labelW: 110 })}</div>`, { sub: gk ? 'Säsonger med färre än 10 matcher säger mindre.' : 'Grundserien, äldst överst.' })
       : '';
-    body = summary + board([panel('SHL-karriär', `<div class="tscroll">${t}</div>`, { sub: 'Grundserien i SHL säsong för säsong. Färgad siffra = bästa säsongen i den kategorin.', cls: 'wide' }), clubList, chart]);
+    body = board([panel('SHL-karriär', `<div class="tscroll">${t}</div>`, { sub: 'Grundserien i SHL säsong för säsong. Färgad siffra = bästa säsongen i den kategorin.', cls: 'wide' }), clubList, chart]);
     }
   } else if (tab === 'matchlogg') {
     const t = !log.length ? '<p class="empty-state">Inga matcher den här säsongen.</p>' : gk
@@ -1961,7 +1963,7 @@ async function pagePlayer(id, tab = '') {
     body = board([card, trend, latestClips, recentGames]) || '';
     if (!card && !trend && !latestClips && !recentGames) body = panel('', '<p class="empty-state">Ingen statistik den här säsongen ännu.</p>');
   }
-  render(hero + body);
+  render(hero() + body);
 }
 
 /* ---------- Tabell: Lagstatistik tab ---------- */

@@ -1601,3 +1601,6 @@ ol.lb.nologo:not(.noav) .av { width: 36px; height: 36px; }
   .phero-img { right: -14%; translate: none; height: 100%; max-width: none; }
 }
 @media (max-width: 700px) { #gk-table td, #gk-table th { padding-left: 4px; padding-right: 4px; } #gk-table td:first-child { padding-left: 2px; } #gk-table .pcell { gap: 6px; } #gk-table th { letter-spacing: .03em; } }
+
+/* Player page: the season (or career span) named once, above the tiles */
+.phero-season { font: 700 12.5px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px 2px; }
