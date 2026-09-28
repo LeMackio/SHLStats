@@ -1697,3 +1697,28 @@ a.lu-p:hover { background: color-mix(in srgb, var(--accent) 12%, var(--panel-2))
 @media (max-width: 700px) { .datetabs a { flex: 0 0 20%; padding-left: 0; padding-right: 0; } }
 /* Framed headshots (Statistik and cards): no fade at the bottom */
 .portrait img { -webkit-mask-image: none; mask-image: none; }
+
+/* Player page hero: the cut-out photo is shown whole, no fade over it (only a soft shade at the very bottom behind the name) */
+.phero-img { -webkit-mask-image: none; mask-image: none; }
+.phero-top::before { display: none; }
+.phero-top::after { background: linear-gradient(180deg, transparent 62%, rgba(6, 8, 11, .55) 100%); }
+
+/* Player card top: same look as the player page hero */
+.pc-top.pc-hero { display: block; position: relative; height: 250px; padding: 0; overflow: hidden;
+  background: radial-gradient(120% 90% at 72% 18%, color-mix(in srgb, var(--tc) 88%, #fff 12%) 0%, var(--tc) 38%, color-mix(in srgb, var(--tc) 55%, #06080b) 100%); }
+.pc-hero::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, transparent 55%, rgba(6, 8, 11, .6) 100%); }
+.pc-num { position: absolute; left: 14px; top: 0; z-index: 0; font: 900 italic 130px/1 "Archivo", var(--display); font-stretch: 80%; color: rgba(255, 255, 255, .12); pointer-events: none; }
+.pc-img { position: absolute; z-index: 0; bottom: 0; right: 4%; height: 100%; width: auto; max-width: 62%; object-fit: contain; object-position: bottom; filter: drop-shadow(0 14px 24px rgba(0, 0, 0, .35)); }
+.pc-ini { position: absolute; right: 12%; bottom: 28%; font: 700 80px var(--display); color: rgba(255, 255, 255, .22); }
+.pc-hero .pc-war { position: absolute; z-index: 2; top: 14px; left: 18px; padding: 0; justify-items: start; text-align: left; color: #fff; }
+.pc-hero .pc-war .lbl { color: rgba(255, 255, 255, .8); }
+.pc-hero .pc-war .big { font-size: 44px; color: #fff !important; text-shadow: 0 2px 14px rgba(0, 0, 0, .3); }
+.pc-hero .pc-info { position: absolute; z-index: 2; left: 18px; right: 18px; bottom: 16px; padding: 0; display: grid; gap: 6px; color: #fff; }
+.pc-team { display: flex; align-items: center; gap: 8px; font: 600 13px var(--display); letter-spacing: .06em; text-transform: uppercase; }
+.pc-team .tb.md { width: 26px; height: 26px; }
+.pc-hero .pc-name { margin: 0; font: 900 italic 36px/.92 "Archivo", var(--display); font-stretch: 78%; text-transform: uppercase; text-shadow: 0 2px 16px rgba(0, 0, 0, .35); }
+.pc-hero .pc-name a, .pc-hero .pc-name { color: #fff; }
+.pc-hero .pc-name span { display: block; font-size: .5em; font-weight: 800; opacity: .9; margin-bottom: 2px; }
+.pc-hero .pc-meta { color: rgba(255, 255, 255, .8); font-size: 13.5px; }
+.pc-hero .pc-meta b { color: #fff; }
+@media (max-width: 700px) { .pc-top.pc-hero { height: 270px; } .pc-img { max-width: 70%; right: -2%; } .pc-hero .pc-name { font-size: 32px; } }

@@ -541,19 +541,15 @@ function cardHtml(x, { link = true } = {}) {
   }).join('');
   const small = x.gp < minGp ? `<span class="small-sample">Litet underlag (${Math.round(x.gp)} viktade matcher). Tolka rankningarna försiktigt.</span>` : '';
   return `<article class="pcard" style="--tc:${tColor(x.team)}">
-    <div class="pc-top">
-      ${portrait(x.id, x.name, x.team, 'sm')}
+    <div class="pc-top pc-hero" style="--tc:${(TC[x.team] || ['#3a4a5e'])[0]}">
+      <span class="pc-num" aria-hidden="true">${esc(x.num ?? '')}</span>
+      ${HS[x.id] ? `<img class="pc-img" src="${esc(HS[x.id][1])}" alt="" onerror="this.remove()">` : `<span class="pc-ini">${esc(initials(x.name))}</span>`}
+      <div class="pc-war"><span class="lbl">Påverkan</span><span class="big num">${Math.round(x.impact * 100)}%</span></div>
       <div class="pc-info">
-        <h3 class="pc-name">${link ? pLink(x.id, x.name) : esc(x.name)}</h3>
-        <div class="pc-meta">
-          <span>${teamLink(x.team, { name: true })}</span>
-          <span>#<b>${esc(x.num ?? '–')}</b></span>
-          <span>Pos <b>${x.grp === 'G' ? 'MV' : POS_SHORT[x.pos] || 'F'}</b></span>
-          <span>Ålder <b>${ageOf(x.born)}</b></span>
-          <span>Roll <b>${x.role || '–'}</b></span>
-        </div>
+        <div class="pc-team">${tb(x.team, 'md')}<span>${esc(tName(x.team))} · #${esc(x.num ?? '–')} · ${x.grp === 'G' ? 'MV' : POS_SHORT[x.pos] || 'F'}</span></div>
+        <h3 class="pc-name">${(() => { const [first, ...rest] = String(x.name).split(' '); const inner = `<span>${esc(first)}</span>${esc(rest.join(' '))}`; return link ? `<a href="#/spelare/${encodeURIComponent(x.id)}">${inner}</a>` : inner; })()}</h3>
+        <div class="pc-meta"><span>Ålder <b>${ageOf(x.born)}</b></span><span>Roll <b>${x.role || '–'}</b></span></div>
       </div>
-      <div class="pc-war"><span class="lbl">Påverkan</span><span class="big num" style="color:${pColor(x.impact)}">${Math.round(x.impact * 100)}%</span></div>
     </div>
     <div class="pc-grid">${rows}</div>
     <div class="pc-foot"><span>Viktat urval ${PREV} + ${CUR}, percentil bland SHL-${grpName} (minst ${minGp} matcher). ${small}</span><span class="mark">SHLSTATS</span></div>
