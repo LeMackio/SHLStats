@@ -203,6 +203,19 @@ await inBatches(toFetch, 3, async (g) => {
   } catch (e) { gameFails++; console.warn('game failed', g.id, e.message); }
 });
 
+// The feed's "SOG" (shots on goal) field actually counts goals, so shots on goal are counted from the
+// play-by-play instead: saved shots plus goals (not empty-net), per period and in total. Saves follow from them.
+for (const d of Object.values(gameDetails)) {
+  const sog = (side, p) => d.shots.filter((x) => x.team === side && x.p < 5 && (p == null || x.p === p)).length
+    + d.goals.filter((x) => x.team === side && !x.en && x.p < 5 && (p == null || x.p === p)).length;
+  for (const side of ['home', 'away']) d.team[side] = { ...d.team[side], SOG: sog(side) };
+  for (const side of ['home', 'away']) {
+    const other = side === 'home' ? 'away' : 'home';
+    d.team[side].Saves = d.team[other].SOG - d.goals.filter((x) => x.team === other && !x.en && x.p < 5).length;
+  }
+  d.periods = d.periods.map((p) => (p.p < 5 ? { ...p, hs: sog('home', p.p), as: sog('away', p.p) } : p));
+}
+
 // ---------- highlight videos ----------
 // The SHL publishes a highlights package and one clip per goal on its Staylive channel.
 // We store ids and thumbnails and embed the official player; no video is copied.
@@ -528,12 +541,19 @@ for (const s of [...ALL_SEASONS].reverse()) for (const p of [...s.skaters, ...s.
 // ---------- goal clip index ----------
 const goalClips = {}; // player id → [[gameId, clipId, thumb, embed, date, opponent]]
 const allClips = [];
+// The goal that decided the game: the winner's goal that put them one ahead of the loser's final total
+const gwgOf = (d) => {
+  if (d.so || d.hs === d.as) return null;
+  const win = d.hs > d.as ? 'home' : 'away', l = Math.min(d.hs, d.as); let n = 0;
+  for (const x of d.goals) if (x.p < 5 && x.team === win && ++n === l + 1) return x;
+  return null;
+};
 for (const d of detailsByDate) {
   for (const x of d.goals) {
     const c = clipOf(d, x);
     if (!c) continue;
     const team = d[x.team], opp = x.team === 'home' ? d.away : d.home;
-    allClips.push({ gid: d.id, date: d.start, p: x.p, t: x.t, team, opp, score: x.score, scorer: x.scorer, ...slimClip(c) });
+    allClips.push({ gid: d.id, date: d.start, p: x.p, t: x.t, team, opp, score: x.score, scorer: x.scorer, str: x.str, gwg: gwgOf(d) === x ? 1 : 0, ...slimClip(c) });
     if (x.scorer?.id) (goalClips[x.scorer.id] ??= []).push([d.id, c.id, c.thumb, c.embed, d.start.slice(0, 10), opp]);
   }
 }

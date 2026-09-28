@@ -737,6 +737,8 @@ const clipSub = (c) => `${esc(c.team)} mot ${esc(c.opp)} · ${c.score[0]}–${c.
    Pages
    ===================================================================== */
 function setTitle(t) { document.title = t ? `${t} · SHLstats` : 'SHLstats'; }
+// The page name in the phone header
+const mTitle = (t) => { const el = $('m-title'); if (el) el.textContent = t; };
 const render = (html) => { app.innerHTML = html; layoutBoards(); countUp(app); };
 
 /* ---------- Översikt ---------- */
@@ -947,7 +949,7 @@ function pageGames(view = 'kommande') {
 async function pageMatch(id, tab = '') {
   const g = GAMES_BY_ID[id];
   if (!g) return notFound('Matchen hittades inte.');
-  setTitle(`${g.home}–${g.away}`);
+  setTitle(`${g.home}–${g.away}`); mTitle(`${g.home}–${g.away}`);
   const done = isFinal(g), live = isLive(g);
   const rec = (c) => { const r = TABLE.find((t) => t.code === c); return r ? `${r.pts} p · plats ${TABLE.indexOf(r) + 1}` : ''; };
   if ((done || live) && !(id in gameCache)) app.innerHTML = skeleton();
@@ -966,14 +968,13 @@ async function pageMatch(id, tab = '') {
     : [['', 'Förhandstips'], ['uppstallning', 'Uppställningar'], ['inbordes', 'Inbördes möten']];
   if (!tabList.some(([k]) => k === tab)) tab = '';
   const meta = [`${fmtDay(g.start)} ${dateParts(g.start).y}, ${fmtTime(g.start)}`, d?.arena || g.arena, d?.att ? `Publik ${d.att.toLocaleString('sv-SE')}` : ''].filter(Boolean);
-  const head = `<section class="panel mpanel" style="--hc:${tColor(g.home)};--ac:${tColor(g.away)}">
+  const head = `<section class="panel mpanel" style="--hc:${pairColors(g.home, g.away)[0]};--ac:${pairColors(g.home, g.away)[1]}">
     <div class="band">
     <div class="crumbs" style="padding:16px 22px 0"><a href="#/matcher">Matcher</a> / ${esc(tName(g.home))} – ${esc(tName(g.away))}</div>
     <div class="mhead">
       <a class="mteam" href="#/lag/${g.home}">${tb(g.home, 'xl')}<b>${esc(tName(g.home))}</b><span>Hemma · ${rec(g.home)}</span></a>
       <div class="mscore">${done || live ? `<div class="sc">${g.hs}–${g.as}</div>` : `<div class="sc sm">${fmtTime(g.start)}</div>`}
-        <div class="st ${live ? 'live' : ''}">${done ? statusTxt(g) : live ? `<i class="live-dot"></i>${esc(liveClock(d?.live))}` : fmtDay(g.start)}</div>
-        ${done && d?.hl ? playBtn(d.hl, `${g.home}–${g.away} sammandrag`).replace('>Video<', '>Se sammandrag<') : ''}</div>
+        <div class="st ${live ? 'live' : ''}">${done ? statusTxt(g) : live ? `<i class="live-dot"></i>${esc(liveClock(d?.live))}` : fmtDay(g.start)}</div></div>
       <a class="mteam" href="#/lag/${g.away}">${tb(g.away, 'xl')}<b>${esc(tName(g.away))}</b><span>Borta · ${rec(g.away)}</span></a>
     </div>
     </div>
@@ -985,7 +986,9 @@ async function pageMatch(id, tab = '') {
     if (!d) body = panel('Matchfakta', '<p class="empty-state">Detaljerad matchdata finns inte för den här matchen ännu. Den hämtas vid nästa uppdatering.</p>');
     else body = tab === 'video' ? matchVideo(d) : tab === 'spelare' ? matchPlayers(d) : tab === 'skott' ? matchEvents(d) : matchSummary(d, done);
   } else {
-    body = tab === 'uppstallning' ? board([panel(`Projicerad uppställning: ${esc(tName(g.home))}`, lineupHtml(g.home)), panel(`Projicerad uppställning: ${esc(tName(g.away))}`, lineupHtml(g.away))])
+    body = tab === 'uppstallning' ? (isNarrow()
+        ? panel('Projicerad uppställning', `<div class="tt">${teamToggle(g.home, g.away)}<div data-pane="home">${lineupHtml(g.home)}</div><div data-pane="away" hidden>${lineupHtml(g.away)}</div></div>`)
+        : board([panel(`Projicerad uppställning: ${esc(tName(g.home))}`, lineupHtml(g.home)), panel(`Projicerad uppställning: ${esc(tName(g.away))}`, lineupHtml(g.away))]))
       : tab === 'inbordes' ? matchH2H(g) : matchPreview(g);
   }
   render(head + body);
@@ -1000,7 +1003,7 @@ function goalEvents(d, { compact = false } = {}) {
     const team = d[x.team], st = strengthTag(x);
     const assists = [x.a1, x.a2].filter(Boolean).map((a) => pLink(a.id, a.name)).join(', ');
     return `<div class="ev"><span class="t">${esc(x.t)}</span>${tb(team)}<div class="who">${pLink(x.scorer?.id, x.scorer?.name || 'Okänd')}${st ? `<span class="tag">${st}</span>` : ''}<small>${assists ? 'Assist: ' + assists : 'Ingen assist'}</small></div>
-      <span class="ev-end">${playBtn(x.clip, `${x.scorer?.name || 'Mål'} ${x.score[0]}–${x.score[1]}`)}<span class="sc">${x.score[0]}–${x.score[1]}</span></span></div>`;
+      <span class="ev-end"><span class="sc">${x.score[0]}–${x.score[1]}</span>${x.clip && safeEmbed(x.clip.embed) ? `<button class="playic" data-embed="${esc(x.clip.embed)}" data-title="${esc(`${x.scorer?.name || 'Mål'} ${x.score[0]}–${x.score[1]}`)}" aria-label="Spela upp målet">${PLAY_SVG}</button>` : ''}</span></div>`;
   }).join('')).join('')}</div>`;
 }
 function teamCompare(d) {
@@ -1010,7 +1013,7 @@ function teamCompare(d) {
     const tot = (hv || 0) + (av || 0), hp = tot ? hv / tot * 100 : 50;
     return `<div class="cmp-row"><span class="v">${h}</span><div class="mid"><span class="lbl">${label}</span><div class="cmp-bar"><i style="width:${hp}%"></i><i style="width:${100 - hp}%"></i></div></div><span class="v">${a}</span></div>`;
   };
-  return `<div class="cmp" style="--h-color:${tColor(d.home)};--a-color:${tColor(d.away)}">
+  return `<div class="cmp" style="--h-color:${pairColors(d.home, d.away)[0]};--a-color:${pairColors(d.home, d.away)[1]}">
     <div class="cmp-row cmp-head"><span class="v">${tb(d.home, 'md')}</span><span></span><span class="v">${tb(d.away, 'md')}</span></div>
     ${row('Skott på mål', H.SOG ?? 0, A.SOG ?? 0)}
     ${row('Powerplay', `${H.PPG ?? 0}/${H.NumPP ?? 0}`, `${A.PPG ?? 0}/${A.NumPP ?? 0}`, H.PPG || 0, A.PPG || 0)}
@@ -1025,9 +1028,9 @@ function matchSummary(d, done = true) {
   const per = d.periods.length ? `<div class="tscroll"><table class="t"><thead><tr><th class="l">Lag</th>${d.periods.map((p) => `<th>${p.p <= 3 ? p.p : p.p === 4 ? 'ÖT' : 'STR'}</th>`).join('')}<th>Mål</th><th>Skott</th></tr></thead><tbody>
     ${['home', 'away'].map((s) => `<tr><td class="l">${teamLink(d[s], { name: true })}</td>${d.periods.map((p) => `<td>${s === 'home' ? p.h : p.a}</td>`).join('')}<td class="hl">${s === 'home' ? d.hs : d.as}</td><td>${d.team[s].SOG ?? '–'}</td></tr>`).join('')}</tbody></table></div>` : '';
   return board([
-    done ? matchRecap(d) : d.live ? liveBanner(d) : '',
-    d.hl ? panel('Sammandrag', clipCard(d.hl, `${esc(tName(d.home))} ${d.hs}–${d.as} ${esc(tName(d.away))}`, 'Matchens höjdpunkter', true)) : '',
-    panel('Mål', goalEvents(d)),
+    d.live ? liveBanner(d) : '',
+    panel('Mål', goalEvents(d), { cls: 'wide' }),
+    done ? matchRecap(d) : '',
     panel('Lagstatistik', teamCompare(d)),
     per ? panel('Periodresultat', per) : '',
   ]);
@@ -1036,7 +1039,7 @@ function matchSummary(d, done = true) {
 // A game being played: the clock, shots and the latest goal, refreshed automatically
 function liveBanner(d) {
   const L = d.live, last = d.goals[d.goals.length - 1];
-  return `<section class="panel wide live-card" style="--hc:${tColor(d.home)};--ac:${tColor(d.away)}"><div class="p-body">
+  return `<section class="panel wide live-card" style="--hc:${pairColors(d.home, d.away)[0]};--ac:${pairColors(d.home, d.away)[1]}"><div class="p-body">
     <div class="live-top"><span class="live-badge"><i class="live-dot"></i>Live</span><b>${esc(liveClock(L))}</b><span class="faint">Uppdateras automatiskt</span></div>
     <div class="live-nums">
       <div><span class="k">Skott på mål</span><span class="v num">${d.team.home.SOG}–${d.team.away.SOG}</span></div>
@@ -1154,7 +1157,7 @@ function matchRecap(d) {
   const F = recapFacts(d), text = recapText(d, F), stars = threeStars(d, F), moments = keyMoments(d, F);
   const xg = d.xg ? (() => {
     const [xh, xa, hdh, hda, sh, sa] = d.xg, hp = xh + xa ? xh / (xh + xa) * 100 : 50, win = xh >= xa ? d.home : d.away;
-    return `<div class="rx" style="--hc:${tColor(d.home)};--ac:${tColor(d.away)}">
+    return `<div class="rx" style="--hc:${pairColors(d.home, d.away)[0]};--ac:${pairColors(d.home, d.away)[1]}">
       <div class="rx-head"><h3>Förväntade mål (xG)</h3><span class="rx-win">${tb(win)}${esc(tName(win))} vann chanskampen</span></div>
       <div class="rx-bar"><span class="num">${dec(xh, 2)}</span><div class="rx-track"><i style="width:${hp}%"></i><i style="width:${100 - hp}%"></i></div><span class="num">${dec(xa, 2)}</span></div>
       <div class="rx-sub"><span>${tb(d.home)}${d.hs} mål</span><span>Farliga chanser ${hdh}–${hda} · Skott på mål ${sh}–${sa}</span><span>${d.as} mål${tb(d.away)}</span></div>
@@ -1189,8 +1192,10 @@ function matchPlayers(d) {
     `<tr><td class="l"><div class="pcell">${tb(r.team)}${avatar(r.id, r.name, r.team)}${pLink(r.id, r.name)}</div></td><td>${r.soga}</td><td>${r.svs}</td><td>${r.ga}</td><td class="hl">${dec(r.svs / r.soga * 100, 1)}</td></tr>`).join('')}</tbody></table></div>`;
   return board([
     panel('Målvakter', gkHtml, { cls: 'wide' }),
-    panel(esc(tName(d.home)), `<div class="tscroll"><table class="t stick" id="box-home"></table></div>`, { cls: 'wide' }),
-    panel(esc(tName(d.away)), `<div class="tscroll"><table class="t stick" id="box-away"></table></div>`, { cls: 'wide' }),
+    ...(isNarrow()
+      ? [panel('Spelare', `<div class="tt">${teamToggle(d.home, d.away)}<div data-pane="home"><div class="tscroll"><table class="t stick" id="box-home"></table></div></div><div data-pane="away" hidden><div class="tscroll"><table class="t stick" id="box-away"></table></div></div></div>`, { cls: 'wide' })]
+      : [panel(esc(tName(d.home)), `<div class="tscroll"><table class="t stick" id="box-home"></table></div>`, { cls: 'wide' }),
+        panel(esc(tName(d.away)), `<div class="tscroll"><table class="t stick" id="box-away"></table></div>`, { cls: 'wide' })]),
   ]);
 }
 function boxTable(d, side) {
@@ -1220,6 +1225,7 @@ function matchEvents(d) {
 function rinkMap(d) {
   // 60 × 30 m rink in 0.1 m units; x in the data is distance from the attacked goal line
   const W = 600, H = 300, GL = 40;
+  const [hc, ac] = pairColors(d.home, d.away), col = (s) => s === 'home' ? hc : ac;
   const pt = (s, e) => s === 'home' ? [W - GL - e.x, H / 2 - e.y] : [GL + e.x, H / 2 + e.y];
   let svg = `<svg viewBox="-4 -4 ${W + 8} ${H + 26}" role="img" aria-label="Skottkarta">
     <rect x="0" y="0" width="${W}" height="${H}" rx="84" style="fill:var(--panel-2);stroke:var(--line)" stroke-width="2"/>
@@ -1232,14 +1238,14 @@ function rinkMap(d) {
     ${[[GL + 60, 80], [GL + 60, 220], [W - GL - 60, 80], [W - GL - 60, 220]].map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="45" style="fill:none;stroke:var(--line)" stroke-width="2"/>`).join('')}
     <path d="M${GL} 132 a18 18 0 0 1 0 36" style="fill:color-mix(in srgb, var(--accent) 25%, transparent)"/>
     <path d="M${W - GL} 132 a18 18 0 0 0 0 36" style="fill:color-mix(in srgb, var(--accent) 25%, transparent)"/>`;
-  for (const s of d.shots) { const [x, y] = pt(s.team, s); svg += `<circle cx="${x}" cy="${y}" r="5" style="fill:${tColor(d[s.team])};opacity:.55;stroke:var(--panel)" stroke-width="1"/>`; }
+  for (const s of d.shots) { const [x, y] = pt(s.team, s); svg += `<circle cx="${x}" cy="${y}" r="5" style="fill:${col(s.team)};opacity:.6;stroke:var(--panel)" stroke-width="1"/>`; }
   for (const g of d.goals) {
     if (g.x == null) continue;
     const [x, y] = pt(g.team, g);
-    svg += `<g transform="translate(${x} ${y})"><circle r="9" style="fill:${tColor(d[g.team])};stroke:var(--text)" stroke-width="2"/><title>Mål: ${esc(g.scorer?.name || '')} (${esc(g.t)})</title></g>`;
+    svg += `<g transform="translate(${x} ${y})"><circle r="9" style="fill:${col(g.team)};stroke:var(--text)" stroke-width="2"/><title>Mål: ${esc(g.scorer?.name || '')} (${esc(g.t)})</title></g>`;
   }
   svg += `<text x="10" y="${H + 18}" font-size="12" style="fill:var(--muted)">◀ ${esc(d.away)} anfaller</text><text x="${W - 10}" y="${H + 18}" text-anchor="end" font-size="12" style="fill:var(--muted)">${esc(d.home)} anfaller ▶</text>`;
-  return svg + `</svg><div class="legend" style="margin-top:8px"><span><i style="background:${tColor(d.home)};border-radius:50%"></i>${esc(tName(d.home))}</span><span><i style="background:${tColor(d.away)};border-radius:50%"></i>${esc(tName(d.away))}</span><span>Stor ring = mål</span></div>`;
+  return svg + `</svg><div class="legend" style="margin-top:8px"><span><i style="background:${hc};border-radius:50%"></i>${esc(tName(d.home))}</span><span><i style="background:${ac};border-radius:50%"></i>${esc(tName(d.away))}</span><span>Stor ring = mål</span></div>`;
 }
 
 function matchPreview(g) {
@@ -1259,7 +1265,7 @@ function matchPreview(g) {
     return `<div class="cmp-row"><span class="v">${h == null ? '–' : fmt(h)}</span><div class="mid"><span class="lbl">${label}</span><div class="cmp-bar"><i style="width:${hp}%"></i><i style="width:${100 - hp}%"></i></div></div><span class="v">${av == null ? '–' : fmt(av)}</span></div>`;
   };
   const H = row(g.home), A = row(g.away), TH = T(g.home), TA = T(g.away);
-  const cmp = `<div class="cmp" style="--h-color:${tColor(g.home)};--a-color:${tColor(g.away)}">
+  const cmp = `<div class="cmp" style="--h-color:${pairColors(g.home, g.away)[0]};--a-color:${pairColors(g.home, g.away)[1]}">
     <div class="cmp-row cmp-head"><span class="v">${tb(g.home, 'md')}</span><span></span><span class="v">${tb(g.away, 'md')}</span></div>
     ${cmpRow('Poäng per match', per(H.pts, H.gp), per(A.pts, A.gp))}
     ${cmpRow('Gjorda mål per match', per(H.gf, H.gp), per(A.gf, A.gp))}
@@ -1840,7 +1846,7 @@ async function pagePlayer(id, tab = '') {
   const P = await loadPlayers();
   const bio = P.bios[id];
   if (!bio) return notFound('Spelaren hittades inte.');
-  setTitle(bio.name);
+  setTitle(bio.name); mTitle(bio.name);
   const gk = bio.pos === 'GK';
   const cur = (gk ? goalies() : skaters()).find((p) => p.id === id);
   const team = cur?.team || bio.team;
@@ -1945,6 +1951,7 @@ async function pagePlayer(id, tab = '') {
 
 /* ---------- Tabell: Lagstatistik tab ---------- */
 function teamStatsTab(head) {
+  const narrow = isNarrow(); // phones: the compact table first, the wide stats table below it
   const rows = TABLE.map((r) => {
     const T = D.teamStats[r.code] || {}, gp = r.gp || 0, tg = T.gp || 0;
     return {
@@ -1957,12 +1964,14 @@ function teamStatsTab(head) {
   });
   render(`${head}
     ${board([
-      panel('Tabell', `<div class="tscroll"><table class="t stick" id="ttable" style="min-width:1040px"></table></div>${legendHtml}`,
-        { sub: 'Tryck på en kolumnrubrik för att sortera. Skott, powerplay, boxplay, tekningar och tacklingar räknas från matchdata.', cls: 'wide', foot: `<span class="stamp">Uppdaterad ${esc(stampTxt)}</span>` }),
+      ...(narrow ? [panel('Tabell', standingsTable({ mode: 'stats' }) + legendHtml, { cls: 'wide' }),
+        panel('Lagstatistik', '<div class="tscroll"><table class="t stick" id="ttable" style="min-width:860px"></table></div>', { cls: 'wide', sub: 'Tryck på en kolumnrubrik för att sortera.' })]
+      : [panel('Tabell', `<div class="tscroll"><table class="t stick" id="ttable" style="min-width:1040px"></table></div>${legendHtml}`,
+        { sub: 'Tryck på en kolumnrubrik för att sortera. Skott, powerplay, boxplay, tekningar och tacklingar räknas från matchdata.', cls: 'wide', foot: `<span class="stamp">Uppdaterad ${esc(stampTxt)}</span>` })]),
       panel('Anfall mot försvar', `<div class="chart">${teamScatter(rows)}</div>`, { sub: 'Gjorda och insläppta mål per match. Bäst är uppe till höger.' }),
       panel('Specialteam', `<div class="chart">${specialTeams(rows)}</div>`, { sub: 'Powerplay och boxplay i procent.' }),
     ])}`);
-  sortable($('ttable'), [
+  const tcols = [
     { k: 'rank', label: '#', asc: true, h: (r) => {
       const z = r.rank <= 6 ? 'var(--accent)' : r.rank <= 10 ? 'color-mix(in srgb, var(--accent) 60%, var(--muted))' : r.rank >= 13 ? 'var(--bad)' : 'var(--faint)';
       return `<span class="rank" style="--zone:${z}">${r.rank}</span>`; } },
@@ -1973,7 +1982,9 @@ function teamStatsTab(head) {
     { k: 'gapg', label: 'IM/M', asc: true, f: (v) => dec(v, 2) }, { k: 'sog', label: 'Skott/M', f: (v) => dec(v, 1) }, { k: 'sa', label: 'Skott mot/M', asc: true, f: (v) => dec(v, 1) },
     { k: 'pp', label: 'PP%', f: (v) => dec(v * 100, 1) }, { k: 'pk', label: 'BP%', f: (v) => dec(v * 100, 1) }, { k: 'fo', label: 'Tekn%', f: (v) => dec(v * 100, 1) },
     { k: 'hits', label: 'Tackl/M', f: (v) => dec(v, 1) }, { k: 'pim', label: 'Utv/M', asc: true, f: (v) => dec(v, 1) }, { k: 'proj', label: 'Proj. P', f: (v) => dec(v, 0) },
-  ], rows, { key: 'rank', desc: false });
+  ];
+  if (narrow) tcols.splice(0, 2, { k: 'name', label: 'Lag', l: true, asc: true, h: (r) => `<a class="teamcell" href="#/lag/${r.code}">${tb(r.code)}<div class="nm"><b>${esc(r.code)}</b></div></a>` });
+  sortable($('ttable'), tcols, rows, narrow ? { key: 'pts' } : { key: 'rank', desc: false });
   layoutBoards();
 }
 // Attack (x) against defence (y) per team. Defaults to goals per game; the Nexus page passes xG.
@@ -2024,7 +2035,7 @@ function specialTeams(rows) {
 /* ---------- Lag (enskilt) ---------- */
 async function pageTeam(code, tab = '') {
   if (!TEAMS[code]) return notFound('Laget hittades inte.');
-  setTitle(tName(code));
+  setTitle(tName(code)); mTitle(tName(code));
   const s = SIM[code], r = TABLE.find((t) => t.code === code), rank = TABLE.indexOf(r) + 1, T = D.teamStats[code] || {};
   if (!s || !r) return notFound(`${tName(code)} spelar inte i SHL den här säsongen.`);
   const teamGames = GAMES.filter((g) => g.home === code || g.away === code);
@@ -2124,13 +2135,16 @@ function teamOverview(code, teamGames, news = []) {
   ]);
 }
 // News about the team: the club's own site plus SHL articles that name the team; each opens at the source
-function teamNewsPanel(code, news) {
-  const cards = news.map((n) => {
+function teamNewsCards(code, news) {
+  return news.map((n) => {
     const u = safeUrl(n.url); if (!u) return '';
     return `<a class="tnews" href="${esc(u)}" target="_blank" rel="noopener">
       <span class="tn-img">${n.img ? `<img src="${esc(n.img)}" alt="" loading="lazy" onerror="this.remove()">` : tb(code, 'xl')}</span>
       <span class="tn-body"><span class="tn-meta">${esc(n.src)} · ${fmtDay(n.date)}</span><b>${esc(n.title)}</b><span class="tn-intro">${esc(n.intro)}</span></span></a>`;
   }).join('');
+}
+function teamNewsPanel(code, news) {
+  const cards = teamNewsCards(code, news);
   if (!cards) return '';
   return panel(`Nyheter om ${esc(tName(code))}`, `<div class="tnews-row">${cards}</div>`, { cls: 'wide', sub: 'Från klubbens egen sajt och shl.se. Artiklarna öppnas hos källan.' });
 }
@@ -2274,13 +2288,15 @@ function notFound(msg) {
    Below the phone breakpoint these replace the desktop overview and games pages.
    ===================================================================== */
 const DAYS_LONG = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
-const MONTHS_LONG = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'];
 const shortName = (n) => { const p = String(n || '').trim().split(/\s+/); return p.length > 1 ? `${p[0][0]}. ${p.slice(1).join(' ')}` : String(n || ''); };
 const gameDays = () => [...new Set(GAMES.map((g) => g.start.slice(0, 10)))].sort();
 const dayLabel = (d) => { const diff = Math.round((Date.parse(d) - Date.parse(todayStr())) / 864e5); return diff === 0 ? 'Idag' : diff === -1 ? 'Igår' : diff === 1 ? 'I morgon' : null; };
 // The day Matcher opens on: today if there are games, otherwise the next game day (or the last one after the season)
 const defaultDay = () => { const days = gameDays(), t = todayStr(); return days.includes(t) ? t : days.find((d) => d > t) || days[days.length - 1]; };
 const isFavGame = (g) => !!FAV && (g.home === FAV || g.away === FAV);
+const PLAY_SVG = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>';
+// "See more" links at the bottom of a card, the same everywhere
+const cardFoot = (href, label) => `<a class="card-foot" href="${href}">${label} ›</a>`;
 let DAY_SHOWN = null;
 
 // Goals and live state for the finished and live games in a list
@@ -2298,37 +2314,52 @@ async function detailsFor(games) {
   return out;
 }
 
-// One game as a card: teams and score or start time. Finished and live games list the goals,
-// upcoming games show the win chances. The whole card opens the match page.
+// One game as a card: a status chip, a row per team (score, or win chance before the game), then the goals
+// as a sideways row (tap one to watch it) or each team's top scorers. Tapping the card opens the match page.
 function gameCard(g, d) {
-  const done = isFinal(g), live = isLive(g), fav = isFavGame(g);
-  const rec = (c) => { const r = TABLE.find((t) => t.code === c); return r ? `${TABLE.indexOf(r) + 1}:a · ${r.pts} p` : ''; };
-  const lost = (s) => done && (s === 'home' ? g.hs < g.as : g.as < g.hs);
-  const side = (c, s) => `<div class="gc-team ${lost(s) ? 'lose' : ''}">${tb(c, 'lg')}<b>${esc(tName(c))}</b><small>${rec(c)}</small></div>`;
-  const status = done ? esc(statusTxt(g)) : live ? `<i class="live-dot"></i>${esc(liveClock(d?.live))}` : `${fmtTime(g.start)}`;
-  const mid = done || live ? `<div class="gc-score num">${g.hs ?? 0}<i>–</i>${g.as ?? 0}</div>` : `<div class="gc-time num">${fmtTime(g.start)}</div>`;
-  let extra = '';
+  const done = isFinal(g), live = isLive(g), fav = isFavGame(g), ph = g.ph ?? 0.5;
+  const chip = done ? `<span class="gc-chip">${esc(statusTxt(g))}</span>`
+    : live ? `<span class="gc-chip live"><i class="live-dot"></i>${esc(liveClock(d?.live))}</span>`
+    : `<span class="gc-chip">${fmtTime(g.start)}</span>`;
+  const row = (c, s) => {
+    const r = TABLE.find((t) => t.code === c), score = s === 'home' ? g.hs : g.as, other = s === 'home' ? g.as : g.hs;
+    const right = done || live ? `<span class="gc-num num">${score ?? 0}</span>` : `<span class="gc-pct num" title="Vinstchans">${pctTxt(s === 'home' ? ph : 1 - ph)}</span>`;
+    return `<div class="gc-row ${done && score < other ? 'lose' : ''}">${tb(c, 'md')}
+      <div class="gc-nm"><b>${esc(tName(c))}</b>${r ? `<span class="gc-meta"><span class="gc-rank">${TABLE.indexOf(r) + 1}</span>${r.pts} p<i>·</i>${r.gp} SM</span>` : ''}</div>${right}</div>`;
+  };
+  let mid = '';
   if (done || live) {
     const goals = d?.goals || [];
-    const row = (x) => {
-      const when = x.p >= 5 ? 'straff' : x.p === 4 ? `ÖT ${x.t}` : `P${x.p} ${x.t}`, tag = strengthTag(x);
-      const who = `<span class="gg-who">${esc(shortName(x.scorer?.name) || 'Mål')}<small>${esc(when)}${tag ? ` · ${esc(tag)}` : ''}</small></span>`;
-      return `<li>${x.team === 'home' ? who : '<span></span>'}<span class="gg-sc num">${x.score[0]}–${x.score[1]}</span>${x.team === 'away' ? who : '<span></span>'}</li>`;
+    const chipOf = (x) => {
+      const c = x.clip && safeEmbed(x.clip.embed) ? x.clip : null, tag = strengthTag(x);
+      const when = x.p >= 5 ? 'Straff' : x.p === 4 ? `ÖT ${x.t}` : `P${x.p} ${x.t}`;
+      const inner = `${avatar(x.scorer?.id, x.scorer?.name || '?', g[x.team]).replace(' loading="lazy"', '')}<span class="gch-who"><b>${esc(shortName(x.scorer?.name) || 'Mål')}</b><small>${esc(g[x.team])} ${x.score[0]}–${x.score[1]} · ${esc(when)}${tag ? ` · ${esc(tag)}` : ''}</small></span>${c ? `<span class="gch-play">${PLAY_SVG}</span>` : ''}`;
+      return c ? `<button class="gchip" data-embed="${esc(c.embed)}" data-title="${esc(`${x.scorer?.name || 'Mål'} ${x.score[0]}–${x.score[1]}`)}">${inner}</button>` : `<div class="gchip">${inner}</div>`;
     };
-    extra = goals.length ? `<ol class="gc-goals">${goals.map(row).join('')}</ol>`
+    mid = goals.length ? `<div class="gc-goals">${goals.map(chipOf).join('')}</div>`
       : (g.hs || g.as) ? '<p class="gc-note">Målskyttarna visas efter nästa uppdatering.</p>' : live ? '<p class="gc-note">Inga mål ännu.</p>' : '';
   } else {
-    const ph = g.ph ?? 0.5;
-    extra = `<div class="gc-odds">${oddsBar(ph)}</div>`;
+    const top = (c) => skaters().filter((p) => p.team === c).sort((a, b) => b.pts - a.pts || b.g - a.g).slice(0, 2);
+    mid = `<div class="gc-tops"><span class="gc-lbl">Poängbäst</span>${[g.home, g.away].map((c) => `<div>${tb(c)}<span>${top(c).map((p) => `${esc(shortName(p.name))} <b class="num">${p.pts}</b>`).join('<i>·</i>') || 'Inga poäng än'}</span></div>`).join('')}</div>`;
   }
-  const foot = [!done && g.arena ? esc(g.arena) : '', done && g.hv ? '<span class="vid-dot">Video</span>' : '', 'Matchfakta ›'].filter(Boolean);
-  return `<a class="gcard ${fav ? 'fav' : ''} ${live ? 'is-live' : ''}" href="#/match/${esc(g.id)}">
-    <div class="gc-top"><span class="gc-status ${live ? 'live' : ''}">${status}</span>${fav ? '<span class="gc-mine">Mitt lag</span>' : ''}</div>
-    <div class="gc-teams">${side(g.home, 'home')}${mid}${side(g.away, 'away')}</div>
-    ${extra}<div class="gc-foot">${foot.map((f) => `<span>${f}</span>`).join('')}</div></a>`;
+  const hl = done && d?.hl && safeEmbed(d.hl.embed) ? d.hl : null;
+  const left = hl ? `<button class="gc-btn" data-embed="${esc(hl.embed)}" data-title="${esc(`${g.home}–${g.away} sammandrag`)}">${PLAY_SVG}Sammandrag</button>`
+    : !done && !live && g.arena ? `<span class="gc-arena">${esc(g.arena)}</span>` : '<span></span>';
+  return `<article class="gcard ${fav ? 'fav' : ''} ${live ? 'is-live' : ''}" data-href="#/match/${esc(g.id)}" tabindex="0" role="link" aria-label="${esc(`${tName(g.home)} mot ${tName(g.away)}`)}">
+    <div class="gc-head">${chip}${fav ? '<span class="gc-mine">★ Mitt lag</span>' : ''}</div>
+    ${row(g.home, 'home')}${row(g.away, 'away')}${mid}
+    <div class="gc-foot">${left}<span class="card-foot">Matchfakta ›</span></div></article>`;
 }
+// Cards open their page when tapped anywhere except on a button or link inside them
+document.addEventListener('click', (e) => {
+  const c = e.target.closest('[data-href]');
+  if (c && !e.target.closest('button, a')) location.hash = c.dataset.href;
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.matches?.('[data-href]')) location.hash = e.target.dataset.href;
+});
 
-// Matcher on phones: one game day per page, the followed team's game first; swipe or use the arrows to change day
+// Matcher on phones: one game day per page with the dates as tabs along the top, the followed team's game first
 async function pageDay(want) {
   setTitle('Matcher');
   const days = gameDays();
@@ -2336,27 +2367,27 @@ async function pageDay(want) {
   let day = /^\d{4}-\d{2}-\d{2}$/.test(want) ? want : defaultDay();
   if (!days.includes(day)) day = days.find((d) => d >= day) || days[days.length - 1];
   DAY_SHOWN = day;
-  const i = days.indexOf(day), prev = days[i - 1], next = days[i + 1];
+  const i = days.indexOf(day), prev = days[i - 1], next = days[i + 1], home = defaultDay();
   const games = GAMES.filter((g) => g.start.startsWith(day)).sort((a, b) => isFavGame(b) - isFavGame(a) || a.start.localeCompare(b.start));
   if (games.some((g) => (isFinal(g) || isLive(g)) && !(g.id in gameCache))) app.innerHTML = skeleton();
   const det = await detailsFor(games);
   if (DAY_SHOWN !== day) return; // moved on to another day while loading
-  const p = dateParts(day), lbl = dayLabel(day), home = defaultDay();
-  const arrow = (d, dir) => d ? `<a class="daynav" href="#/matcher/${d}" aria-label="${dir < 0 ? 'Föregående' : 'Nästa'} matchdag">${dir < 0 ? '‹' : '›'}</a>` : '<span class="daynav off" aria-hidden="true"></span>';
-  const done = games.filter(isFinal).length, live = games.filter(isLive).length;
-  render(`<div class="dayhead">
-      ${arrow(prev, -1)}
-      <div class="dayname"><b>${lbl || DAYS_LONG[p.wd]}</b><span>${lbl ? `${DAYS_LONG[p.wd]} ` : ''}${p.d} ${MONTHS_LONG[p.m - 1]}</span></div>
-      ${arrow(next, 1)}
-    </div>
-    <div class="daysub"><span>${games.length} ${games.length === 1 ? 'match' : 'matcher'}${live ? ` · <b class="live-txt">${live} pågår</b>` : done ? ` · ${done} spelade` : ''}</span>${day !== home ? `<a href="#/matcher/${home}">${dayLabel(home) === 'Idag' ? 'Till idag' : 'Till nästa matchdag'} ›</a>` : ''}</div>
-    <div class="daylist" id="daylist">${games.map((g) => gameCard(g, det[g.id])).join('')}</div>`);
-  // Swipe sideways to change day
+  const tabsHtml = days.map((dd) => {
+    const p = dateParts(dd), l = dayLabel(dd);
+    return `<a href="#/matcher/${dd}" class="${dd === day ? 'on' : ''}" ${dd === day ? 'aria-current="page"' : ''}><b>${l || DAYS[p.wd]}</b><span>${p.d} ${MONTHS[p.m - 1]}</span></a>`;
+  }).join('');
+  render(`<nav class="datetabs" id="datetabs" aria-label="Matchdagar">${tabsHtml}</nav>
+    <div class="daylist" id="daylist">${games.map((g) => gameCard(g, det[g.id])).join('')}</div>
+    ${day !== home ? `<a class="today-pill" href="#/matcher/${home}">${dayLabel(home) === 'Idag' ? 'Idag' : 'Nästa matchdag'}</a>` : ''}`);
+  // Centre the chosen day in the date row
+  const tabs = $('datetabs'), on = tabs.querySelector('.on');
+  if (on) tabs.scrollLeft = on.offsetLeft - (tabs.clientWidth - on.offsetWidth) / 2;
+  // Swipe sideways on the games to change day
   let x0 = null, y0 = null;
   const list = $('daylist');
   list.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
   list.addEventListener('touchend', (e) => {
-    if (x0 == null) return;
+    if (x0 == null || e.target.closest('.gc-goals')) { x0 = null; return; }
     const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
     if (Math.abs(dx) > 70 && Math.abs(dy) < 50) { const to = dx < 0 ? next : prev; if (to) location.hash = `#/matcher/${to}`; }
   });
@@ -2366,43 +2397,41 @@ async function pageDay(want) {
 async function pageHome() {
   setTitle('');
   const fav = FAV && SIM[FAV] ? FAV : null;
-  const sec = (title, sub = '', more = '') => `<div class="m-sec"><h2>${title}${sub ? ` <small>${sub}</small>` : ''}</h2>${more}</div>`;
+  const sec = (title, sub = '') => `<div class="m-sec"><h2>${title}${sub ? ` <small>${sub}</small>` : ''}</h2></div>`;
+  const card = (inner, foot = '') => `<section class="panel m-card"><div class="p-body">${inner}</div>${foot}</section>`;
   let body = '';
   if (fav) {
     const r = TABLE.find((t) => t.code === fav), s = SIM[fav];
-    const next = GAMES.find((x) => !isFinal(x) && isFavGame(x) && x.id), last = [...GAMES].reverse().find((x) => isFinal(x) && (x.home === fav || x.away === fav));
+    const next = GAMES.find((x) => !isFinal(x) && isFavGame(x)), last = [...GAMES].reverse().find((x) => isFinal(x) && isFavGame(x));
     const det = await detailsFor([next, last]);
     let TD = null; try { TD = await loadTeams(); } catch { /* the page works without team news */ }
     const sk = skaters().filter((p) => p.team === fav).sort((a, b) => b.pts - a.pts || b.g - a.g);
-    body = `<section class="panel myteam-m" style="--tc:${tColor(fav)}">
-        <a class="mt-head" href="#/lag/${fav}">${tb(fav, 'xl')}<span class="mt-name"><b>${esc(tName(fav))}</b><small>Plats ${TABLE.indexOf(r) + 1} · ${r.pts} poäng · ${r.gp} matcher</small></span><span class="mt-chev">›</span></a>
+    body = `<section class="panel m-card myteam-m" style="--tc:${tColor(fav)}"><div class="p-body">
+        <a class="mt-head" href="#/lag/${fav}">${tb(fav, 'xl')}<span class="mt-name"><b>${esc(tName(fav))}</b><span class="gc-meta"><span class="gc-rank">${TABLE.indexOf(r) + 1}</span>${r.pts} p<i>·</i>${r.gp} SM<i>·</i>${r.gf}–${r.ga}</span></span></a>
         <div class="mt-form">${formChips(fav)}</div>
         <div class="mt-stats"><div><b>${oddsTxt(s.top10)}</b><span>Slutspel</span></div><div><b>${oddsTxt(s.top6)}</b><span>Topp 6</span></div><div><b>${oddsTxt(s.gold)}</b><span>SM-guld</span></div><div><b>${dec(s.proj, 0)}</b><span>Proj. poäng</span></div></div>
-      </section>
+      </div>${cardFoot(`#/lag/${fav}`, 'Lagsidan')}</section>
       ${next ? sec(isLive(next) ? 'Pågår nu' : 'Nästa match', fmtDay(next.start)) + gameCard(next, det[next.id]) : ''}
       ${last ? sec('Senaste match', fmtDay(last.start)) + gameCard(last, det[last.id]) : ''}
-      ${sec('Poängliga', '', moreLink(`#/lag/${fav}/trupp`, 'Truppen'))}
-      <section class="panel"><div class="p-body">${leaderList(sk, { val: (p) => p.pts, n: 5, avatars: false, sub: (p) => `${p.g} mål, ${p.a} assist` })}</div></section>
-      ${(TD?.news?.[fav] || []).length ? teamNewsPanel(fav, TD.news[fav]) : ''}`;
+      ${sec('Poängliga')}
+      ${card(leaderList(sk, { val: (p) => p.pts, n: 5, avatars: false, sub: (p) => `${p.g} mål, ${p.a} assist` }), cardFoot(`#/lag/${fav}/trupp`, 'Hela truppen'))}
+      ${(TD?.news?.[fav] || []).length ? sec(`Nyheter om ${esc(tName(fav))}`) + `<div class="tnews-row">${teamNewsCards(fav, TD.news[fav])}</div>` : ''}`;
   } else {
     const gday = defaultDay(), games = GAMES.filter((g) => g.start.startsWith(gday)).sort((a, b) => a.start.localeCompare(b.start));
     const det = await detailsFor(games);
     const lead = [...skaters()].sort((a, b) => b.pts - a.pts || b.g - a.g);
-    body = `<section class="panel pick-m"><div class="p-body">
-        <h2>Följ ditt lag</h2><p>Välj ett lag så visas dess matcher, form och nyheter här, och lagets matcher hamnar först under Matcher.</p>
-        <div class="pickteams">${[...CODES].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => `<button data-fav="${c}" aria-label="Följ ${esc(tName(c))}">${tb(c, 'md')}</button>`).join('')}</div>
-      </div></section>
-      ${games.length ? sec(dayLabel(gday) === 'Idag' ? 'Matcher idag' : 'Nästa matchdag', fmtDay(gday), moreLink(`#/matcher/${gday}`, 'Alla')) + games.slice(0, 3).map((g) => gameCard(g, det[g.id])).join('') : ''}
-      ${sec('Tabell', '', moreLink('#/tabell', 'Hela tabellen'))}
-      <section class="panel"><div class="p-body">${standingsTable({ mode: 'stats' })}</div></section>
-      ${sec('Poängliga', '', moreLink('#/statistik', 'Statistik'))}
-      <section class="panel"><div class="p-body">${leaderList(lead, { val: (p) => p.pts, n: 5, avatars: false, sub: (p) => `${esc(p.team)} · ${p.g} mål, ${p.a} assist` })}</div></section>`;
+    body = `${games.length ? sec(dayLabel(gday) === 'Idag' ? 'Matcher idag' : 'Nästa matchdag', fmtDay(gday)) + games.slice(0, 3).map((g) => gameCard(g, det[g.id])).join('')
+        + (games.length > 3 ? `<a class="list-foot" href="#/matcher/${gday}">Alla ${games.length} matcher ›</a>` : '') : ''}
+      ${sec('Tabell')}
+      ${card(standingsTable({ mode: 'stats' }), cardFoot('#/tabell', 'Hela tabellen'))}
+      ${sec('Poängliga')}
+      ${card(leaderList(lead, { val: (p) => p.pts, n: 5, avatars: false, sub: (p) => `${esc(p.team)} · ${p.g} mål, ${p.a} assist` }), cardFoot('#/statistik', 'All statistik'))}`;
   }
   render(`<section class="panel mnews">${newsBox()}</section>${body}`);
   setupNewsCarousel();
 }
 
-// Media on phones: only video. Highlights packages, the goals from the hardest chances (lowest xG) and every goal
+// Media on phones: only video. The best goals, the goals from the hardest chances, highlights packages and every goal
 let MEDIA = null;
 const loadMedia = async () => MEDIA ??= await (await fetch(dataUrl('media.json'))).json();
 async function pageMedia(range = '') {
@@ -2410,29 +2439,34 @@ async function pageMedia(range = '') {
   if (!MEDIA) app.innerHTML = skeleton();
   let M;
   try { M = await loadMedia(); } catch { return render(panel('Media', '<p class="empty-state">Videorna kunde inte laddas. Försök igen om en stund.</p>')); }
-  range = range === 'dag' ? 'dag' : 'vecka';
-  const mine = !!FAV && store.get('shlstats-media-mine') === '1';
+  range = range === 'dag' ? 'dag' : range === 'lag' && FAV ? 'lag' : 'vecka';
   const latest = [...(M.clips || []).map((c) => c.date), ...(M.highlights || []).map((h) => h.date)].sort().pop() || todayStr();
-  const lastDay = latest.slice(0, 10);
-  const since = new Date(Date.parse(lastDay) - 6 * 864e5).toISOString().slice(0, 10);
-  const inRange = (date) => range === 'dag' ? date.startsWith(lastDay) : date.slice(0, 10) >= since;
-  const clips = (M.clips || []).filter((c) => inRange(c.date) && (!mine || c.team === FAV || c.opp === FAV));
-  const hls = (M.highlights || []).filter((h) => inRange(h.date) && (!mine || h.home === FAV || h.away === FAV));
-  const dream = clips.filter((c) => c.xg != null && !c.en).sort((a, b) => a.xg - b.xg).slice(0, 6);
+  const lastDay = latest.slice(0, 10), since = new Date(Date.parse(lastDay) - 6 * 864e5).toISOString().slice(0, 10);
+  const keep = range === 'dag' ? (date) => date.startsWith(lastDay) : range === 'vecka' ? (date) => date.slice(0, 10) >= since : () => true;
+  const mine = (a, b) => range !== 'lag' || a === FAV || b === FAV;
+  const clips = (M.clips || []).filter((c) => keep(c.date) && mine(c.team, c.opp));
+  const hls = (M.highlights || []).filter((h) => keep(h.date) && mine(h.home, h.away)).slice(0, 12);
+  // Dream goals: the lowest chance of scoring (xG). Best goals: big moments first (winners, overtime, shorthanded), then difficulty.
+  const real = clips.filter((c) => c.xg != null && !c.en);
+  const dream = [...real].sort((a, b) => a.xg - b.xg).slice(0, 5), dreamIds = new Set(dream.map((c) => c.id));
+  const weight = (c) => (c.gwg ? 2 : 0) + (c.p === 4 ? 2 : 0) + (/^(SH|BP)/.test(c.str || '') ? 1 : 0) + (1 - c.xg) * 1.5;
+  const best = real.filter((c) => !dreamIds.has(c.id)).sort((a, b) => weight(b) - weight(a)).slice(0, 10);
   const who = (c) => esc(c.scorer?.name || 'Mål');
-  const when = range === 'dag' ? `${dayLabel(lastDay) || fmtDay(lastDay)}` : 'senaste veckan';
-  render(`<div class="page-head"><div><h1>Media</h1><p>Mål och matchsammandrag från SHL, ${esc(when)}.</p></div></div>
-    <div class="media-bar"><div class="seg" id="media-range"><button data-r="dag" aria-pressed="${range === 'dag'}">Senaste matchdagen</button><button data-r="vecka" aria-pressed="${range === 'vecka'}">Veckan</button></div>
-      ${FAV ? `<button class="chip chip-team" id="media-mine" aria-pressed="${mine}">${tb(FAV)}Bara ${esc(FAV)}</button>` : ''}</div>
-    ${hls.length ? `<div class="m-sec"><h2>Matchsammandrag <small>${hls.length}</small></h2></div><div class="clips mclips hrow">${hls.map((h) => clipCard(h, `${esc(h.home)} ${h.hs}–${h.as} ${esc(h.away)}`, fmtDay(h.date))).join('')}</div>` : ''}
-    ${dream.length ? `<div class="m-sec"><h2>Drömmålen</h2><p>Målen från de svåraste lägena, enligt xG.</p></div><div class="clips mclips hrow">${dream.map((c) => clipCard(c, who(c), `${esc(c.team)} mot ${esc(c.opp)} · ${dec(c.xg * 100, c.xg < 0.1 ? 1 : 0)} % chans`)).join('')}</div>` : ''}
+  const tag = (c) => [c.p === 4 ? 'Avgjorde i ÖT' : c.gwg ? 'Matchvinnare' : '', /^(SH|BP)/.test(c.str || '') ? 'Boxplay' : ''].filter(Boolean).join(' · ');
+  const bestTitle = range === 'dag' ? 'Dagens bästa mål' : range === 'lag' ? `${esc(tName(FAV))}s bästa mål` : 'Veckans bästa mål';
+  const tabs = [['dag', 'Matchdagen'], ['vecka', 'Veckan'], ...(FAV ? [['lag', `${tb(FAV)}${esc(FAV)}`]] : [])];
+  render(`<div class="seg media-tabs" id="media-range">${tabs.map(([k, l]) => `<button data-r="${k}" aria-pressed="${range === k}">${l}</button>`).join('')}</div>
+    ${best.length ? `<div class="m-sec"><h2>${bestTitle}</h2><p>Matchvinnare, övertidsmål och svåra lägen först.</p></div>
+      <div class="clips mclips hrow ranked">${best.map((c, i) => clipCard(c, `<span class="rank-n">${i + 1}</span>${who(c)}`, [`${esc(c.team)} mot ${esc(c.opp)}`, tag(c)].filter(Boolean).join(' · '))).join('')}</div>` : ''}
+    ${dream.length ? `<div class="m-sec"><h2>Drömmål</h2><p>Målen från de svåraste lägena, enligt xG.</p></div>
+      <div class="clips mclips hrow">${dream.map((c) => clipCard(c, who(c), `${esc(c.team)} mot ${esc(c.opp)} · ${dec(c.xg * 100, c.xg < 0.1 ? 1 : 0)} % chans`)).join('')}</div>` : ''}
+    ${hls.length ? `<div class="m-sec"><h2>Matchsammandrag</h2></div><div class="clips mclips hrow">${hls.map((h) => clipCard(h, `${esc(h.home)} ${h.hs}–${h.as} ${esc(h.away)}`, fmtDay(h.date))).join('')}</div>` : ''}
     <div class="m-sec"><h2>Alla mål <small>${clips.length}</small></h2></div>
-    ${clips.length ? `<div class="clips mclips grid2">${clips.map((c) => clipCard(c, who(c), `${esc(c.team)} mot ${esc(c.opp)} · ${c.score[0]}–${c.score[1]} · ${fmtDay(c.date)}`)).join('')}</div>` : '<p class="empty-state">Inga målvideor här ännu. De brukar komma någon timme efter slutsignalen.</p>'}`);
-  $('media-range').onclick = (e) => { const b = e.target.closest('button'); if (b) location.hash = b.dataset.r === 'dag' ? '#/media/dag' : '#/media'; };
-  if (FAV) $('media-mine').onclick = () => { store.set('shlstats-media-mine', mine ? '0' : '1'); route(); };
+    ${clips.length ? `<div class="clips mclips grid2">${clips.map((c) => clipCard(c, who(c), `${esc(c.team)} mot ${esc(c.opp)} · ${c.score[0]}–${c.score[1]}`)).join('')}</div>` : '<p class="empty-state">Inga målvideor här ännu. De brukar komma någon timme efter slutsignalen.</p>'}`);
+  $('media-range').onclick = (e) => { const b = e.target.closest('button'); if (b) location.hash = b.dataset.r === 'vecka' ? '#/media' : `#/media/${b.dataset.r}`; };
 }
 
-// Settings (phones, from the gear on Hem): theme and your team
+// Settings (phones, from the gear on Hem): theme, your team, and about the site
 function applyTheme(v) {
   const root = document.documentElement;
   if (v === 'auto') { delete root.dataset.theme; store.set('shlstats-theme', 'auto'); }
@@ -2446,22 +2480,46 @@ function openSettings() {
   const draw = () => {
     const theme = document.documentElement.dataset.theme || 'auto';
     dlg.innerHTML = `<div class="sheet-in"><div class="sheet-grab" aria-hidden="true"></div>
-      <div class="sheet-head"><h2>Inställningar</h2><button class="sheet-close" data-close aria-label="Stäng">Klar</button></div>
+      <div class="sheet-head"><h2>Inställningar</h2><button class="sheet-close" data-close>Klar</button></div>
       <h3>Tema</h3>
       <div class="seg sheet-seg" id="set-theme">${[['dark', 'Mörkt'], ['light', 'Ljust'], ['auto', 'Automatiskt']].map(([v, l]) => `<button data-v="${v}" aria-pressed="${theme === v}">${l}</button>`).join('')}</div>
       <h3>Mitt lag</h3>
       <div class="set-teams">${[...CODES].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => `<button data-team="${c}" aria-pressed="${FAV === c}">${tb(c, 'md')}<span>${esc(tName(c))}</span></button>`).join('')}
-        <button data-team="" aria-pressed="${!FAV}"><span class="set-none">–</span><span>Inget lag</span></button></div></div>`;
+        <button data-team="" aria-pressed="${!FAV}"><span class="set-none">–</span><span>Inget lag</span></button></div>
+      <h3>Om SHLstats</h3>
+      <div class="set-about"><p>Uppdaterad ${esc(stampTxt)}.</p><button class="sheet-btn" id="set-reload">Hämta senaste</button>
+        <p>SHLstats är ett fristående fanprojekt utan koppling till SHL. Resultat, statistik, bilder och videor från shl.se. Prognoserna bygger på en egen modell och är inga garantier.</p></div></div>`;
   };
   draw();
   dlg.onclick = (e) => {
     if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); return; }
+    if (e.target.closest('#set-reload')) { location.reload(); return; }
     const t = e.target.closest('#set-theme button');
     if (t) { applyTheme(t.dataset.v); draw(); return; }
     const b = e.target.closest('[data-team]');
     if (b) { setFav(b.dataset.team || null); draw(); }
   };
   dlg.showModal();
+}
+
+// Two-team toggle (line-ups and player stats on phones): shows one team's pane at a time
+const teamToggle = (home, away) => `<div class="seg tt-seg">${[['home', home], ['away', away]].map(([s, c], i) => `<button data-tt="${s}" aria-pressed="${i === 0}">${tb(c)}${esc(tName(c))}</button>`).join('')}</div>`;
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-tt]'); if (!b) return;
+  const box = b.closest('.tt');
+  box.querySelectorAll('[data-tt]').forEach((x) => x.setAttribute('aria-pressed', x === b));
+  box.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== b.dataset.tt; });
+});
+
+// Two team colours that can be told apart: if they are too alike, the away side switches to its second colour or a neutral steel
+const colorDist = (a, b) => { const [r1, g1, b1] = hexToRgb(a), [r2, g2, b2] = hexToRgb(b), rm = (r1 + r2) / 2; return Math.sqrt((2 + rm / 256) * (r1 - r2) ** 2 + 4 * (g1 - g2) ** 2 + (2 + (255 - rm) / 256) * (b1 - b2) ** 2); };
+function pairColors(h, a) {
+  const hc = tColor(h); let ac = tColor(a);
+  if (colorDist(hc, ac) < 170) {
+    const alt = (TC[a] || [])[1];
+    ac = alt && colorDist(hc, alt) >= 170 && lum(alt) > 0.03 && lum(alt) < 0.85 ? alt : colorDist(hc, '#8fa3b8') >= 170 ? '#8fa3b8' : '#e3b75a';
+  }
+  return [hc, ac];
 }
 
 /* =====================================================================
@@ -2486,6 +2544,9 @@ async function route() {
   });
   document.body.classList.remove('search-open');
   document.body.classList.toggle('is-home', path === '/'); // the settings button shows on Hem (phones)
+  const TITLES = { matcher: 'Matcher', statistik: 'Statistik', tabell: 'Tabell', media: 'Media', match: 'Match', spelare: 'Spelare', lag: 'Lag', nyheter: 'Nyheter', nexus: 'Nexus', avancerat: 'Nexus' };
+  mTitle(TITLES[seg] || '');
+  document.body.classList.toggle('is-sub', ['match', 'spelare', 'lag', 'nyheter'].includes(seg));
   clearInterval(newsTimer); // the news carousel only runs on the overview
   // Switching tabs within the same page keeps the scroll position near the tabs
   const samePage = lastPath && path.split('/').slice(0, 3).join('/') === lastPath.split('/').slice(0, 3).join('/');
@@ -2533,6 +2594,7 @@ async function boot() {
   renderStrip();
   renderFavLink();
   $('settings-open').onclick = openSettings;
+  $('m-back').onclick = () => { if (history.length > 1) history.back(); else location.hash = '#/'; };
   window.addEventListener('hashchange', route);
   startLive(); // before the first page so a game being played opens in live mode
   route();

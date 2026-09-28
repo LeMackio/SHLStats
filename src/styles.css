@@ -1243,3 +1243,144 @@ dialog.sheet { display: none; }
   .mclips.grid2 { grid-template-columns: 1fr 1fr; gap: 12px; }
   .mclips.grid2 .ct { font-size: 14px; }
 }
+
+/* =====================================================================
+   One set of shapes for the whole site: cards, inner boxes, small tags and pills
+   ===================================================================== */
+:root { --radius: 18px; --r-in: 12px; --r-sm: 8px; }
+.panel, .ltile, .teamtile, .gcard, .news, .pcard, .leader, dialog.video { border-radius: var(--radius); }
+.p-foot { border-radius: 0 0 var(--radius) var(--radius); }
+.tile, .grow, .lp, .mini-game, .mday-stats div, .rx, .rstars li, .rmoments li, .smd, .tnews, .live-nums > div, .sm-hint, .clip, .clip .thumb,
+.set-teams button, .mt-stats div, .smap-stage, .results, .nitem, ul.clubs li, .pickteams button, .smd-video, .stat-search input, .search input, .field select, .field input { border-radius: var(--r-in); }
+.tb { border-radius: var(--r-sm); }
+.tb.lg, .tb.xl { border-radius: var(--r-in); }
+.form i, .tag, .odds span, .oddsbar, .gg-sc, .clip .dur, .wp, .video-close, .nitem img, .results a { border-radius: var(--r-sm); }
+.seg, .seg button, .chip, .btn, .playbtn, .favbtn, .sheet-close, .theme-toggle, .theme-toggle button, .live-badge { border-radius: 999px; }
+.seg { padding: 3px; }
+
+/* Round play button used in goal lists */
+.playic { all: unset; cursor: pointer; flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.playic .ic { width: 14px; height: 14px; margin-left: 2px; }
+.playic:hover { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+.ev-end { gap: 10px; }
+.ev .who, .ev .who small { white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* Two-team toggle */
+.tt { display: grid; gap: 14px; }
+.tt-seg { display: grid; grid-template-columns: 1fr 1fr; }
+.tt-seg button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.seg button[aria-pressed="true"] .tb { box-shadow: 0 0 0 1px rgba(0, 0, 0, .15); }
+
+/* Header page name and back arrow (phones only) */
+.m-back, .m-title { display: none; }
+
+@media (max-width: 700px) {
+  /* Header: logo on Hem, the page name everywhere else, in the wordmark's typeface */
+  body:not(.is-home) .brand { display: none; }
+  body:not(.is-home) .m-title { display: block; font-size: 27px; line-height: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--brand-ink); }
+  body.is-sub .m-back { display: grid; place-items: center; width: 38px; height: 38px; margin-left: -6px; border: 0; border-radius: 50%; background: none; color: var(--text); cursor: pointer; flex: none; }
+  .m-back svg { width: 24px; height: 24px; }
+  .top-in { gap: 6px; min-height: 58px; }
+  .page-head { display: none; }
+  footer#foot { display: none; }
+  body { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Statistik search: icon centred in the field */
+  .stat-search > svg { top: 50%; translate: 0 -50%; left: 15px; }
+
+  /* Tables stay inside the card on phones, so sticky columns never slide over a margin */
+  .tscroll { margin: 0; padding: 0; max-width: 100%; }
+  table.t.stick th:first-child, table.t.stick td:first-child { box-shadow: 1px 0 0 var(--line); }
+
+  /* Section titles */
+  .m-sec { margin: 10px 2px -4px; }
+  .m-sec h2 { font-size: 20px; }
+
+  /* "See more" at the bottom of a card or list: one style everywhere */
+  .card-foot, .list-foot { display: block; text-align: right; font: 600 13.5px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); text-decoration: none !important; }
+  .m-card { overflow: hidden; }
+  .m-card > .card-foot { padding: 0 16px 14px; }
+  .m-card .p-body { padding-bottom: 10px; }
+  .list-foot { padding: 2px 6px; }
+
+  /* Rank and points: a small rank badge followed by the numbers */
+  .gc-meta { display: inline-flex; align-items: center; gap: 6px; font: 600 13px var(--display); letter-spacing: .04em; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .gc-meta i { font-style: normal; color: var(--faint); }
+  .gc-rank { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 6px; background: var(--panel-2); color: var(--text); font: 700 12.5px var(--display); }
+
+  /* Game cards */
+  .gcard { gap: 10px; padding: 14px 16px 12px; cursor: pointer; }
+  .gc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .gc-chip { display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 6px; background: var(--panel-2); font: 700 13px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--text); }
+  .gc-chip.live { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+  .gc-mine { font: 700 12.5px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .gc-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+  .gc-row .tb.md { width: 40px; height: 40px; }
+  .gc-nm { display: grid; gap: 3px; min-width: 0; }
+  .gc-nm b { font: 700 18px/1.1 var(--display); text-transform: uppercase; letter-spacing: .01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gc-num { font: 700 34px/1 var(--display); min-width: 28px; text-align: right; }
+  .gc-pct { font: 700 17px var(--display); color: var(--muted); }
+  .gc-row.lose { opacity: .55; }
+  .gcard .gc-goals { display: flex; gap: 8px; overflow-x: auto; margin: 2px -16px 0; padding: 2px 16px 4px; border: 0; scroll-snap-type: x mandatory; scroll-padding: 0 16px; scrollbar-width: none; }
+  .gcard .gc-goals::-webkit-scrollbar { display: none; }
+  .gchip { all: unset; box-sizing: border-box; flex: 0 0 auto; max-width: 250px; scroll-snap-align: start; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 9px; align-items: center;
+    padding: 8px 10px; border-radius: var(--r-in); background: var(--panel-2); cursor: default; }
+  button.gchip { cursor: pointer; }
+  .gchip .av { width: 34px; height: 34px; }
+  .gch-who { display: grid; gap: 1px; min-width: 0; }
+  .gch-who b { font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gch-who small { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .gch-play { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+  .gch-play .ic { width: 13px; height: 13px; margin-left: 2px; }
+  .gc-tops { display: grid; gap: 6px; padding: 10px 12px; border-radius: var(--r-in); background: var(--panel-2); font-size: 14px; }
+  .gc-tops > div { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .gc-tops > div span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gc-tops i { font-style: normal; color: var(--faint); margin: 0 6px; }
+  .gc-tops b { color: var(--accent); }
+  .gc-lbl { font: 700 12px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .gc-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 30px; }
+  .gc-foot .card-foot { margin-left: auto; }
+  .gc-arena { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gc-btn { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 9px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent); font: 600 13.5px var(--display); letter-spacing: .05em; text-transform: uppercase; }
+  .gc-btn .ic { width: 14px; height: 14px; }
+  .gcard.fav { box-shadow: var(--card-shadow); outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  /* Matcher: the dates as tabs along the top */
+  .datetabs { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 58px); z-index: 20; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none;
+    margin: -16px -12px 0; padding: 0 8px; background: color-mix(in srgb, var(--bg) 86%, transparent); border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(18px) saturate(170%); -webkit-backdrop-filter: blur(18px) saturate(170%); }
+  .datetabs::-webkit-scrollbar { display: none; }
+  .datetabs a { flex: none; display: grid; justify-items: center; gap: 1px; padding: 10px 12px 9px; color: var(--muted); text-decoration: none !important; border-bottom: 3px solid transparent; }
+  .datetabs a b { font: 700 15px var(--display); letter-spacing: .04em; text-transform: uppercase; }
+  .datetabs a span { font-size: 13px; }
+  .datetabs a.on { color: var(--text); border-bottom-color: var(--accent); }
+  .datetabs a.on b { color: var(--accent); }
+  .daylist { margin-top: 2px; }
+  .today-pill { position: fixed; left: 50%; translate: -50% 0; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); z-index: 35; padding: 11px 26px; border-radius: 999px;
+    background: var(--text); color: var(--bg); font: 700 15px var(--display); letter-spacing: .06em; text-transform: uppercase; text-decoration: none !important; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+
+  /* Hem: your team */
+  .myteam-m .p-body { display: grid; gap: 12px; }
+  .mt-head { grid-template-columns: auto minmax(0, 1fr); }
+  .mt-head .tb.xl { width: 64px; height: 64px; }
+
+  /* Media tabs: three equal segments */
+  .media-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 100%; }
+  .media-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 6px; font-size: 14px; }
+  .ranked { counter-reset: best; }
+  .ranked .clip { counter-increment: best; }
+  .ranked .clip .thumb::before { content: counter(best); position: absolute; left: 8px; top: 8px; z-index: 2; min-width: 30px; height: 30px; display: grid; place-items: center; border-radius: var(--r-sm);
+    background: var(--accent); color: var(--accent-ink); font: 700 17px var(--display); }
+
+  /* Settings: about */
+  .set-about { display: grid; gap: 10px; font-size: 14px; color: var(--muted); }
+  .set-about p { margin: 0; }
+  .sheet-btn { justify-self: start; border: 0; background: var(--panel); color: var(--accent); font: 600 15px var(--body); padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+}
+/* Light theme: the followed team's game needs no outline, the "Mitt lag" label is enough */
+@media (max-width: 700px) and (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .gcard.fav { outline: none; } }
+@media (max-width: 700px) { :root[data-theme="light"] .gcard.fav { outline: none; } }
+
+@media (max-width: 700px) { .crumbs { display: none; } } /* the back arrow in the header replaces the breadcrumb trail on phones */
