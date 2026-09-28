@@ -266,6 +266,7 @@ const idIndex = (id) => { if (!edgeIdx.has(id)) { edgeIdx.set(id, edgeIds.length
 const eSk = {}, eGk = {}, eTeam = {}, eShots = [];
 const gameXg = {}; // game id → [xG home, xG away, dangerous chances home, away, shots home, away]
 const eGames = [], eGameIdx = new Map(), eClips = [];
+const xgByClip = {}; // goal video id → [xG, empty net] for the Media page
 const gameIndex = (gid, sg) => { if (!eGameIdx.has(gid)) { eGameIdx.set(gid, eGames.length); eGames.push([gid, sg.home, sg.away, sg.start.slice(0, 10)]); } return eGameIdx.get(gid); };
 const league = { sa: 0, ga: 0, xga: 0, hd: [0, 0], md: [0, 0], ld: [0, 0] };
 for (const [gid, sg] of Object.entries(shotGames)) {
@@ -303,7 +304,7 @@ for (const [gid, sg] of Object.entries(shotGames)) {
     if (sh.g) {
       const d = gameDetails[gid], goal = d?.goals.find((x) => x.p === sh.p && (x.p - 1) * 1200 + toSec(x.t) === sh.s);
       const c = goal && slimClip(clipOf(d, goal));
-      if (c) { clip = eClips.length; eClips.push([c.embed, c.thumb]); }
+      if (c) { clip = eClips.length; eClips.push([c.embed, c.thumb]); xgByClip[c.id] = [Math.round(xg * 1000) / 1000, sh.en ? 1 : 0]; }
     }
     eShots.push([shooter ? idIndex(shooter) : -1, goalieId ? idIndex(goalieId) : -1, sh.x, sh.y, sh.g, Math.round(xg * 1000), team, sh.en,
       sh.str === 'PP' ? 1 : sh.str === 'SH' ? 2 : 0, gameIndex(gid, sg), clip]);
@@ -575,6 +576,12 @@ writeJson('site/data/core.json', core);
 writeJson('site/data/players.json', { bios, career, goalieCareer, gamelogs, goalieLogs, goalClips });
 writeJson('site/data/edge.json', edge);
 writeJson('site/data/teams.json', { logs: teamLogs, news: teamNews });
+// Media page (phones): goal videos from the last two weeks with their xG, and every highlights package this season
+const mediaCut = Date.now() - 14 * 864e5;
+writeJson('site/data/media.json', {
+  clips: allClips.filter((c) => gameTime({ start: c.date }) > mediaCut).map((c) => ({ ...c, xg: xgByClip[c.id]?.[0] ?? null, en: xgByClip[c.id]?.[1] ?? 0 })),
+  highlights: detailsByDate.filter((d) => videos[d.id]?.hl).reverse().map((d) => ({ gid: d.id, date: d.start, home: d.home, away: d.away, hs: d.hs, as: d.as, ...slimClip(videos[d.id].hl) })),
+});
 for (const d of Object.values(gameDetails)) {
   const v = videos[d.id], X = gameXg[d.id];
   writeJson(`site/data/games/${d.id}.json`, {

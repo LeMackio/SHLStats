@@ -216,6 +216,13 @@ function startLive() {
         const sig = L ? `${g.id}|${L.hs}|${L.as}|${L.events.length}|${L.state}|${L.p}|${L.t}` : '';
         if (L && (L.hs !== g.hs || L.as !== g.as)) { g.hs = L.hs; g.as = L.as; renderStrip(true); }
         if (sig && sig !== liveSig) { liveSig = sig; route(); }
+      } else if (/^#\/matcher/.test(location.hash) && isNarrow() && DAY_SHOWN) {
+        let sig = '';
+        for (const x of GAMES.filter((x) => x.start.startsWith(DAY_SHOWN) && isLive(x))) {
+          const L = await loadLive(x.id, 0);
+          if (L) sig += `${x.id}|${L.hs}|${L.as}|${L.events.length}|${L.state}|${L.p}|${L.t};`;
+        }
+        if (changed || (sig && sig !== liveSig)) { liveSig = sig; route(); }
       } else if (changed && /^#\/(match|matcher)/.test(location.hash)) route();
     }
     liveTimer = setTimeout(tick, due.length ? 20000 : 5 * 60e3);
@@ -735,19 +742,21 @@ const render = (html) => { app.innerHTML = html; layoutBoards(); countUp(app); }
 /* ---------- Översikt ---------- */
 // Top of the overview: SHL news rotating on the left; your team (or a team picker) on the right
 const safeUrl = (u) => { try { const x = new URL(u); return x.protocol === 'https:' ? x.href : null; } catch { return null; } };
-function newsHero() {
+function newsBox() {
   const news = D.news || [];
-  const fav = FAV && SIM[FAV] ? FAV : null;
   const slides = news.map((n, i) => `<a class="nslide ${i === 0 ? 'on' : ''}" href="#/nyheter/${encodeURIComponent(n.id)}" data-i="${i}" ${i ? 'aria-hidden="true" tabindex="-1"' : ''}>
       ${n.img ? `<img src="${esc(n.img)}" alt="" ${i ? 'loading="lazy"' : ''}>` : ''}
       <span class="nslide-shade"></span>
       <span class="nslide-text"><span class="nslide-meta">${n.label ? `${esc(n.label)} · ` : ''}${fmtDay(n.date)}</span><b>${esc(n.title)}</b><span class="nslide-intro">${esc(n.intro)}</span></span>
     </a>`).join('');
-  const newsBox = news.length
+  return news.length
     ? `<div class="news" id="news" aria-roledescription="karusell" aria-label="Senaste nyheterna från SHL"><div class="nslides">${slides}</div>
         <div class="nctrl"><button class="nnav" data-d="-1" aria-label="Föregående nyhet">‹</button>${news.map((_, i) => `<button class="ndot ${i === 0 ? 'on' : ''}" data-i="${i}" aria-label="Nyhet ${i + 1}"></button>`).join('')}<button class="nnav" data-d="1" aria-label="Nästa nyhet">›</button></div></div>`
     : '<div class="news news-empty"><p>Inga nyheter just nu.</p></div>';
-  return `<section class="panel mday newshero"><div class="mday-grid">${newsBox}${fav ? myTeamSide(fav) : pickerSide()}</div></section>`;
+}
+function newsHero() {
+  const fav = FAV && SIM[FAV] ? FAV : null;
+  return `<section class="panel mday newshero"><div class="mday-grid">${newsBox()}${fav ? myTeamSide(fav) : pickerSide()}</div></section>`;
 }
 function myTeamSide(fav) {
   const r = TABLE.find((t) => t.code === fav), s = SIM[fav];
@@ -833,6 +842,7 @@ function pageNews(id) {
 }
 
 function pageOverview() {
+  if (isNarrow()) return pageHome(); // phones get their own Hem page
   setTitle('');
   const today = todayStr();
   const upcoming = GAMES.filter((g) => !isFinal(g));
@@ -910,6 +920,7 @@ function pageOverview() {
 /* ---------- Matcher ---------- */
 let gamesTeam = 'ALL';
 function pageGames(view = 'kommande') {
+  if (isNarrow()) return pageDay(view); // phones: one game day at a time
   if (!['kommande', 'spelade', 'alla'].includes(view)) view = 'kommande';
   setTitle('Matcher');
   gamesTeam = gamesTeam === 'ALL' && FAV && store.get('shlstats-gfilter') === 'fav' ? FAV : gamesTeam;
@@ -1430,6 +1441,8 @@ function pageStats() {
   const sections = LEADER_SECTIONS();
   render(`
     <div class="page-head"><div><h1>Statistik</h1><p>Topplistor och fullständig statistik för alla SHL-spelare. Tryck på en spelare för hela profilen.</p></div></div>
+    <div class="search m-only stat-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="stat-search" type="search" placeholder="Sök spelare eller lag" autocomplete="off" aria-label="Sök spelare eller lag" enterkeyhint="search"><div class="results" id="stat-results" hidden></div></div>
     <div class="lsec-row">${sections.map((s) => `<section class="panel lsec">
       <div class="p-head"><h2>${s.title}</h2>${s.note ? `<span class="stamp">${esc(s.note)}</span>` : ''}</div>
       <div class="utabs" id="lt-${s.id}" role="tablist">${s.stats.map((st, i) => `<button role="tab" data-k="${st.k}" aria-selected="${i === 0}">${st.label}</button>`).join('')}</div>
@@ -1487,6 +1500,7 @@ function pageStats() {
   $('sr').onchange = (e) => { statsState.rk = !!e.target.value; draw(); };
   $('gs').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; [...$('gs').children].forEach((c) => c.setAttribute('aria-pressed', c === b)); $('gchart').innerHTML = gsaaChart(b.dataset.v); };
   teamOpts(); draw();
+  bindSearch($('stat-search'), $('stat-results'), (it) => { location.hash = it.type === 't' ? `#/lag/${it.id}` : `#/spelare/${it.id}`; });
 
   // Leader sections: switch stat, or jump to the full table sorted by that stat
   const active = {};
@@ -2256,11 +2270,207 @@ function notFound(msg) {
 }
 
 /* =====================================================================
+   Phone layout: Hem, Matcher one day at a time, Media and the settings sheet.
+   Below the phone breakpoint these replace the desktop overview and games pages.
+   ===================================================================== */
+const DAYS_LONG = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
+const MONTHS_LONG = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'];
+const shortName = (n) => { const p = String(n || '').trim().split(/\s+/); return p.length > 1 ? `${p[0][0]}. ${p.slice(1).join(' ')}` : String(n || ''); };
+const gameDays = () => [...new Set(GAMES.map((g) => g.start.slice(0, 10)))].sort();
+const dayLabel = (d) => { const diff = Math.round((Date.parse(d) - Date.parse(todayStr())) / 864e5); return diff === 0 ? 'Idag' : diff === -1 ? 'Igår' : diff === 1 ? 'I morgon' : null; };
+// The day Matcher opens on: today if there are games, otherwise the next game day (or the last one after the season)
+const defaultDay = () => { const days = gameDays(), t = todayStr(); return days.includes(t) ? t : days.find((d) => d > t) || days[days.length - 1]; };
+const isFavGame = (g) => !!FAV && (g.home === FAV || g.away === FAV);
+let DAY_SHOWN = null;
+
+// Goals and live state for the finished and live games in a list
+async function detailsFor(games) {
+  const out = {};
+  await Promise.all(games.filter(Boolean).map(async (g) => {
+    if (!isFinal(g) && !isLive(g)) return;
+    let d = await loadGame(g.id);
+    if (isLive(g) && LIVE_API) {
+      const L = await loadLive(g.id);
+      if (L) { d = liveDetails(g, L, d); g.hs = L.hs; g.as = L.as; }
+    }
+    out[g.id] = d;
+  }));
+  return out;
+}
+
+// One game as a card: teams and score or start time. Finished and live games list the goals,
+// upcoming games show the win chances. The whole card opens the match page.
+function gameCard(g, d) {
+  const done = isFinal(g), live = isLive(g), fav = isFavGame(g);
+  const rec = (c) => { const r = TABLE.find((t) => t.code === c); return r ? `${TABLE.indexOf(r) + 1}:a · ${r.pts} p` : ''; };
+  const lost = (s) => done && (s === 'home' ? g.hs < g.as : g.as < g.hs);
+  const side = (c, s) => `<div class="gc-team ${lost(s) ? 'lose' : ''}">${tb(c, 'lg')}<b>${esc(tName(c))}</b><small>${rec(c)}</small></div>`;
+  const status = done ? esc(statusTxt(g)) : live ? `<i class="live-dot"></i>${esc(liveClock(d?.live))}` : `${fmtTime(g.start)}`;
+  const mid = done || live ? `<div class="gc-score num">${g.hs ?? 0}<i>–</i>${g.as ?? 0}</div>` : `<div class="gc-time num">${fmtTime(g.start)}</div>`;
+  let extra = '';
+  if (done || live) {
+    const goals = d?.goals || [];
+    const row = (x) => {
+      const when = x.p >= 5 ? 'straff' : x.p === 4 ? `ÖT ${x.t}` : `P${x.p} ${x.t}`, tag = strengthTag(x);
+      const who = `<span class="gg-who">${esc(shortName(x.scorer?.name) || 'Mål')}<small>${esc(when)}${tag ? ` · ${esc(tag)}` : ''}</small></span>`;
+      return `<li>${x.team === 'home' ? who : '<span></span>'}<span class="gg-sc num">${x.score[0]}–${x.score[1]}</span>${x.team === 'away' ? who : '<span></span>'}</li>`;
+    };
+    extra = goals.length ? `<ol class="gc-goals">${goals.map(row).join('')}</ol>`
+      : (g.hs || g.as) ? '<p class="gc-note">Målskyttarna visas efter nästa uppdatering.</p>' : live ? '<p class="gc-note">Inga mål ännu.</p>' : '';
+  } else {
+    const ph = g.ph ?? 0.5;
+    extra = `<div class="gc-odds">${oddsBar(ph)}</div>`;
+  }
+  const foot = [!done && g.arena ? esc(g.arena) : '', done && g.hv ? '<span class="vid-dot">Video</span>' : '', 'Matchfakta ›'].filter(Boolean);
+  return `<a class="gcard ${fav ? 'fav' : ''} ${live ? 'is-live' : ''}" href="#/match/${esc(g.id)}">
+    <div class="gc-top"><span class="gc-status ${live ? 'live' : ''}">${status}</span>${fav ? '<span class="gc-mine">Mitt lag</span>' : ''}</div>
+    <div class="gc-teams">${side(g.home, 'home')}${mid}${side(g.away, 'away')}</div>
+    ${extra}<div class="gc-foot">${foot.map((f) => `<span>${f}</span>`).join('')}</div></a>`;
+}
+
+// Matcher on phones: one game day per page, the followed team's game first; swipe or use the arrows to change day
+async function pageDay(want) {
+  setTitle('Matcher');
+  const days = gameDays();
+  if (!days.length) return render(panel('Matcher', '<p class="empty-state">Inget spelschema ännu.</p>'));
+  let day = /^\d{4}-\d{2}-\d{2}$/.test(want) ? want : defaultDay();
+  if (!days.includes(day)) day = days.find((d) => d >= day) || days[days.length - 1];
+  DAY_SHOWN = day;
+  const i = days.indexOf(day), prev = days[i - 1], next = days[i + 1];
+  const games = GAMES.filter((g) => g.start.startsWith(day)).sort((a, b) => isFavGame(b) - isFavGame(a) || a.start.localeCompare(b.start));
+  if (games.some((g) => (isFinal(g) || isLive(g)) && !(g.id in gameCache))) app.innerHTML = skeleton();
+  const det = await detailsFor(games);
+  if (DAY_SHOWN !== day) return; // moved on to another day while loading
+  const p = dateParts(day), lbl = dayLabel(day), home = defaultDay();
+  const arrow = (d, dir) => d ? `<a class="daynav" href="#/matcher/${d}" aria-label="${dir < 0 ? 'Föregående' : 'Nästa'} matchdag">${dir < 0 ? '‹' : '›'}</a>` : '<span class="daynav off" aria-hidden="true"></span>';
+  const done = games.filter(isFinal).length, live = games.filter(isLive).length;
+  render(`<div class="dayhead">
+      ${arrow(prev, -1)}
+      <div class="dayname"><b>${lbl || DAYS_LONG[p.wd]}</b><span>${lbl ? `${DAYS_LONG[p.wd]} ` : ''}${p.d} ${MONTHS_LONG[p.m - 1]}</span></div>
+      ${arrow(next, 1)}
+    </div>
+    <div class="daysub"><span>${games.length} ${games.length === 1 ? 'match' : 'matcher'}${live ? ` · <b class="live-txt">${live} pågår</b>` : done ? ` · ${done} spelade` : ''}</span>${day !== home ? `<a href="#/matcher/${home}">${dayLabel(home) === 'Idag' ? 'Till idag' : 'Till nästa matchdag'} ›</a>` : ''}</div>
+    <div class="daylist" id="daylist">${games.map((g) => gameCard(g, det[g.id])).join('')}</div>`);
+  // Swipe sideways to change day
+  let x0 = null, y0 = null;
+  const list = $('daylist');
+  list.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  list.addEventListener('touchend', (e) => {
+    if (x0 == null) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+    if (Math.abs(dx) > 70 && Math.abs(dy) < 50) { const to = dx < 0 ? next : prev; if (to) location.hash = `#/matcher/${to}`; }
+  });
+}
+
+// Hem on phones: the news, then your team, or the league in general when no team is followed
+async function pageHome() {
+  setTitle('');
+  const fav = FAV && SIM[FAV] ? FAV : null;
+  const sec = (title, sub = '', more = '') => `<div class="m-sec"><h2>${title}${sub ? ` <small>${sub}</small>` : ''}</h2>${more}</div>`;
+  let body = '';
+  if (fav) {
+    const r = TABLE.find((t) => t.code === fav), s = SIM[fav];
+    const next = GAMES.find((x) => !isFinal(x) && isFavGame(x) && x.id), last = [...GAMES].reverse().find((x) => isFinal(x) && (x.home === fav || x.away === fav));
+    const det = await detailsFor([next, last]);
+    let TD = null; try { TD = await loadTeams(); } catch { /* the page works without team news */ }
+    const sk = skaters().filter((p) => p.team === fav).sort((a, b) => b.pts - a.pts || b.g - a.g);
+    body = `<section class="panel myteam-m" style="--tc:${tColor(fav)}">
+        <a class="mt-head" href="#/lag/${fav}">${tb(fav, 'xl')}<span class="mt-name"><b>${esc(tName(fav))}</b><small>Plats ${TABLE.indexOf(r) + 1} · ${r.pts} poäng · ${r.gp} matcher</small></span><span class="mt-chev">›</span></a>
+        <div class="mt-form">${formChips(fav)}</div>
+        <div class="mt-stats"><div><b>${oddsTxt(s.top10)}</b><span>Slutspel</span></div><div><b>${oddsTxt(s.top6)}</b><span>Topp 6</span></div><div><b>${oddsTxt(s.gold)}</b><span>SM-guld</span></div><div><b>${dec(s.proj, 0)}</b><span>Proj. poäng</span></div></div>
+      </section>
+      ${next ? sec(isLive(next) ? 'Pågår nu' : 'Nästa match', fmtDay(next.start)) + gameCard(next, det[next.id]) : ''}
+      ${last ? sec('Senaste match', fmtDay(last.start)) + gameCard(last, det[last.id]) : ''}
+      ${sec('Poängliga', '', moreLink(`#/lag/${fav}/trupp`, 'Truppen'))}
+      <section class="panel"><div class="p-body">${leaderList(sk, { val: (p) => p.pts, n: 5, avatars: false, sub: (p) => `${p.g} mål, ${p.a} assist` })}</div></section>
+      ${(TD?.news?.[fav] || []).length ? teamNewsPanel(fav, TD.news[fav]) : ''}`;
+  } else {
+    const gday = defaultDay(), games = GAMES.filter((g) => g.start.startsWith(gday)).sort((a, b) => a.start.localeCompare(b.start));
+    const det = await detailsFor(games);
+    const lead = [...skaters()].sort((a, b) => b.pts - a.pts || b.g - a.g);
+    body = `<section class="panel pick-m"><div class="p-body">
+        <h2>Följ ditt lag</h2><p>Välj ett lag så visas dess matcher, form och nyheter här, och lagets matcher hamnar först under Matcher.</p>
+        <div class="pickteams">${[...CODES].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => `<button data-fav="${c}" aria-label="Följ ${esc(tName(c))}">${tb(c, 'md')}</button>`).join('')}</div>
+      </div></section>
+      ${games.length ? sec(dayLabel(gday) === 'Idag' ? 'Matcher idag' : 'Nästa matchdag', fmtDay(gday), moreLink(`#/matcher/${gday}`, 'Alla')) + games.slice(0, 3).map((g) => gameCard(g, det[g.id])).join('') : ''}
+      ${sec('Tabell', '', moreLink('#/tabell', 'Hela tabellen'))}
+      <section class="panel"><div class="p-body">${standingsTable({ mode: 'stats' })}</div></section>
+      ${sec('Poängliga', '', moreLink('#/statistik', 'Statistik'))}
+      <section class="panel"><div class="p-body">${leaderList(lead, { val: (p) => p.pts, n: 5, avatars: false, sub: (p) => `${esc(p.team)} · ${p.g} mål, ${p.a} assist` })}</div></section>`;
+  }
+  render(`<section class="panel mnews">${newsBox()}</section>${body}`);
+  setupNewsCarousel();
+}
+
+// Media on phones: only video. Highlights packages, the goals from the hardest chances (lowest xG) and every goal
+let MEDIA = null;
+const loadMedia = async () => MEDIA ??= await (await fetch(dataUrl('media.json'))).json();
+async function pageMedia(range = '') {
+  setTitle('Media');
+  if (!MEDIA) app.innerHTML = skeleton();
+  let M;
+  try { M = await loadMedia(); } catch { return render(panel('Media', '<p class="empty-state">Videorna kunde inte laddas. Försök igen om en stund.</p>')); }
+  range = range === 'dag' ? 'dag' : 'vecka';
+  const mine = !!FAV && store.get('shlstats-media-mine') === '1';
+  const latest = [...(M.clips || []).map((c) => c.date), ...(M.highlights || []).map((h) => h.date)].sort().pop() || todayStr();
+  const lastDay = latest.slice(0, 10);
+  const since = new Date(Date.parse(lastDay) - 6 * 864e5).toISOString().slice(0, 10);
+  const inRange = (date) => range === 'dag' ? date.startsWith(lastDay) : date.slice(0, 10) >= since;
+  const clips = (M.clips || []).filter((c) => inRange(c.date) && (!mine || c.team === FAV || c.opp === FAV));
+  const hls = (M.highlights || []).filter((h) => inRange(h.date) && (!mine || h.home === FAV || h.away === FAV));
+  const dream = clips.filter((c) => c.xg != null && !c.en).sort((a, b) => a.xg - b.xg).slice(0, 6);
+  const who = (c) => esc(c.scorer?.name || 'Mål');
+  const when = range === 'dag' ? `${dayLabel(lastDay) || fmtDay(lastDay)}` : 'senaste veckan';
+  render(`<div class="page-head"><div><h1>Media</h1><p>Mål och matchsammandrag från SHL, ${esc(when)}.</p></div></div>
+    <div class="media-bar"><div class="seg" id="media-range"><button data-r="dag" aria-pressed="${range === 'dag'}">Senaste matchdagen</button><button data-r="vecka" aria-pressed="${range === 'vecka'}">Veckan</button></div>
+      ${FAV ? `<button class="chip chip-team" id="media-mine" aria-pressed="${mine}">${tb(FAV)}Bara ${esc(FAV)}</button>` : ''}</div>
+    ${hls.length ? `<div class="m-sec"><h2>Matchsammandrag <small>${hls.length}</small></h2></div><div class="clips mclips hrow">${hls.map((h) => clipCard(h, `${esc(h.home)} ${h.hs}–${h.as} ${esc(h.away)}`, fmtDay(h.date))).join('')}</div>` : ''}
+    ${dream.length ? `<div class="m-sec"><h2>Drömmålen</h2><p>Målen från de svåraste lägena, enligt xG.</p></div><div class="clips mclips hrow">${dream.map((c) => clipCard(c, who(c), `${esc(c.team)} mot ${esc(c.opp)} · ${dec(c.xg * 100, c.xg < 0.1 ? 1 : 0)} % chans`)).join('')}</div>` : ''}
+    <div class="m-sec"><h2>Alla mål <small>${clips.length}</small></h2></div>
+    ${clips.length ? `<div class="clips mclips grid2">${clips.map((c) => clipCard(c, who(c), `${esc(c.team)} mot ${esc(c.opp)} · ${c.score[0]}–${c.score[1]} · ${fmtDay(c.date)}`)).join('')}</div>` : '<p class="empty-state">Inga målvideor här ännu. De brukar komma någon timme efter slutsignalen.</p>'}`);
+  $('media-range').onclick = (e) => { const b = e.target.closest('button'); if (b) location.hash = b.dataset.r === 'dag' ? '#/media/dag' : '#/media'; };
+  if (FAV) $('media-mine').onclick = () => { store.set('shlstats-media-mine', mine ? '0' : '1'); route(); };
+}
+
+// Settings (phones, from the gear on Hem): theme and your team
+function applyTheme(v) {
+  const root = document.documentElement;
+  if (v === 'auto') { delete root.dataset.theme; store.set('shlstats-theme', 'auto'); }
+  else { root.dataset.theme = v; store.set('shlstats-theme', v); }
+  const cur = root.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  for (const t of ['dark', 'light']) $('theme-' + t)?.setAttribute('aria-pressed', t === cur);
+  route();
+}
+function openSettings() {
+  const dlg = $('settings');
+  const draw = () => {
+    const theme = document.documentElement.dataset.theme || 'auto';
+    dlg.innerHTML = `<div class="sheet-in"><div class="sheet-grab" aria-hidden="true"></div>
+      <div class="sheet-head"><h2>Inställningar</h2><button class="sheet-close" data-close aria-label="Stäng">Klar</button></div>
+      <h3>Tema</h3>
+      <div class="seg sheet-seg" id="set-theme">${[['dark', 'Mörkt'], ['light', 'Ljust'], ['auto', 'Automatiskt']].map(([v, l]) => `<button data-v="${v}" aria-pressed="${theme === v}">${l}</button>`).join('')}</div>
+      <h3>Mitt lag</h3>
+      <div class="set-teams">${[...CODES].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => `<button data-team="${c}" aria-pressed="${FAV === c}">${tb(c, 'md')}<span>${esc(tName(c))}</span></button>`).join('')}
+        <button data-team="" aria-pressed="${!FAV}"><span class="set-none">–</span><span>Inget lag</span></button></div></div>`;
+  };
+  draw();
+  dlg.onclick = (e) => {
+    if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); return; }
+    const t = e.target.closest('#set-theme button');
+    if (t) { applyTheme(t.dataset.v); draw(); return; }
+    const b = e.target.closest('[data-team]');
+    if (b) { setFav(b.dataset.team || null); draw(); }
+  };
+  dlg.showModal();
+}
+
+/* =====================================================================
    Router and boot
    ===================================================================== */
 const ROUTES = [
   [/^\/?$/, pageOverview], [/^\/matcher(?:\/([^/]+))?$/, pageGames], [/^\/match\/([^/]+)(?:\/([^/]+))?$/, pageMatch], [/^\/tabell(?:\/([^/]+))?$/, pageTable],
-  [/^\/statistik$/, pageStats], [/^\/spelare\/([^/]+)(?:\/([^/]+))?$/, pagePlayer], [/^\/nexus$/, pageEdge], [/^\/avancerat$/, pageEdge], // old address still works [/^\/nyheter\/([^/]+)$/, pageNews],
+  [/^\/statistik$/, pageStats], [/^\/spelare\/([^/]+)(?:\/([^/]+))?$/, pagePlayer], [/^\/nexus$/, pageEdge], [/^\/avancerat$/, pageEdge], // old address still works
+  [/^\/nyheter\/([^/]+)$/, pageNews], [/^\/media(?:\/([^/]+))?$/, pageMedia],
   [/^\/lag$/, () => pageTable('')], // old link to the teams page, now the Tabell page
   [/^\/lag\/([^/]+)(?:\/([^/]+))?$/, pageTeam],
 ];
@@ -2275,6 +2485,7 @@ async function route() {
     if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
   document.body.classList.remove('search-open');
+  document.body.classList.toggle('is-home', path === '/'); // the settings button shows on Hem (phones)
   clearInterval(newsTimer); // the news carousel only runs on the overview
   // Switching tabs within the same page keeps the scroll position near the tabs
   const samePage = lastPath && path.split('/').slice(0, 3).join('/') === lastPath.split('/').slice(0, 3).join('/');
@@ -2311,7 +2522,7 @@ async function boot() {
   $('reload-data').onclick = () => location.reload();
   buildCards();
   // Menu icons (top menu on desktop, bottom bar on phones)
-  const NAV_ICON = { '': 'home', statistik: 'chart', tabell: 'table', matcher: 'calendar', nexus: 'target' };
+  const NAV_ICON = { '': 'home', statistik: 'chart', tabell: 'table', matcher: 'calendar', nexus: 'target', media: 'play' };
   document.querySelectorAll('nav.main a, .bottom-nav a').forEach((a) => a.insertAdjacentHTML('afterbegin', icon(NAV_ICON[a.dataset.nav])));
   app.removeAttribute('aria-busy');
   setupTheme();
@@ -2321,6 +2532,7 @@ async function boot() {
   setupStripScrolling();
   renderStrip();
   renderFavLink();
+  $('settings-open').onclick = openSettings;
   window.addEventListener('hashchange', route);
   startLive(); // before the first page so a game being played opens in live mode
   route();

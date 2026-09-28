@@ -51,6 +51,7 @@
       <a href="#/nexus" data-nav="nexus">Nexus</a> <!-- desktop only for now: the top menu is hidden on phones -->
     </nav>
     <div class="top-tools">
+      <button class="settings-btn" id="settings-open" aria-label="Inställningar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.54 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9c.26.6.85 1 1.51 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03z"/></svg></button>
       <a class="favlink" id="favlink" hidden></a>
       <div class="gsearch">
         <button class="search-toggle" id="search-open" aria-label="Sök spelare eller lag"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
@@ -79,11 +80,14 @@
 
 <!-- Phones: main menu as a bottom bar (icons are added by app.js) -->
 <nav class="bottom-nav" aria-label="Meny">
-  <a href="#/" data-nav="">Översikt</a>
+  <a href="#/" data-nav="">Hem</a>
+  <a href="#/matcher" data-nav="matcher">Matcher</a>
   <a href="#/statistik" data-nav="statistik">Statistik</a>
   <a href="#/tabell" data-nav="tabell">Tabell</a>
-  <a href="#/matcher" data-nav="matcher">Matcher</a>
+  <a href="#/media" data-nav="media">Media</a>
 </nav>
+<!-- Phones: settings sheet (theme and your team), opened from the gear on Hem -->
+<dialog class="sheet" id="settings" aria-label="Inställningar"></dialog>
 
 <dialog class="video" id="video" aria-label="Video">
   <div class="video-head"><b id="video-title"></b><button class="video-close" id="video-close" aria-label="Stäng video">✕</button></div>
