@@ -1,3 +1,6 @@
 site/
 cache/
 node_modules/
+
+# Private web push key (paste into Cloudflare as a secret, never commit)
+live-relay/vapid-keys.local.json
