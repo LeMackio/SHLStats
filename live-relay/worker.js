@@ -47,7 +47,7 @@ const shortName = (n) => { const p = String(n || '').split(/\s+/); return p.leng
 async function today(q) {
   const [season, series, type] = ['season', 'series', 'type'].map((k) => q.get(k));
   if (![season, series, type].every((v) => v && ID.test(v))) return { status: 400, body: { error: 'bad parameters' } };
-  const s = await upstream(`/sports-v2/game-schedule?seasonUuid=${season}&seriesUuid=${series}&gameTypeUuid=${type}&gamePlace=all&played=all`, 20);
+  const s = await upstream(`/sports-v2/game-schedule?seasonUuid=${season}&seriesUuid=${series}&gameTypeUuid=${type}&gamePlace=all&played=all`, 10);
   const day = stockholmDay(new Date());
   const games = (s?.gameInfo || [])
     .filter((g) => g.startDateTime.slice(0, 10) === day || (g.state !== 'pre-game' && g.state !== 'post-game'))
@@ -56,7 +56,7 @@ async function today(q) {
 }
 
 async function pbpOf(id) {
-  const pbp = await upstream(`/gameday/play-by-play/${id}`, 10);
+  const pbp = await upstream(`/gameday/play-by-play/${id}`, 4); // short cache: the feed should feel live
   return Array.isArray(pbp) ? pbp : [];
 }
 
@@ -64,12 +64,19 @@ async function game(id) {
   if (!ID.test(id)) return { status: 400, body: { error: 'bad id' } };
   const list = await pbpOf(id);
   const latest = list.reduce((a, e) => (!a || e.eventId > a.eventId ? e : a), null);
-  // Shot events with a positive goalSection are shots on goal; the rest were blocked or missed
-  const events = list.filter((e) => ['goal', 'penalty'].includes(e.type) || (e.type === 'shot' && e.goalSection > 0)).map((e) => ({
-    type: e.type, p: e.period, t: e.time, side: e.eventTeam?.place, x: e.locationX ?? null, y: e.locationY ?? null,
-    player: name(e.player), num: e.player?.jerseyToday ?? null,
-    ...(e.type === 'goal' ? { a1: name(e.assists?.first), a2: name(e.assists?.second), str: e.goalStatus || 'EQ', en: !!e.isEmptyNetGoal, ps: !!e.isPenaltyShot, score: [e.homeGoals, e.awayGoals] } : {}),
-    ...(e.type === 'penalty' ? { desc: e.variant?.description || '', off: e.offence || '' } : {}),
+  // Everything the live feed shows. Shots: goalSection above 0 is on goal ("shot"), 0 missed the net ("miss"),
+  // below 0 was blocked ("block"); this matches the official blocked-shot counts. The site counts only "shot" as on goal.
+  const kind = (e) => e.type === 'shot' ? (e.goalSection > 0 ? 'shot' : e.goalSection < 0 ? 'block' : 'miss')
+    : e.type === 'goalkeeper' ? 'gk' : e.type === 'shootout-penalty-shot' ? 'so' : e.type;
+  const KEEP = new Set(['goal', 'penalty', 'shot', 'miss', 'block', 'gk', 'period', 'timeout', 'so']);
+  const events = list.map((e) => [kind(e), e]).filter(([k]) => KEEP.has(k)).map(([k, e]) => ({
+    type: k, id: e.eventId ?? null, rt: e.realWorldTime || null, p: e.period, t: e.time ?? null, side: e.eventTeam?.place ?? null,
+    x: e.locationX ?? null, y: e.locationY ?? null, player: name(e.player), num: e.player?.jerseyToday ?? null,
+    ...(k === 'goal' ? { a1: name(e.assists?.first), a2: name(e.assists?.second), str: e.goalStatus || 'EQ', en: !!e.isEmptyNetGoal, ps: !!e.isPenaltyShot, score: [e.homeGoals, e.awayGoals] } : {}),
+    ...(k === 'penalty' ? { desc: e.variant?.description || '', off: e.offence || '' } : {}),
+    ...(k === 'gk' ? { in: !!e.isEntering } : {}),
+    ...(k === 'period' ? { started: !!e.started, finished: !!e.finished } : {}),
+    ...(k === 'so' ? { goal: !!e.isGoal } : {}),
   }));
   return {
     status: 200,
@@ -216,7 +223,7 @@ export default {
       'access-control-allow-headers': 'content-type',
       'vary': 'origin',
       'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'public, max-age=10',
+      'cache-control': 'public, max-age=3', // live data: browsers may reuse an answer for a few seconds only
     };
     if (req.method === 'OPTIONS') return new Response(null, { headers });
     const url = new URL(req.url);

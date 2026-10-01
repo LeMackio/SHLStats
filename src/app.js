@@ -150,6 +150,9 @@ async function loadLive(id, maxAge = 15000) {
     // The feed calls the shootout period "shootout"; use 5 like the rest of the site
     const per = (p) => typeof p === 'number' ? p : /shoot/i.test(String(p)) ? 5 : Number(p) || null;
     data.p = per(data.p); for (const e of data.events || []) e.p = per(e.p) || 0;
+    // The clock: the latest game time among the events (SHL sometimes re-sends an older event last)
+    const at = (p, t) => p * 1e4 + (([m, s]) => (m || 0) * 60 + (s || 0))(String(t || '0:0').split(':').map(Number));
+    for (const e of data.events || []) if (e.t && e.type !== 'period' && e.p < 5 && at(e.p, e.t) > at(data.p || 0, data.t)) { data.p = e.p; data.t = e.t; }
     LIVE[id] = { at: Date.now(), data };
   } catch { /* keep the last answer if there is one */ }
   return LIVE[id]?.data ?? null;
@@ -234,7 +237,9 @@ function startLive() {
         if (changed || (sig && sig !== liveSig)) { liveSig = sig; route(); }
       } else if (changed && /^#\/(match|matcher)/.test(location.hash)) route();
     }
-    liveTimer = setTimeout(tick, due.length ? 20000 : 5 * 60e3);
+    // As live as possible: every 6 s while a live game's page is open, every 15 s when games are on, otherwise every 5 min
+    const mm = location.hash.match(/^#\/match\/([^/?]+)/), open = mm && GAMES_BY_ID[decodeURIComponent(mm[1])];
+    liveTimer = setTimeout(tick, open && isLive(open) ? 6000 : due.length ? 15000 : 5 * 60e3);
   };
   document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
   tick();
@@ -1065,6 +1070,9 @@ async function pageMatch(id, tab = '') {
       : tab === 'inbordes' ? matchH2H(g) : matchPreview(g);
   }
   render(head + body);
+  // The live feed: remember this game's data for the full-screen view, and refresh that view if it is open
+  FEED_DATA = live && d?.live ? d : null;
+  if (FEED_DATA && FEED.id === id && $('feed')?.open) drawFeed(FEED_DATA);
   if ((done || live) && d && tab === 'spelare') for (const side of ['home', 'away']) boxTable(d, side);
   if (!done && !live && tab === 'uppstallning') applyOfficialLineups(g);
 }
@@ -1107,6 +1115,104 @@ function teamCompare(d) {
     ${has('Saves') ? row('Räddningar', H.Saves ?? 0, A.Saves ?? 0) : ''}
   </div>`;
 }
+/* ---------- Live feed: every shot, block, miss, penalty, goal and goalie change, newest first ---------- */
+const FEED = { id: null, filter: 'all', seen: new Map() }; // the open full-screen feed, its filter, and events already shown per game
+const FEED_ICON = {
+  goal: '<svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="13" rx="8" ry="4"/><path d="M4 11v2c0 2.2 3.6 4 8 4s8-1.8 8-4v-2c0 2.2-3.6 4-8 4s-8-1.8-8-4z" opacity=".55"/></svg>',
+  shot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>',
+  miss: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"><circle cx="12" cy="12" r="8"/></svg>',
+  block: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/></svg>',
+  penalty: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>',
+  gk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 21V11a5 5 0 0 1 10 0v10M4 21h16"/></svg>',
+  period: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
+  timeout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 5v14M16 5v14"/></svg>',
+  so: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/></svg>',
+};
+const FEED_GROUP = { goal: 'goal', shot: 'shot', miss: 'shot', block: 'shot', so: 'shot', penalty: 'pen' };
+const feedKey = (e) => e.id != null ? `e${e.id}` : `${e.type}|${e.p}|${e.t}|${e.started ? 1 : 0}${e.finished ? 1 : 0}`;
+function feedEvents(d) {
+  const sec = (e) => e.type === 'period' ? (e.finished ? 1e5 : -1) : (([m, s]) => (m || 0) * 60 + (s || 0))(String(e.t || '0:0').split(':').map(Number));
+  return [...(d.live?.events || [])].sort((a, b) => (b.p || 0) - (a.p || 0) || sec(b) - sec(a) || (b.id || 0) - (a.id || 0));
+}
+function feedRow(e, d, isNew) {
+  const team = e.side ? d[e.side] : null, who = esc(e.player || '');
+  const when = e.type === 'period' ? '' : e.p >= 5 ? 'Straff' : `${e.p === 4 ? 'ÖT' : `P${e.p}`} ${esc(e.t || '')}`;
+  let title, sub = '';
+  switch (e.type) {
+    case 'goal': {
+      const tag = e.en ? 'Tom kasse' : /^PP/.test(e.str || '') ? 'Powerplay' : /^(SH|BP)/.test(e.str || '') ? 'Boxplay' : e.ps ? 'Straffslag' : '';
+      title = `MÅL! ${who || esc(tName(team))}`;
+      sub = [[e.a1, e.a2].filter(Boolean).map(esc).join(', ') ? `Assist: ${[e.a1, e.a2].filter(Boolean).map(esc).join(', ')}` : 'Ingen assist', tag].filter(Boolean).join(' · ');
+      break;
+    }
+    case 'shot': title = 'Skott på mål'; sub = who; break;
+    case 'miss': title = 'Skott utanför'; sub = who; break;
+    case 'block': title = 'Blockerat skott'; sub = who ? `Skott av ${who}` : ''; break;
+    case 'penalty': title = `Utvisning${parseInt(e.desc) ? ` · ${parseInt(e.desc)} min` : ''}`; sub = [who || 'Lagstraff', esc(OFFENCE[e.off] || e.off || '')].filter(Boolean).join(' · '); break;
+    case 'gk': title = e.in ? 'Målvakt in' : 'Målvakt ut'; sub = who; break;
+    case 'period': title = `${PERIOD_NAME(e.p)} ${e.finished ? 'är slut' : 'har börjat'}`; break;
+    case 'timeout': title = 'Timeout'; sub = team ? esc(tName(team)) : ''; break;
+    case 'so': title = `Straff: ${e.goal ? 'mål' : 'räddad'}`; sub = who; break;
+    default: title = esc(e.type);
+  }
+  const score = e.type === 'goal' && e.score ? `<span class="fd-score num">${e.score[0]}–${e.score[1]}</span>` : '';
+  return `<li class="fd fd-${e.type} ${isNew ? 'new' : ''}" ${e.side ? `style="--fc:${pairColors(d.home, d.away)[e.side === 'home' ? 0 : 1]}"` : ''}>
+    <span class="fd-t num">${when}</span>
+    <span class="fd-ic">${FEED_ICON[e.type] || ''}</span>
+    ${team ? tb(team) : '<span></span>'}
+    <span class="fd-txt"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span>${score}</li>`;
+}
+function feedList(d, list) {
+  const seen = FEED.seen.get(d.id), first = !seen, set = seen || new Set();
+  const html = list.map((e) => { const k = feedKey(e), isNew = !first && !set.has(k); set.add(k); return feedRow(e, d, isNew); }).join('');
+  FEED.seen.set(d.id, set);
+  return list.length ? `<ol class="fd-list">${html}</ol>` : '<p class="empty-state">Inget har hänt ännu.</p>';
+}
+// The card at the top of a live game: the latest events in a fixed-size card; tap it for the full feed
+function feedCard(d) {
+  const ev = feedEvents(d);
+  return `<section class="panel wide feed-card"><div class="feed-open" data-feed-open role="button" tabindex="0" aria-label="Öppna hela live-flödet">
+    <div class="p-head"><h2><i class="live-dot"></i>Live-flöde</h2><span class="feed-cta">Hela flödet ›</span></div>
+    <div class="feed-peek">${feedList(d, ev.slice(0, 8))}</div></div></section>`;
+}
+// Full-screen feed, kept up to date while it is open
+function drawFeed(d) {
+  const dlg = $('feed'); if (!dlg) return;
+  const ev = feedEvents(d), cnt = (types, side) => ev.filter((e) => types.includes(e.type) && e.side === side).length;
+  const stat = (label, types) => `<div><b class="num">${cnt(types, 'home')}–${cnt(types, 'away')}</b><span>${label}</span></div>`;
+  const shown = ev.filter((e) => FEED.filter === 'all' || FEED_GROUP[e.type] === FEED.filter);
+  const body = dlg.querySelector('.fd-body'), top = body ? body.scrollTop : 0;
+  dlg.innerHTML = `<div class="fd-head">
+      <div class="fd-match">${tb(d.home, 'md')}<b class="num">${d.hs}–${d.as}</b>${tb(d.away, 'md')}<span class="fd-clock"><i class="live-dot"></i>${esc(liveClock(d.live))}</span></div>
+      <button class="sheet-close" data-feed-close aria-label="Stäng">✕</button>
+    </div>
+    <div class="fd-stats">${stat('Skott på mål', ['shot', 'goal'])}${stat('Utanför', ['miss'])}${stat('Blockerade', ['block'])}${stat('Utvisningar', ['penalty'])}</div>
+    <div class="seg fd-filter">${[['all', 'Allt'], ['goal', 'Mål'], ['shot', 'Skott'], ['pen', 'Utvisningar']].map(([v, l]) => `<button data-feed-filter="${v}" aria-pressed="${FEED.filter === v}">${l}</button>`).join('')}</div>
+    <div class="fd-body">${feedList(d, shown)}</div>`;
+  dlg.querySelector('.fd-body').scrollTop = top;
+}
+let FEED_DATA = null; // the latest live data of the game whose feed can be opened
+function openFeed() {
+  if (!FEED_DATA) return;
+  let dlg = $('feed');
+  if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'feed'; dlg.className = 'feed-dlg'; document.body.append(dlg); }
+  FEED.id = FEED_DATA.id; FEED.filter = 'all';
+  // Everything already in the feed counts as seen, so only events arriving while it is open slide in
+  const seen = FEED.seen.get(FEED_DATA.id) || new Set();
+  for (const e of FEED_DATA.live?.events || []) seen.add(feedKey(e));
+  FEED.seen.set(FEED_DATA.id, seen);
+  drawFeed(FEED_DATA);
+  if (!dlg.open) dlg.showModal();
+  dlg.onclick = (e) => {
+    if (e.target === dlg || e.target.closest('[data-feed-close]')) { dlg.close(); return; }
+    const f = e.target.closest('[data-feed-filter]');
+    if (f) { FEED.filter = f.dataset.feedFilter; drawFeed(FEED_DATA); }
+  };
+  dlg.onclose = () => { FEED.id = null; };
+}
+document.addEventListener('click', (e) => { if (e.target.closest('[data-feed-open]')) openFeed(); });
+document.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest?.('[data-feed-open]')) { e.preventDefault(); openFeed(); } });
+
 function matchSummary(d, done = true) {
   const per = d.periods.length ? `<div class="tscroll"><table class="t"><thead><tr><th class="l">Lag</th>${d.periods.map((p) => `<th>${p.p <= 3 ? p.p : p.p === 4 ? 'ÖT' : 'STR'}</th>`).join('')}<th>Mål</th><th>Skott</th></tr></thead><tbody>
     ${['home', 'away'].map((s) => `<tr><td class="l">${teamLink(d[s], { name: true })}</td>${d.periods.map((p) => `<td>${s === 'home' ? p.h : p.a}</td>`).join('')}<td class="hl">${s === 'home' ? d.hs : d.as}</td><td>${d.team[s].SOG ?? '–'}</td></tr>`).join('')}</tbody></table></div>` : '';
@@ -1115,8 +1221,10 @@ function matchSummary(d, done = true) {
   const perCard = per ? panel('Periodresultat', per) : '';
   // During a game the goals card appears with the first goal (the clock is in the header above).
   // Until then the game flow leads, with team stats and periods side by side under it.
-  if (d.live && !d.goals.length) return board([flow, stats, perCard]);
+  const feed = d.live ? feedCard(d) : '';
+  if (d.live && !d.goals.length) return board([feed, flow, stats, perCard]);
   return board([
+    feed,
     panel('Mål', goalEvents(d)), // half width on computers, with Lagstatistik beside it
     stats,
     flow,

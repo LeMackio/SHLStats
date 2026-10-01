@@ -1909,3 +1909,62 @@ footer#foot p { margin: 0; }
   .gl-row { grid-template-columns: 40px 38px minmax(0, 1fr) 52px 30px; gap: 8px; padding: 8px 8px 8px 10px; }
   .gl-who small { font-size: 13px; }
 }
+
+/* Live feed: rows (time | icon | team | what happened | score) */
+.fd-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.fd { display: grid; grid-template-columns: 54px 30px 22px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 44px;
+  padding: 6px 12px; border-radius: var(--r-in, 12px); background: var(--panel-2); }
+.fd-t { font: 600 13px var(--display); color: var(--muted); white-space: nowrap; }
+.fd-ic { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: color-mix(in srgb, var(--fc, var(--muted)) 16%, transparent); color: var(--fc, var(--muted)); }
+.fd-ic svg { width: 16px; height: 16px; }
+.fd .tb { width: 22px; height: 22px; }
+.fd-txt { display: grid; min-width: 0; line-height: 1.2; }
+.fd-txt b { font: 700 14.5px var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fd-txt small { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fd-score { font: 700 18px var(--display); padding: 2px 10px; border-radius: 8px; background: color-mix(in srgb, var(--fc) 22%, transparent); }
+/* Kinds: goals stand out in the scorer's team colour; misses and blocks are quieter; penalties in red */
+.fd-goal { background: color-mix(in srgb, var(--fc) 14%, var(--panel-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fc) 40%, transparent); min-height: 54px; }
+.fd-goal .fd-ic { background: var(--fc); color: #fff; }
+.fd-goal .fd-txt b { font-size: 16px; }
+.fd-miss .fd-txt b, .fd-block .fd-txt b { font-weight: 600; color: var(--muted); }
+.fd-miss .fd-ic, .fd-block .fd-ic { background: none; color: var(--faint); }
+.fd-penalty .fd-ic { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
+.fd-period, .fd-timeout { background: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 80%, transparent); }
+.fd-period .fd-ic, .fd-timeout .fd-ic { background: none; color: var(--accent); }
+.fd-period .fd-txt b { text-transform: uppercase; letter-spacing: .06em; font-size: 13px; color: var(--muted); }
+/* New events slide in and glow for a moment */
+.fd.new { animation: fdIn .5s cubic-bezier(.2, .8, .3, 1) both, fdGlow 2.4s ease-out; }
+@keyframes fdIn { from { opacity: 0; transform: translateY(-10px) scale(.98); } }
+@keyframes fdGlow { 0%, 30% { box-shadow: inset 0 0 0 2px var(--accent); } }
+@media (prefers-reduced-motion: reduce) { .fd.new { animation: none; } }
+
+/* The card: always the same height, newest on top, fading out at the bottom; the whole card opens the full feed */
+.feed-card { padding: 0; overflow: hidden; }
+.feed-open { display: block; cursor: pointer; padding: 18px 20px 14px; border-radius: inherit; outline-offset: -3px; }
+.feed-open .p-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.feed-open h2 { display: flex; align-items: center; gap: 9px; margin: 0; }
+.feed-cta { font-size: 13px; color: var(--accent); font-weight: 600; }
+.feed-open:hover .feed-cta { text-decoration: underline; }
+.feed-peek { height: 300px; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent); mask-image: linear-gradient(180deg, #000 70%, transparent); }
+@media (max-width: 700px) { .feed-peek { height: 260px; } .fd { grid-template-columns: 48px 28px 20px minmax(0, 1fr) auto; gap: 8px; padding: 6px 10px; } }
+
+/* Full-screen feed: a large window on computers, the whole screen on phones */
+.feed-dlg { width: min(760px, 94vw); height: 88vh; max-height: 88vh; padding: 0; border: 0; border-radius: var(--radius); background: var(--panel); color: var(--text);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .45); display: none; flex-direction: column; overflow: hidden; }
+.feed-dlg[open] { display: flex; animation: fdOpen .28s cubic-bezier(.2, .8, .3, 1); }
+.feed-dlg::backdrop { background: rgba(5, 8, 12, .6); backdrop-filter: blur(4px); }
+@keyframes fdOpen { from { opacity: 0; transform: translateY(16px) scale(.98); } }
+.fd-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px 10px; }
+.fd-match { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.fd-match > b { font: 700 26px var(--display); }
+.fd-clock { display: inline-flex; align-items: center; gap: 7px; margin-left: 6px; font: 600 14px var(--display); color: var(--bad); }
+.fd-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 0 18px 10px; }
+.fd-stats div { display: grid; justify-items: center; padding: 8px 4px; border-radius: var(--r-in, 10px); background: var(--panel-2); }
+.fd-stats b { font: 700 18px var(--display); }
+.fd-stats span { font: 600 10.5px var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); text-align: center; }
+.fd-filter { margin: 0 18px 10px; align-self: flex-start; }
+.fd-body { flex: 1; overflow-y: auto; padding: 0 18px 18px; overscroll-behavior: contain; }
+@media (max-width: 700px) {
+  .feed-dlg { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; padding-top: env(safe-area-inset-top, 0px); }
+  .fd-stats { padding: 0 12px 10px; } .fd-head { padding: 12px 12px 8px; } .fd-filter { margin: 0 12px 10px; } .fd-body { padding: 0 12px calc(16px + env(safe-area-inset-bottom, 0px)); }
+}
