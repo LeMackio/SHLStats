@@ -1118,7 +1118,7 @@ function teamCompare(d) {
 /* ---------- Live feed: every shot, block, miss, penalty, goal and goalie change, newest first ---------- */
 const FEED = { id: null, filter: 'all', seen: new Map() }; // the open full-screen feed, its filter, and events already shown per game
 const FEED_ICON = {
-  goal: '<svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="13" rx="8" ry="4"/><path d="M4 11v2c0 2.2 3.6 4 8 4s8-1.8 8-4v-2c0 2.2-3.6 4-8 4s-8-1.8-8-4z" opacity=".55"/></svg>',
+  goal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linejoin="round"><path d="M4 19V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v11" stroke-width="2.2"/><path d="M3 19h18" stroke-width="2.2"/><path d="M9 6v13M15 6v13M4 11h16M4 15h16" stroke-width="1.2" opacity=".75"/></svg>',
   shot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>',
   miss: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"><circle cx="12" cy="12" r="8"/></svg>',
   block: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/></svg>',
@@ -1134,39 +1134,47 @@ function feedEvents(d) {
   const sec = (e) => e.type === 'period' ? (e.finished ? 1e5 : -1) : (([m, s]) => (m || 0) * 60 + (s || 0))(String(e.t || '0:0').split(':').map(Number));
   return [...(d.live?.events || [])].sort((a, b) => (b.p || 0) - (a.p || 0) || sec(b) - sec(a) || (b.id || 0) - (a.id || 0));
 }
+// One event on the timeline: the icon sits on the centre line, the home team's events to the left and the
+// away team's to the right, with the time on the other side of the icon. Period starts and ends sit on the line.
 function feedRow(e, d, isNew) {
   const team = e.side ? d[e.side] : null, who = esc(e.player || '');
-  const when = e.type === 'period' ? '' : e.p >= 5 ? 'Straff' : `${e.p === 4 ? 'ÖT' : `P${e.p}`} ${esc(e.t || '')}`;
-  let title, sub = '';
+  if (e.type === 'period' || !e.side) {
+    const label = e.type === 'period' ? `${PERIOD_NAME(e.p)} ${e.finished ? 'är slut' : 'har börjat'}` : e.type === 'timeout' ? 'Timeout' : esc(e.type);
+    return `<li class="fd fd-mid fd-${e.type} ${isNew ? 'new' : ''}"><span class="fd-pill">${FEED_ICON[e.type] || ''}${label}</span></li>`;
+  }
+  const when = e.p >= 5 ? 'Straff' : `${e.p === 4 ? 'ÖT ' : ''}${esc(String(e.t || '').replace(/^0/, ''))}`;
+  // Main line: usually the player; the line under it says what happened
+  let main = who, sub;
   switch (e.type) {
     case 'goal': {
       const tag = e.en ? 'Tom kasse' : /^PP/.test(e.str || '') ? 'Powerplay' : /^(SH|BP)/.test(e.str || '') ? 'Boxplay' : e.ps ? 'Straffslag' : '';
-      title = `MÅL! ${who || esc(tName(team))}`;
-      sub = [[e.a1, e.a2].filter(Boolean).map(esc).join(', ') ? `Assist: ${[e.a1, e.a2].filter(Boolean).map(esc).join(', ')}` : 'Ingen assist', tag].filter(Boolean).join(' · ');
+      const assists = [e.a1, e.a2].filter(Boolean).map(esc).join(', ');
+      const [h, a] = e.score || [];
+      main = `${e.score ? `<span class="fd-sc num"><b class="${e.side === 'home' ? 'on' : ''}">${h}</b> – <b class="${e.side === 'away' ? 'on' : ''}">${a}</b></span> ` : ''}${who || esc(tName(team))}`;
+      sub = [assists ? `Assist: ${assists}` : 'Ingen assist', tag].filter(Boolean).join(' · ');
       break;
     }
-    case 'shot': title = 'Skott på mål'; sub = who; break;
-    case 'miss': title = 'Skott utanför'; sub = who; break;
-    case 'block': title = 'Blockerat skott'; sub = who ? `Skott av ${who}` : ''; break;
-    case 'penalty': title = `Utvisning${parseInt(e.desc) ? ` · ${parseInt(e.desc)} min` : ''}`; sub = [who || 'Lagstraff', esc(OFFENCE[e.off] || e.off || '')].filter(Boolean).join(' · '); break;
-    case 'gk': title = e.in ? 'Målvakt in' : 'Målvakt ut'; sub = who; break;
-    case 'period': title = `${PERIOD_NAME(e.p)} ${e.finished ? 'är slut' : 'har börjat'}`; break;
-    case 'timeout': title = 'Timeout'; sub = team ? esc(tName(team)) : ''; break;
-    case 'so': title = `Straff: ${e.goal ? 'mål' : 'räddad'}`; sub = who; break;
-    default: title = esc(e.type);
+    case 'shot': sub = 'Skott på mål'; break;
+    case 'miss': sub = 'Skott utanför'; break;
+    case 'block': sub = 'Blockerat skott'; break;
+    case 'penalty': main = who || 'Lagstraff'; sub = [parseInt(e.desc) ? `${parseInt(e.desc)} min` : 'Utvisning', esc(OFFENCE[e.off] || e.off || '')].filter(Boolean).join(' · '); break;
+    case 'gk': sub = e.in ? 'Målvakt in' : 'Målvakt ut'; break;
+    case 'timeout': main = esc(tName(team)); sub = 'Timeout'; break;
+    case 'so': sub = `Straff · ${e.goal ? 'mål' : 'räddad'}`; break;
+    default: sub = esc(e.type);
   }
-  const score = e.type === 'goal' && e.score ? `<span class="fd-score num">${e.score[0]}–${e.score[1]}</span>` : '';
-  return `<li class="fd fd-${e.type} ${isNew ? 'new' : ''}" ${e.side ? `style="--fc:${pairColors(d.home, d.away)[e.side === 'home' ? 0 : 1]}"` : ''}>
-    <span class="fd-t num">${when}</span>
-    <span class="fd-ic">${FEED_ICON[e.type] || ''}</span>
-    ${team ? tb(team) : '<span></span>'}
-    <span class="fd-txt"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span>${score}</li>`;
+  if (!main) { main = sub; sub = ''; }
+  const txt = `<span class="fd-txt"><b>${main}</b>${sub ? `<small>${sub}</small>` : ''}</span>`, time = `<span class="fd-t num">${when}</span>`;
+  const icon = `<span class="fd-ic">${FEED_ICON[e.type] || ''}</span>`;
+  return `<li class="fd fd-${e.type} fd-${e.side} ${isNew ? 'new' : ''}" style="--fc:${pairColors(d.home, d.away)[e.side === 'home' ? 0 : 1]}">
+    ${e.side === 'home' ? `${txt}${icon}${time}` : `${time}${icon}${txt}`}</li>`;
 }
 function feedList(d, list) {
   const seen = FEED.seen.get(d.id), first = !seen, set = seen || new Set();
   const html = list.map((e) => { const k = feedKey(e), isNew = !first && !set.has(k); set.add(k); return feedRow(e, d, isNew); }).join('');
   FEED.seen.set(d.id, set);
-  return list.length ? `<ol class="fd-list">${html}</ol>` : '<p class="empty-state">Inget har hänt ännu.</p>';
+  const sides = `<div class="fd-sides"><span>${tb(d.home)}${esc(tName(d.home))}</span><span>${esc(tName(d.away))}${tb(d.away)}</span></div>`;
+  return list.length ? `${sides}<ol class="fd-list">${html}</ol>` : '<p class="empty-state">Inget har hänt ännu.</p>';
 }
 // The card at the top of a live game: the latest events in a fixed-size card; tap it for the full feed
 function feedCard(d) {

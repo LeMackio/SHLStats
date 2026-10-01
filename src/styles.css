@@ -1910,34 +1910,49 @@ footer#foot p { margin: 0; }
   .gl-who small { font-size: 13px; }
 }
 
-/* Live feed: rows (time | icon | team | what happened | score) */
-.fd-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
-.fd { display: grid; grid-template-columns: 54px 30px 22px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 44px;
-  padding: 6px 12px; border-radius: var(--r-in, 12px); background: var(--panel-2); }
-.fd-t { font: 600 13px var(--display); color: var(--muted); white-space: nowrap; }
-.fd-ic { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: color-mix(in srgb, var(--fc, var(--muted)) 16%, transparent); color: var(--fc, var(--muted)); }
-.fd-ic svg { width: 16px; height: 16px; }
-.fd .tb { width: 22px; height: 22px; }
-.fd-txt { display: grid; min-width: 0; line-height: 1.2; }
-.fd-txt b { font: 700 14.5px var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fd-txt small { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fd-score { font: 700 18px var(--display); padding: 2px 10px; border-radius: 8px; background: color-mix(in srgb, var(--fc) 22%, transparent); }
-/* Kinds: goals stand out in the scorer's team colour; misses and blocks are quieter; penalties in red */
-.fd-goal { background: color-mix(in srgb, var(--fc) 14%, var(--panel-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fc) 40%, transparent); min-height: 54px; }
-.fd-goal .fd-ic { background: var(--fc); color: #fff; }
-.fd-goal .fd-txt b { font-size: 16px; }
-.fd-miss .fd-txt b, .fd-block .fd-txt b { font-weight: 600; color: var(--muted); }
-.fd-miss .fd-ic, .fd-block .fd-ic { background: none; color: var(--faint); }
-.fd-penalty .fd-ic { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
-.fd-period, .fd-timeout { background: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 80%, transparent); }
-.fd-period .fd-ic, .fd-timeout .fd-ic { background: none; color: var(--accent); }
-.fd-period .fd-txt b { text-transform: uppercase; letter-spacing: .06em; font-size: 13px; color: var(--muted); }
-/* New events slide in and glow for a moment */
-.fd.new { animation: fdIn .5s cubic-bezier(.2, .8, .3, 1) both, fdGlow 2.4s ease-out; }
-@keyframes fdIn { from { opacity: 0; transform: translateY(-10px) scale(.98); } }
-@keyframes fdGlow { 0%, 30% { box-shadow: inset 0 0 0 2px var(--accent); } }
-@media (prefers-reduced-motion: reduce) { .fd.new { animation: none; } }
-
+/* Live feed: a timeline. A dotted line down the middle with each event's icon on it; home team's events on the
+   left, away team's on the right, the time on the other side of the icon. Period starts and ends sit on the line. */
+.fd-sides { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; font: 700 12px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.fd-sides span { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.fd-sides .tb { width: 20px; height: 20px; }
+.fd-list { position: relative; list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.fd-list::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; translate: -1px 0; border-left: 2px dotted color-mix(in srgb, var(--muted) 45%, transparent); }
+.fd { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr); gap: 12px; align-items: center; min-height: 52px; padding: 4px 0; }
+.fd-home .fd-txt { text-align: right; justify-items: end; }
+.fd-home .fd-t { justify-self: start; }
+.fd-away .fd-t { justify-self: end; }
+.fd-t { font: 700 15px var(--display); color: var(--text); white-space: nowrap; }
+.fd-ic { position: relative; z-index: 1; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--panel); box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 90%, transparent), 0 2px 6px rgba(0, 0, 0, .12); color: var(--fc); }
+.fd-ic svg { width: 17px; height: 17px; }
+.fd-txt { display: grid; min-width: 0; line-height: 1.25; }
+.fd-txt b { font: 600 15px var(--body); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fd-txt small { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Kinds */
+.fd-goal .fd-ic { width: 40px; height: 40px; background: var(--fc); color: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--fc) 30%, transparent); }
+.fd-goal .fd-txt b { font: 700 16px var(--body); }
+.fd-sc { color: var(--muted); font-weight: 600; }
+.fd-sc b.on { color: var(--text); font-weight: 800; }
+.fd-miss .fd-ic, .fd-block .fd-ic { color: var(--faint); }
+.fd-miss .fd-txt b, .fd-block .fd-txt b { font-weight: 500; color: var(--muted); }
+.fd-penalty .fd-ic { color: var(--gold); }
+.fd-mid { display: flex; justify-content: center; min-height: 44px; }
+.fd-pill { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 999px;
+  background: var(--panel-2); box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 90%, transparent); font: 700 12px var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.fd-pill svg { width: 14px; height: 14px; color: var(--accent); }
+/* New events slide in from their team's side */
+.fd.new { animation: fdIn .5s cubic-bezier(.2, .8, .3, 1) both; }
+.fd-home.new { --fd-from: -14px; }
+.fd-away.new { --fd-from: 14px; }
+.fd.new .fd-ic { animation: fdPop .9s ease-out; }
+@keyframes fdIn { from { opacity: 0; transform: translateX(var(--fd-from, 0)); } }
+@keyframes fdPop { 0% { transform: scale(.6); } 40% { transform: scale(1.15); box-shadow: 0 0 0 6px color-mix(in srgb, var(--fc, var(--accent)) 35%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .fd.new, .fd.new .fd-ic { animation: none; } }
+@media (max-width: 700px) {
+  .fd { gap: 10px; grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr); }
+  .fd-ic { width: 34px; height: 34px; }
+  .fd-txt b { font-size: 14.5px; } .fd-txt small { font-size: 12.5px; }
+}
 /* The card: always the same height, newest on top, fading out at the bottom; the whole card opens the full feed */
 .feed-card { padding: 0; overflow: hidden; }
 .feed-open { display: block; cursor: pointer; padding: 18px 20px 14px; border-radius: inherit; outline-offset: -3px; }
@@ -1945,8 +1960,8 @@ footer#foot p { margin: 0; }
 .feed-open h2 { display: flex; align-items: center; gap: 9px; margin: 0; }
 .feed-cta { font-size: 13px; color: var(--accent); font-weight: 600; }
 .feed-open:hover .feed-cta { text-decoration: underline; }
-.feed-peek { height: 300px; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent); mask-image: linear-gradient(180deg, #000 70%, transparent); }
-@media (max-width: 700px) { .feed-peek { height: 260px; } .fd { grid-template-columns: 48px 28px 20px minmax(0, 1fr) auto; gap: 8px; padding: 6px 10px; } }
+.feed-peek { height: 330px; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent); mask-image: linear-gradient(180deg, #000 70%, transparent); }
+@media (max-width: 700px) { .feed-peek { height: 300px; } }
 
 /* Full-screen feed: a large window on computers, the whole screen on phones */
 .feed-dlg { width: min(760px, 94vw); height: 88vh; max-height: 88vh; padding: 0; border: 0; border-radius: var(--radius); background: var(--panel); color: var(--text);
@@ -1968,3 +1983,7 @@ footer#foot p { margin: 0; }
   .feed-dlg { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; padding-top: env(safe-area-inset-top, 0px); }
   .fd-stats { padding: 0 12px 10px; } .fd-head { padding: 12px 12px 8px; } .fd-filter { margin: 0 12px 10px; } .fd-body { padding: 0 12px calc(16px + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* Live feed text wraps to a second line instead of being cut off */
+.fd-txt b, .fd-txt small { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.fd-goal .fd-ic svg { width: 19px; height: 19px; }
