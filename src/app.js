@@ -1110,26 +1110,19 @@ function teamCompare(d) {
 function matchSummary(d, done = true) {
   const per = d.periods.length ? `<div class="tscroll"><table class="t"><thead><tr><th class="l">Lag</th>${d.periods.map((p) => `<th>${p.p <= 3 ? p.p : p.p === 4 ? 'ÖT' : 'STR'}</th>`).join('')}<th>Mål</th><th>Skott</th></tr></thead><tbody>
     ${['home', 'away'].map((s) => `<tr><td class="l">${teamLink(d[s], { name: true })}</td>${d.periods.map((p) => `<td>${s === 'home' ? p.h : p.a}</td>`).join('')}<td class="hl">${s === 'home' ? d.hs : d.as}</td><td>${d.team[s].SOG ?? '–'}</td></tr>`).join('')}</tbody></table></div>` : '';
+  const stats = panel('Lagstatistik', teamCompare(d));
+  const flow = d.shots?.length || d.live ? panel('Matchbild', momentumChart(d), { cls: 'wide', sub: d.live ? 'Skott på mål minut för minut, uppdateras under matchen.' : 'Skott på mål minut för minut.' }) : '';
+  const perCard = per ? panel('Periodresultat', per) : '';
+  // During a game the goals card appears with the first goal (the clock is in the header above).
+  // Until then the game flow leads, with team stats and periods side by side under it.
+  if (d.live && !d.goals.length) return board([flow, stats, perCard]);
   return board([
-    d.live ? liveBanner(d) : '',
     panel('Mål', goalEvents(d)), // half width on computers, with Lagstatistik beside it
-    panel('Lagstatistik', teamCompare(d)),
-    d.shots?.length || d.live ? panel('Matchbild', momentumChart(d), { cls: 'wide', sub: d.live ? 'Skott på mål minut för minut, uppdateras under matchen.' : 'Skott på mål minut för minut.' }) : '',
+    stats,
+    flow,
     done ? matchRecap(d) : '',
-    per ? panel('Periodresultat', per) : '',
+    perCard,
   ]);
-}
-
-// A game being played: the clock, shots and the latest goal, refreshed automatically
-function liveBanner(d) {
-  const L = d.live, last = d.goals[d.goals.length - 1];
-  return `<section class="panel wide live-card" style="--hc:${pairColors(d.home, d.away)[0]};--ac:${pairColors(d.home, d.away)[1]}"><div class="p-body">
-    <div class="live-top"><span class="live-badge"><i class="live-dot"></i>Live</span><b>${esc(liveClock(L))}</b><span class="faint">Uppdateras automatiskt</span></div>
-    <div class="live-nums">
-      <div><span class="k">Skott på mål</span><span class="v num">${d.team.home.SOG}–${d.team.away.SOG}</span></div>
-      <div><span class="k">Utvisningsminuter</span><span class="v num">${d.team.home.PIM}–${d.team.away.PIM}</span></div>
-      <div><span class="k">Senaste mål</span><span class="v sm">${last ? `${esc(last.scorer?.name || 'Mål')} <span class="faint">${esc(d[last.team])} · ${esc(PERIOD_NAME(last.p).toLowerCase())} ${esc(last.t)}</span>` : 'Inga mål ännu'}</span></div>
-    </div></div></section>`;
 }
 
 /* ---------- Game flow: shots on goal minute by minute (home up, away down) with the goals marked ---------- */
