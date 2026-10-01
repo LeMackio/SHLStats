@@ -202,9 +202,17 @@ function startLive() {
         for (const x of (await r.json()).games || []) {
           const g = GAMES_BY_ID[x.id];
           if (!g || x.id === LIVE_TEST) continue;
-          for (const k of ['state', 'hs', 'as', 'ot', 'so']) if (x[k] != null && g[k] !== x[k]) { g[k] = x[k]; changed = true; }
+          if (x.state === 'pre-game' && g.started) continue; // the schedule is behind; the game feed already showed play
+          for (const k of ['state', 'ot', 'so']) if (x[k] != null && g[k] !== x[k]) { g[k] = x[k]; changed = true; }
+          for (const k of ['hs', 'as']) if (typeof x[k] === 'number' && g[k] !== x[k]) { g[k] = x[k]; changed = true; } // "N/A" before face-off
         }
       } catch { /* relay unreachable: try again next time */ }
+      // SHL's schedule can say "pre-game" for several minutes after face-off. Past the start time, ask the game feed itself.
+      for (const g of due) {
+        if (g.state !== 'pre-game' || g.id === LIVE_TEST || Date.now() < stockholmEpoch(g.start)) continue;
+        const L = await loadLive(g.id, 0);
+        if (L && L.p && !/ended/i.test(String(L.state))) { g.state = 'live'; g.started = true; g.hs = L.hs; g.as = L.as; changed = true; }
+      }
       if (LIVE_TEST) {
         const g = GAMES_BY_ID[LIVE_TEST], L = await loadLive(LIVE_TEST, 0);
         if (g && L && (g.hs !== L.hs || g.as !== L.as)) { g.hs = L.hs; g.as = L.as; changed = true; }
