@@ -21,7 +21,7 @@ export function processShots(pbp) {
   const lastShot = { home: -99, away: -99 };        // for rebounds
   const other = (side) => (side === 'home' ? 'away' : 'home');
   const skaters = (side, t) => { pens[side] = pens[side].filter((p) => p.end > t); return Math.max(3, 5 - pens[side].length); };
-  const shots = [];
+  const shots = [], attempts = [];
   let agree = 0, checked = 0;
 
   for (const e of events) {
@@ -38,7 +38,12 @@ export function processShots(pbp) {
     }
     // Shootout attempts (period 5, or "shootout" in the feed) are not part of the game's shots
     if ((e.type !== 'shot' && e.type !== 'goal') || !side || e.locationX == null || typeof e.period !== 'number' || e.period >= 5) continue;
-    if (e.type === 'shot' && !(e.goalSection > 0)) continue; // blocked or missed: not a shot on goal
+    // Blocked (goalSection below 0) or missed (0): not shots on goal, but counted as shot attempts (Corsi)
+    if (e.type === 'shot' && !(e.goalSection > 0)) {
+      attempts.push({ p: e.period, side, k: e.goalSection < 0 ? 'block' : 'miss',
+        shooter: e.player ? `${e.player.firstName || ''} ${e.player.familyName || ''}`.trim() : null, num: e.player?.jerseyToday ?? null });
+      continue;
+    }
 
     const opp = other(side), own = skaters(side, e.s), them = skaters(opp, e.s);
     const str = own > them ? 'PP' : own < them ? 'SH' : 'EV';
@@ -70,7 +75,7 @@ export function processShots(pbp) {
       if (minors[0]) minors[0].end = e.s;
     }
   }
-  return { shots, strengthCheck: [agree, checked] };
+  return { shots, attempts, strengthCheck: [agree, checked] };
 }
 
 // ---------- xG model: logistic regression on shots on goal ----------

@@ -64,10 +64,14 @@
         <button class="search-cancel" id="search-close">Avbryt</button>
         <div class="results" id="gsearch-results" hidden></div>
       </div>
-      <div class="theme-toggle" role="group" aria-label="Färgtema">
-        <button id="theme-dark" aria-label="Mörkt tema" title="Mörkt" aria-pressed="false"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg></button>
-        <button id="theme-light" aria-label="Ljust tema" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg></button>
-        <button id="theme-paper" aria-label="Papperstema" title="Papper" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6Z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg></button>
+      <!-- Theme: one button showing the current theme; it opens a small menu with the three themes -->
+      <div class="theme-menu" id="theme-menu">
+        <button class="theme-btn" id="theme-btn" aria-haspopup="true" aria-expanded="false" aria-label="Färgtema" title="Färgtema"></button>
+        <div class="theme-toggle" role="group" aria-label="Färgtema">
+          <button id="theme-dark" aria-label="Mörkt tema" aria-pressed="false"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg><span>Mörkt</span></button>
+          <button id="theme-light" aria-label="Ljust tema" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg><span>Ljust</span></button>
+          <button id="theme-paper" aria-label="Papperstema" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6Z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg><span>Papper</span></button>
+        </div>
       </div>
     </div>
   </div>

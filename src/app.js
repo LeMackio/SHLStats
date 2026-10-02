@@ -644,12 +644,18 @@ function setupTheme() {
   // Three themes: Mörkt (dark), Ljust (light) and Papper (off-white and navy). With no choice saved, the phone or computer's own setting decides.
   const THEMES = ['dark', 'light', 'paper'];
   if (!THEMES.includes(root.dataset.theme)) delete root.dataset.theme; // e.g. a removed theme still saved in the browser
+  const menu = $('theme-menu'), btn = $('theme-btn');
   const sync = () => {
     const current = root.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
     for (const t of THEMES) $('theme-' + t).setAttribute('aria-pressed', t === current);
+    if (btn) btn.innerHTML = $('theme-' + current).querySelector('svg').outerHTML; // the button shows the current theme's icon
   };
+  const setOpen = (open) => { menu?.classList.toggle('open', open); btn?.setAttribute('aria-expanded', open); };
+  btn?.addEventListener('click', (e) => { e.stopPropagation(); setOpen(!menu.classList.contains('open')); });
+  document.addEventListener('click', (e) => { if (menu && !menu.contains(e.target)) setOpen(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
   // Re-render after a theme switch so colours picked for contrast (team accents) are recalculated
-  for (const t of THEMES) $('theme-' + t).addEventListener('click', () => { root.dataset.theme = t; store.set('shlstats-theme', t); sync(); route(); });
+  for (const t of THEMES) $('theme-' + t).addEventListener('click', () => { root.dataset.theme = t; store.set('shlstats-theme', t); sync(); setOpen(false); route(); });
   sync();
 }
 let SEARCH_INDEX = [];
@@ -943,11 +949,9 @@ function pageOverview() {
   const tableMode = store.get('shlstats-ovtable') === 'proj' ? 'proj' : 'stats';
   // Rows of cards; cards in the same row always share the same height
   const row = (cls, items) => `<div class="ov-row ${cls}">${items.filter(Boolean).join('')}</div>`;
-  const section = (ic, title) => `<h2 class="section-title">${icon(ic)}${title}</h2>`;
 
   render(`
     ${newsHero()}
-    ${section('table', 'Tabell')}
     ${row('r-leaders', [
       // Both versions are drawn on top of each other and only one is shown, so switching never changes the card's size
       panel('Tabell', `<div id="ov-table" class="ov-tstack">${['stats', 'proj'].map((m) => `<div data-mode="${m}" ${m === tableMode ? '' : 'aria-hidden="true" class="off"'}>${standingsTable({ mode: m })}</div>`).join('')}</div>${legendHtml}`,
@@ -956,7 +960,6 @@ function pageOverview() {
       panel('Målvakter', '<div id="ov-gk" class="fill"></div>', { more: seg('ov-gk-stat', [['svp', 'Rädd%'], ['gaa', 'GAA'], ['gsaa', 'GSAA']], 'svp'),
         foot: `${moreLink('#/statistik', 'Alla målvakter')}<span class="stamp">Minst ${gmin} matcher</span>` }),
     ])}
-    ${section('calendar', 'Matcher')}
     ${row('r-two', [
       panel('Kommande matcher', comingDays.length ? comingDays.map(([d, gs]) => `<div class="day"><h3>${d === today ? 'Idag' : fmtDay(d)}</h3>${gs.map((g) => gameRow(g)).join('')}</div>`).join('') : '<p class="empty-state">Inga fler matcher i grundserien.</p>',
         { more: moreLink('#/matcher', 'Alla matcher') }),
@@ -964,7 +967,6 @@ function pageOverview() {
         { more: moreLink('#/matcher/spelade', 'Alla resultat') }),
     ])}
     ${hls.length ? row('r-one', [panel('Matchsammandrag', `<div class="clips six">${hls.map((h) => clipCard(h, `${esc(h.home)} ${h.hs}–${h.as} ${esc(h.away)}`, fmtDay(h.date))).join('')}</div>`)]) : ''}
-    ${section('chart', 'Odds')}
     ${row('r-two', [
       panel('Slutspelsstrecket', `<div class="chart">${hBars(race, { max: 1, labelW: 140, logos: true, color: (it) => it.v >= 0.5 ? 'var(--accent)' : 'var(--bad)' })}</div>`, { sub: 'Chans att sluta topp 10 och nå slutspel.' }),
       panel('Chans till SM-guld', `<div class="chart">${hBars(gold, { labelW: 140, logos: true })}</div>`, { sub: 'Andel av 10 000 simuleringar där laget vinner SM-finalen.', more: moreLink('#/tabell', 'Alla odds') }),
@@ -1230,12 +1232,16 @@ function matchSummary(d, done = true) {
   // During a game the goals card appears with the first goal (the clock is in the header above).
   // Until then the game flow leads, with team stats and periods side by side under it.
   const feed = d.live ? feedCard(d) : '';
-  if (d.live && !d.goals.length) return board([feed, flow, stats, perCard]);
+  const wp = MODEL ? panel(d.live ? 'Vinstchans live' : 'Vinstchans under matchen', winChart(d), { cls: 'wide wp-card',
+    sub: d.live ? 'Uppdateras under matchen. Bygger på lagens styrka, ställningen och tiden som är kvar.' : 'Hur chansen att vinna svängde, mål för mål.' }) : '';
+  if (d.live && !d.goals.length) return board([feed, wp, flow, stats, perCard]);
   return board([
     feed,
+    d.live ? wp : '',
     panel('Mål', goalEvents(d)), // half width on computers, with Lagstatistik beside it
     stats,
     flow,
+    d.live ? '' : wp,
     done ? matchRecap(d) : '',
     perCard,
   ]);
@@ -1274,6 +1280,61 @@ function momentumChart(d) {
   ['P1', 'P2', 'P3', 'ÖT'].forEach((lab, k) => { if (k * 20 < n) svg += `<text x="${pad + (k * 20 + Math.min(20, n - k * 20) / 2) * bw}" y="${Ht + 14}" text-anchor="middle" font-size="11.5" style="fill:var(--faint)">${lab}</text>`; });
   return `<div class="chart">${svg}</svg></div>
     <div class="legend"><span><i style="background:${hc}"></i>${esc(tName(d.home))}</span><span><i style="background:${ac}"></i>${esc(tName(d.away))}</span><span><i style="background:var(--text);border-radius:50%"></i>Mål</span></div>`;
+}
+
+/* ---------- Win probability through the game ----------
+   Each team scores at its pre-game rate (the same team ratings as the pre-game win chance), scaled to the time
+   that is left. From the current score, the rest of regulation is two Poisson draws; a draw goes to a 5-minute
+   3-on-3 overtime (sudden death, a bit higher scoring) and then a 50/50 shootout. */
+function winSeries(d) {
+  const m = MODEL, r = m?.rating || {};
+  const lh = r[d.home] && r[d.away] ? m.L * r[d.home].att * r[d.away].def * m.HOME : 1.5;
+  const la = r[d.home] && r[d.away] ? m.L * r[d.away].att * r[d.home].def * m.AWAY : 1.4;
+  const share = lh / (lh + la), otRate = (lh + la) / 3600 * 1.6;
+  const pois = (l) => { const p = [Math.exp(-l)]; for (let k = 1; k <= 10; k++) p.push(p[k - 1] * l / k); return p; };
+  const otWin = (rem) => { const s = 1 - Math.exp(-otRate * rem); return s * share + (1 - s) * 0.5; };
+  const at = (t, h, a) => {
+    if (t >= 3600) return h !== a ? (h > a ? 1 : 0) : otWin(Math.max(0, 3900 - t));
+    const f = (3600 - t) / 3600, ph = pois(lh * f), pa = pois(la * f);
+    let win = 0, tie = 0;
+    ph.forEach((x, i) => pa.forEach((y, j) => { const dh = h + i, da = a + j; if (dh > da) win += x * y; else if (dh === da) tie += x * y; }));
+    return win + tie * otWin(300);
+  };
+  const goals = d.goals.filter((x) => x.p < 5).map((x) => ({ ...x, s: clockSec(x) })).sort((x, y) => x.s - y.s);
+  const L = d.live, done = !L;
+  const lastOT = goals.filter((x) => x.p === 4).pop();
+  const end = done ? (lastOT ? lastOT.s : d.goals.some((x) => x.p >= 5) ? 3900 : 3600) : Math.min(3900, L?.p ? clockSec({ p: Math.min(L.p, 4), t: L.t }) : 0);
+  const score = (t, incl) => goals.reduce(([h, a], x) => (incl ? x.s <= t : x.s < t) ? (x.team === 'home' ? [h + 1, a] : [h, a + 1]) : [h, a], [0, 0]);
+  const pts = [];
+  for (let t = 0; t < end; t += 30) pts.push({ t, p: at(t, ...score(t, true)) });
+  for (const x of goals) if (x.s <= end) { pts.push({ t: x.s, p: at(x.s, ...score(x.s, false)) }, { t: x.s + 0.01, p: at(x.s, ...score(x.s, true)), goal: x }); }
+  pts.sort((x, y) => x.t - y.t);
+  // The final word: a finished game ends at 100 % for the winner (shootouts included)
+  pts.push({ t: end, p: done ? (d.hs > d.as ? 1 : d.hs < d.as ? 0 : 0.5) : at(end, ...score(end, true)) });
+  return { pts, end, now: pts[pts.length - 1].p, goals };
+}
+function winChart(d) {
+  const { pts, end, now } = winSeries(d), [hc, ac] = pairColors(d.home, d.away);
+  const span = Math.max(3600, end), W = cw(640), H = 190, top = 10, bot = 22, pl = 6, pr = 40, ih = H - top - bot;
+  const X = (t) => pl + t / span * (W - pl - pr), Y = (p) => top + (1 - p) * ih, mid = Y(0.5);
+  const line = pts.map((q, i) => `${i ? 'L' : 'M'}${X(q.t).toFixed(1)},${Y(q.p).toFixed(1)}`).join('');
+  const area = `${line}L${X(pts[pts.length - 1].t).toFixed(1)},${mid}L${X(0)},${mid}Z`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Vinstchans under matchen">
+    <defs><clipPath id="wp-up"><rect x="0" y="0" width="${W}" height="${mid}"/></clipPath><clipPath id="wp-dn"><rect x="0" y="${mid}" width="${W}" height="${H}"/></clipPath></defs>`;
+  for (const p of [1200, 2400, 3600]) if (p < span) svg += `<line x1="${X(p)}" x2="${X(p)}" y1="${top}" y2="${top + ih}" style="stroke:var(--line)" stroke-dasharray="3 4"/>`;
+  for (const p of [0.25, 0.75]) svg += `<line x1="${pl}" x2="${W - pr}" y1="${Y(p)}" y2="${Y(p)}" style="stroke:color-mix(in srgb, var(--line) 50%, transparent)"/>`;
+  svg += `<path d="${area}" clip-path="url(#wp-up)" style="fill:${hc};fill-opacity:.28"/><path d="${area}" clip-path="url(#wp-dn)" style="fill:${ac};fill-opacity:.28"/>
+    <line x1="${pl}" x2="${W - pr}" y1="${mid}" y2="${mid}" style="stroke:var(--muted)" stroke-width="1"/>
+    <path d="${line}" fill="none" style="stroke:var(--text)" stroke-width="2.2" stroke-linejoin="round"/>`;
+  for (const q of pts.filter((x) => x.goal)) svg += `<circle cx="${X(q.t)}" cy="${Y(q.p)}" r="5.5" style="fill:${q.goal.team === 'home' ? hc : ac};stroke:var(--panel)" stroke-width="2"><title>${esc(q.goal.scorer?.name || 'Mål')} ${q.goal.score[0]}–${q.goal.score[1]}: ${Math.round(q.p * 100)} % för ${esc(tName(d.home))}</title></circle>`;
+  const last = pts[pts.length - 1];
+  svg += `<circle cx="${X(last.t)}" cy="${Y(last.p)}" r="4.5" style="fill:var(--text)"/>`;
+  [[esc(d.home), 1], ['50 %', 0.5], [esc(d.away), 0]].forEach(([l, p]) => { svg += `<text x="${W - pr + 6}" y="${Y(p) + 4}" font-size="11" font-weight="600" style="fill:var(--faint)">${l}</text>`; });
+  ['P1', 'P2', 'P3', 'ÖT'].forEach((lab, k) => { if (k * 1200 < span) svg += `<text x="${X(k * 1200 + Math.min(1200, span - k * 1200) / 2)}" y="${H - 6}" text-anchor="middle" font-size="11.5" style="fill:var(--faint)">${lab}</text>`; });
+  const pct = (p) => `${Math.round(p * 100)} %`;
+  return `<div class="wp-now"><span class="wp-team" style="--c:${hc}">${tb(d.home, 'md')}<b class="num">${pct(now)}</b><small>${esc(tName(d.home))}</small></span>
+      <span class="wp-team away" style="--c:${ac}"><small>${esc(tName(d.away))}</small><b class="num">${pct(1 - now)}</b>${tb(d.away, 'md')}</span></div>
+    <div class="chart">${svg}</svg></div>`;
 }
 
 /* ---------- Match report: summary text, three stars, xG and key moments (finished games) ---------- */
@@ -1964,7 +2025,7 @@ async function pageEdge() {
   const E = await loadEdge();
   const skBy = new Map(skaters().map((p) => [p.id, p])), gkBy = new Map(goalies().map((p) => [p.id, p]));
   const lg = E.league, lgSv = lg.sa ? 1 - lg.ga / lg.sa : 0;
-  const skRows = Object.entries(E.skaters).filter(([id]) => skBy.has(id)).map(([id, a]) => ({ ...skBy.get(id), e: { sog: a[0], g: a[1], xg: a[2], hd: a[3], hdg: a[4], dist: a[5], long: a[6] } }));
+  const skRows = Object.entries(E.skaters).filter(([id]) => skBy.has(id)).map(([id, a]) => ({ ...skBy.get(id), e: { sog: a[0], g: a[1], xg: a[2], hd: a[3], hdg: a[4], dist: a[5], long: a[6], att: a[7] || 0 } }));
   const gkAll = Object.entries(E.goalies).filter(([id]) => gkBy.has(id)).map(([id, a]) => ({ ...gkBy.get(id), e: { sa: a[0], ga: a[1], xga: a[2], hd: [a[3], a[4]], md: [a[5], a[6]], ld: [a[7], a[8]] } }));
   const maxSa = Math.max(1, ...gkAll.map((g) => g.e.sa)), maxHd = Math.max(1, ...gkAll.map((g) => g.e.hd[0]));
   const gkRows = gkAll.filter((g) => g.e.sa >= maxSa * 0.3);
@@ -1976,6 +2037,7 @@ async function pageEdge() {
       { k: 'gax', label: 'Mål över xG', v: (p) => p.e.g - p.e.xg, f: pp, tie: (p) => p.e.g },
       { k: 'hd', label: 'Farliga skott', v: (p) => p.e.hd, tie: (p) => p.e.hdg },
       { k: 'long', label: 'Längsta mål (m)', v: (p) => p.e.long, f: (x) => dec(x, 1) },
+      { k: 'icf', label: 'Skottförsök', v: (p) => p.e.sog + p.e.att, tie: (p) => p.e.sog },
     ] },
     { id: 'eg', title: 'Målvakter', note: `Minst ${Math.ceil(maxSa * 0.3)} skott mot`, rows: gkRows, stats: [
       { k: 'gsax', label: 'GSAx', v: (g) => g.e.xga - g.e.ga, f: pp },
@@ -1988,8 +2050,11 @@ async function pageEdge() {
   // Team xG
   const teamRows = TABLE.map((r) => {
     const t = E.teams[r.code]; if (!t) return null;
-    const [gp, sf, gf, xgf, sa, ga, xga, hdf, hda] = t;
-    return { code: r.code, team: r.code, name: tName(r.code), gp, xgfpg: xgf / gp, xgapg: xga / gp, xgp: xgf / Math.max(0.001, xgf + xga), fin: gf - xgf, save: xga - ga, hdf: hdf / gp, hda: hda / gp, sf: sf / gp, sa: sa / gp };
+    const [gp, sf, gf, xgf, sa, ga, xga, hdf, hda, mf = 0, bf = 0, ma = 0, ba = 0] = t;
+    // Shot attempts: Corsi = on goal + missed + blocked, Fenwick = on goal + missed (blocked left out)
+    const cf = sf + mf + bf, ca = sa + ma + ba, ff = sf + mf, fa = sa + ma;
+    return { code: r.code, team: r.code, name: tName(r.code), gp, xgfpg: xgf / gp, xgapg: xga / gp, xgp: xgf / Math.max(0.001, xgf + xga), fin: gf - xgf, save: xga - ga, hdf: hdf / gp, hda: hda / gp, sf: sf / gp, sa: sa / gp,
+      cfpg: cf / gp, capg: ca / gp, cfp: cf / Math.max(1, cf + ca), ffp: ff / Math.max(1, ff + fa), sogShare: sf / Math.max(1, cf), blkd: ba / gp, hasAtt: mf + bf + ma + ba > 0 };
   }).filter(Boolean);
 
   const zoneRow = (label, [n, g]) => `<tr><td class="l">${label}</td><td>${n}</td><td>${g}</td><td class="hl">${n ? dec((1 - g / n) * 100, 1) : '–'}</td></tr>`;
@@ -2042,6 +2107,9 @@ async function pageEdge() {
           <div class="chips" id="card-picks"></div><div id="card-slot"></div></div></section>
       ${panel('Lag: xG för och mot', `<div class="chart">${teamScatter(teamRows, { xk: 'xgfpg', yk: 'xgapg', xLabel: 'xG för per match', what: ['xG för', 'xG mot'] })}</div>`, { sub: 'Förväntade mål per match. Bäst är uppe till höger: många chanser framåt, få bakåt.' })}
     </div>
+    ${teamRows.some((r) => r.hasAtt) ? `<div class="ov-row r-one">
+      ${panel('Lag: skottförsök (Corsi)', '<div class="tscroll"><table class="t stick" id="corsi-teams" style="min-width:640px"></table></div>', { sub: 'Alla skottförsök: på mål, utanför och blockerade. Andelen (CF%) visar vilket lag som har pucken och skapar mest, oavsett hur bra skotten var. Fenwick (FF%) räknar bort blockerade skott.' })}
+    </div>` : ''}
     <div class="ov-row r-one">
       ${panel('Lag: xG-statistik', '<div class="tscroll"><table class="t stick" id="xg-teams" style="min-width:640px"></table></div>', { sub: 'Avslut = gjorda mål minus xG (skärpa framåt). Målvakt = xG mot minus insläppta (målvaktsspel).' })}
     </div>
@@ -2078,6 +2146,16 @@ async function pageEdge() {
     { k: 'xgp', label: 'xG%', f: (v) => dec(v * 100, 1) }, { k: 'hdf', label: 'Farliga/M', f: (v) => dec(v, 1) }, { k: 'hda', label: 'Farl. mot/M', asc: true, f: (v) => dec(v, 1) },
     { k: 'fin', label: 'Avslut', f: pp }, { k: 'save', label: 'Målvakt', f: pp },
   ], teamRows, { key: 'xgp' });
+
+  // Team shot attempts (Corsi): the share bar is centred on 50 %
+  const share = (v) => `<span class="cshare"><span class="cshare-bar"><i class="${v >= 0.5 ? 'up' : 'down'}" style="--w:${Math.min(50, Math.abs(v - 0.5) * 250)}%"></i></span><b class="num">${dec(v * 100, 1)}</b></span>`;
+  if ($('corsi-teams')) sortable($('corsi-teams'), [
+    { k: 'name', label: 'Lag', l: true, asc: true, h: (r) => `<a class="teamcell" href="#/lag/${r.code}">${tb(r.code, 'md')}<div class="nm"><b>${esc(r.code)}</b></div></a>` },
+    { k: 'cfp', label: 'CF%', h: (r) => share(r.cfp) },
+    { k: 'cfpg', label: 'Försök/M', f: (v) => dec(v, 1) }, { k: 'capg', label: 'Mot/M', asc: true, f: (v) => dec(v, 1) },
+    { k: 'ffp', label: 'FF%', f: (v) => dec(v * 100, 1) }, { k: 'sogShare', label: 'På mål%', f: (v) => dec(v * 100, 1) },
+    { k: 'blkd', label: 'Blockerar/M', f: (v) => dec(v, 1) },
+  ], teamRows.filter((r) => r.hasAtt), { key: 'cfp' });
 
   // Shot map explorer: pick a player, goalie or team, filter by outcome and game state, click a goal for its video
   const HD = E.model.zones.hd;
@@ -2907,6 +2985,7 @@ function applyTheme(v) {
   else { root.dataset.theme = v; store.set('shlstats-theme', v); }
   const cur = root.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
   for (const t of ['dark', 'light', 'paper']) $('theme-' + t)?.setAttribute('aria-pressed', t === cur);
+  if ($('theme-btn')) $('theme-btn').innerHTML = $('theme-' + cur).querySelector('svg').outerHTML;
   route();
 }
 function openSettings() {
@@ -3076,6 +3155,46 @@ function syncSliders() {
 new MutationObserver(syncSliders).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-pressed', 'aria-selected', 'class', 'hidden'] });
 addEventListener('resize', syncSliders);
 document.fonts?.ready.then(syncSliders);
+// Pull to refresh (phones): pull down from the top of a page and let go past the line to reload with fresh data.
+// Sideways swipes (date tabs, goal chips, tables) and open sheets are left alone.
+(function pullToRefresh() {
+  const ind = document.createElement('div');
+  ind.className = 'ptr'; ind.setAttribute('aria-hidden', 'true');
+  ind.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>';
+  document.body.append(ind);
+  const LIMIT = 72;
+  let y0 = null, x0 = 0, pull = 0, active = false;
+  const reset = () => { y0 = null; active = false; pull = 0; ind.classList.remove('armed'); ind.style.transform = ''; ind.style.opacity = ''; };
+  addEventListener('touchstart', (e) => {
+    if (!isNarrow() || scrollY > 0 || e.touches.length !== 1 || document.querySelector('dialog[open]') || document.body.classList.contains('search-open')) return;
+    if (e.target.closest('.gc-goals, .datetabs, .strip, .tscroll, .chips, input, textarea, select, .smap-stage')) return;
+    y0 = e.touches[0].clientY; x0 = e.touches[0].clientX;
+  }, { passive: true });
+  addEventListener('touchmove', (e) => {
+    if (y0 == null) return;
+    const dy = e.touches[0].clientY - y0, dx = e.touches[0].clientX - x0;
+    if (!active) {
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { reset(); return; } // a sideways swipe
+      if (dy < 8 || scrollY > 0) return;
+      active = true;
+    }
+    pull = Math.max(0, Math.min(120, dy * 0.5));
+    ind.style.opacity = String(Math.min(1, pull / 40));
+    ind.style.transform = `translate(-50%, ${pull}px) rotate(${pull * 3}deg)`;
+    ind.classList.toggle('armed', pull >= LIMIT);
+  }, { passive: true });
+  addEventListener('touchend', () => {
+    if (!active) { reset(); return; }
+    if (pull >= LIMIT) {
+      ind.classList.add('loading'); ind.style.transform = `translate(-50%, ${LIMIT}px)`;
+      setTimeout(() => location.reload(), 250);
+      return;
+    }
+    reset();
+  }, { passive: true });
+  addEventListener('touchcancel', reset, { passive: true });
+})();
+
 async function route() {
   const path = decodeURIComponent(location.hash.replace(/^#/, '')) || '/';
   const seg = path.split('/')[1] || '';

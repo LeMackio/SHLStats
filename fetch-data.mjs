@@ -261,13 +261,14 @@ const shotTodo = [];
 for (const s of [cur, prev]) for (const g of s.games.filter(isFinal)) {
   const file = `cache/shots/${g.id}.json`;
   const cached = readJson(file, null);
-  if (cached?.v === 2) shotGames[g.id] = { ...cached, season: s.label };
+  // This season's games also need the missed and blocked attempts (shot attempts / Corsi on Nexus)
+  if (cached?.v === 2 && (s !== cur || cached.attempts)) shotGames[g.id] = { ...cached, season: s.label };
   else shotTodo.push([s, g]);
 }
 await inBatches(shotTodo, 4, async ([s, g]) => {
   try {
-    const { shots, strengthCheck } = processShots(await get(`/gameday/play-by-play/${g.id}`));
-    const entry = { v: 2, home: g.home, away: g.away, start: g.start, shots, strengthCheck };
+    const { shots, attempts, strengthCheck } = processShots(await get(`/gameday/play-by-play/${g.id}`));
+    const entry = { v: 2, home: g.home, away: g.away, start: g.start, shots, attempts, strengthCheck };
     writeJson(`cache/shots/${g.id}.json`, entry);
     shotGames[g.id] = { ...entry, season: s.label };
   } catch (e) { shotFails++; }
@@ -292,7 +293,15 @@ const gameIndex = (gid, sg) => { if (!eGameIdx.has(gid)) { eGameIdx.set(gid, eGa
 const league = { sa: 0, ga: 0, xga: 0, hd: [0, 0], md: [0, 0], ld: [0, 0] };
 for (const [gid, sg] of Object.entries(shotGames)) {
   if (sg.season !== cur.label) continue;
-  for (const code of [sg.home, sg.away]) (eTeam[code] ??= { gp: 0, sf: 0, gf: 0, xgf: 0, sa: 0, ga: 0, xga: 0, hdf: 0, hda: 0 }).gp++;
+  for (const code of [sg.home, sg.away]) (eTeam[code] ??= { gp: 0, sf: 0, gf: 0, xgf: 0, sa: 0, ga: 0, xga: 0, hdf: 0, hda: 0, mf: 0, bf: 0, ma: 0, ba: 0 }).gp++;
+  // Missed and blocked attempts: for the shooting team, against the other; and each shooter's own attempts
+  for (const at of sg.attempts || []) {
+    if (typeof at.p !== 'number' || at.p >= 5) continue;
+    const team = sg[at.side], opp = at.side === 'home' ? sg.away : sg.home;
+    if (at.k === 'miss') { eTeam[team].mf++; eTeam[opp].ma++; } else { eTeam[team].bf++; eTeam[opp].ba++; }
+    const shooter = at.shooter ? refFor(at.shooter, team, at.num).id : null;
+    if (shooter) { const P = (eSk[shooter] ??= { sog: 0, g: 0, xg: 0, hd: 0, hdg: 0, dist: 0, long: 0, att: 0 }); P.att = (P.att || 0) + 1; }
+  }
   for (const sh of sg.shots) {
     if (sh.p >= 5 || sh.ps) continue;
     const team = sg[sh.side], opp = sh.side === 'home' ? sg.away : sg.home;
@@ -337,9 +346,11 @@ const edge = {
   model: { ...xgModel.report, coef: xgModel.coef, zones: { hd: 0.15, md: 0.07 }, trainedOn: [cur.label, prev.label] },
   league: { ...league, xga: r3(league.xga) },
   ids: edgeIds,
-  skaters: Object.fromEntries(Object.entries(eSk).map(([id, P]) => [id, [P.sog, P.g, r3(P.xg), P.hd, P.hdg, r3(P.dist / P.sog), r3(P.long)]])),
+  // skaters: [shots on goal, goals, xG, dangerous shots, dangerous goals, average distance, longest goal, missed + blocked attempts]
+  skaters: Object.fromEntries(Object.entries(eSk).map(([id, P]) => [id, [P.sog, P.g, r3(P.xg), P.hd, P.hdg, P.sog ? r3(P.dist / P.sog) : 0, r3(P.long), P.att || 0]])),
   goalies: Object.fromEntries(Object.entries(eGk).map(([id, G]) => [id, [G.sa, G.ga, r3(G.xga), ...G.hd, ...G.md, ...G.ld]])),
-  teams: Object.fromEntries(Object.entries(eTeam).map(([c, T]) => [c, [T.gp, T.sf, T.gf, r3(T.xgf), T.sa, T.ga, r3(T.xga), T.hdf, T.hda]])),
+  // teams: [games, shots, goals, xG, shots against, goals against, xG against, dangerous for, dangerous against, missed for, blocked for, missed against, blocked against]
+  teams: Object.fromEntries(Object.entries(eTeam).map(([c, T]) => [c, [T.gp, T.sf, T.gf, r3(T.xgf), T.sa, T.ga, r3(T.xga), T.hdf, T.hda, T.mf, T.bf, T.ma, T.ba]])),
   shots: eShots,
   games: eGames,  // [id, home, away, date]
   clips: eClips,  // [embed, thumb]
