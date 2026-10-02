@@ -388,7 +388,19 @@ const games = cur.games.map((g) => ({
 
 // Odds history: one entry per day, updated only when new results have come in
 const HISTORY = 'history/odds.json';
-const history = readJson(HISTORY, { days: {} });
+// This file is changed both here and by the scheduled run, so a commit can end up with git's conflict markers
+// (<<<<<<< ... ======= ... >>>>>>>) in it. Then both versions are read and their days combined instead of failing.
+const readHistory = () => {
+  if (!existsSync(HISTORY)) return { days: {} };
+  const text = readFileSync(HISTORY, 'utf8').replace(/^﻿/, '');
+  if (!/^<{7} /m.test(text)) return JSON.parse(text);
+  const sides = text.split(/^(?:<{7}|={7}|>{7}).*$/m).map((s) => s.trim()).filter((s) => s.startsWith('{'));
+  const days = {};
+  for (const s of sides) { try { Object.assign(days, JSON.parse(s).days); } catch { /* one side unreadable: keep the other */ } }
+  console.log(`Odds history had conflict markers: combined ${sides.length} versions into ${Object.keys(days).length} days`);
+  return { days };
+};
+const history = readHistory();
 const lastDay = Object.keys(history.days).sort().pop();
 if (!lastDay || history.days[lastDay].played !== played.length) {
   history.days[stockholmDate()] = {
