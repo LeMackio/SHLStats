@@ -108,6 +108,7 @@ const stockholmEpoch = (s) => {
    Data
    ===================================================================== */
 let D, CUR, PREV, TEAMS, LOGOS, HS, GAMES, GAMES_BY_ID, TABLE, SIM, MODEL, CODES, stampTxt = '';
+let CORE_FINAL = new Set(); // games whose official result is already in the site's data (never overwritten by live data)
 let PLAYERS = null; // players.json, loaded on demand
 let FAV = store.get('shlstats-fav');
 const gameCache = {};
@@ -200,12 +201,21 @@ function startLive() {
       let changed = false;
       try {
         const r = await fetch(`${LIVE_API}/today?season=${D.live.season}&series=${D.live.series}&type=${D.live.type}`);
+        const scoreFromFeed = [];
         for (const x of (await r.json()).games || []) {
           const g = GAMES_BY_ID[x.id];
           if (!g || x.id === LIVE_TEST) continue;
+          if (CORE_FINAL.has(g.id)) continue; // the site's own data already has the official result
           if (x.state === 'pre-game' && g.started) continue; // the schedule is behind; the game feed already showed play
           for (const k of ['state', 'ot', 'so']) if (x[k] != null && g[k] !== x[k]) { g[k] = x[k]; changed = true; }
-          for (const k of ['hs', 'as']) if (typeof x[k] === 'number' && g[k] !== x[k]) { g[k] = x[k]; changed = true; } // "N/A" before face-off
+          if (x.state !== 'pre-game') scoreFromFeed.push([g, x]);
+        }
+        // The score of a game under way or just finished comes from its game feed: SHL's schedule sometimes says 0–0
+        // for a finished game. The schedule's numbers are only a fallback.
+        for (const [g, x] of scoreFromFeed) {
+          const L = await loadLive(g.id, 10000);
+          const [hs, as] = L && typeof L.hs === 'number' && (L.p || /ended/i.test(String(L.state))) ? [L.hs, L.as] : [x.hs, x.as];
+          if (typeof hs === 'number' && typeof as === 'number' && (g.hs !== hs || g.as !== as)) { g.hs = hs; g.as = as; changed = true; }
         }
       } catch { /* relay unreachable: try again next time */ }
       // SHL's schedule can say "pre-game" for several minutes after face-off. Past the start time, ask the game feed itself.
@@ -3327,6 +3337,7 @@ async function boot() {
   CUR = D.cur; PREV = D.prev; TEAMS = D.teams; HS = D.headshots || {}; CODES = D.currentTeams;
   LOGOS = Object.fromEntries(Object.entries(TEAMS).filter(([, t]) => t.logo).map(([c, t]) => [c, t.logo]));
   GAMES = D.games; GAMES_BY_ID = Object.fromEntries(GAMES.map((g) => [g.id, g]));
+  CORE_FINAL = new Set(GAMES.filter(isFinal).map((g) => g.id));
   TABLE = D.standings; SIM = D.sim; MODEL = D.model;
   if (FAV && !CODES.includes(FAV)) FAV = null;
   stampTxt = new Date(D.updated).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Stockholm' });

@@ -175,9 +175,15 @@ async function fetchGame(g) {
   const periods = (ts.home?.statistics || []).map((s) => s.period).filter((p) => p > 0).sort()
     .map((p) => ({ p, h: stat('home', p).G ?? 0, a: stat('away', p).G ?? 0, hs: stat('home', p).SOG ?? 0, as: stat('away', p).SOG ?? 0 }));
   const first = Array.isArray(pbp) ? pbp[0] : null;
+  // The final score as the play-by-play has it (its last numbered event), with overtime/shootout: used when the
+  // schedule gets a finished game's result wrong
+  const numbered = Array.isArray(pbp) ? pbp.filter((e) => typeof e.eventId === 'number' && e.homeTeam && typeof e.homeTeam.score === 'number') : [];
+  const last = numbered.reduce((a, e) => (!a || e.eventId > a.eventId ? e : a), null);
+  const pbpFinal = last ? { hs: last.homeTeam.score, as: last.awayTeam.score,
+    ot: numbered.some((e) => e.type === 'goal' && periodNo(e.period) === 4), so: Array.isArray(pbp) && pbp.some((e) => e.type === 'shootout-penalty-shot') } : null;
   return {
     v: 2, // cache version: 2 = shots on goal only
-    id: g.id, start: g.start, home: g.home, away: g.away, hs: g.hs, as: g.as, ot: g.ot, so: g.so, state: g.state,
+    id: g.id, start: g.start, home: g.home, away: g.away, hs: g.hs, as: g.as, ot: g.ot, so: g.so, state: g.state, pbpFinal,
     arena: first?.arena || '', att: first?.attendance || null,
     periods, team: { home: stat('home', 0), away: stat('away', 0) },
     goals: goals.sort(byTime), pens: pens.sort(byTime), shots, box, gk,
@@ -193,7 +199,9 @@ const gameDetails = {};
 const toFetch = [];
 for (const g of cur.games) {
   const file = `cache/games/${g.id}.json`;
-  if (isFinal(g) && existsSync(file) && readJson(file).v === 2) {
+  // A finished game can't end level (overtime and shootouts decide it): the schedule's result is wrong, so fetch again
+  const badResult = isFinal(g) && g.hs === g.as;
+  if (isFinal(g) && !badResult && existsSync(file) && readJson(file).v === 2) {
     const d = readJson(file); // older cached games may still say "shootout"
     for (const k of ['goals', 'pens', 'shots']) d[k] = d[k].map((x) => ({ ...x, p: periodNo(x.p) })).sort((a, b) => a.p - b.p || String(a.t).localeCompare(String(b.t)));
     gameDetails[g.id] = d;
@@ -209,6 +217,20 @@ await inBatches(toFetch, 3, async (g) => {
     if (isFinal(g) && (sogOk(d) || Date.now() - Date.parse(g.start.replace(' ', 'T') + '+02:00') > 2 * 864e5)) writeJson(`cache/games/${g.id}.json`, d);
   } catch (e) { gameFails++; console.warn('game failed', g.id, e.message); }
 });
+
+// SHL's schedule sometimes lists a finished game as 0–0 (or another level score, which can't happen): take the
+// result from the game's own play-by-play instead, for the standings model, the game pages and the cached copy
+const fixedResults = [];
+for (const g of cur.games) {
+  if (!isFinal(g) || g.hs !== g.as) continue;
+  const d = gameDetails[g.id], f = d?.pbpFinal;
+  if (!f || typeof f.hs !== 'number' || f.hs === f.as) continue;
+  Object.assign(g, { hs: f.hs, as: f.as, ot: !!(f.ot || f.so), so: !!f.so });
+  Object.assign(d, { hs: f.hs, as: f.as, ot: g.ot, so: g.so });
+  writeJson(`cache/games/${g.id}.json`, d);
+  fixedResults.push(`${g.home}-${g.away} ${f.hs}-${f.as}`);
+}
+if (fixedResults.length) console.log(`Results corrected from play-by-play (schedule said level): ${fixedResults.join(', ')}`);
 
 // The feed's "SOG" (shots on goal) field actually counts goals, so shots on goal are counted from the
 // play-by-play instead: shots on goal (goalSection > 0) plus goals, per period and in total. Saves follow from them.
