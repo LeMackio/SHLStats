@@ -2860,9 +2860,17 @@ function gameCard(g, d) {
   const hl = done && d?.hl && safeEmbed(d.hl.embed) ? d.hl : null;
   const left = hl ? `<button class="gc-btn" data-embed="${esc(hl.embed)}" data-title="${esc(`${g.home}–${g.away} sammandrag`)}">${PLAY_SVG}Sammandrag</button>`
     : !done && !live && g.arena ? `<span class="gc-arena">${esc(g.arena)}</span>` : '<span></span>';
+  // Live games: each team's win chance right now, as a bar like the team stats (under the goals, if any)
+  let wpBar = '';
+  if (live && d?.live && MODEL) {
+    const p = winSeries(d).now, [hc, ac] = pairColors(g.home, g.away), pc = (x) => `${Math.round(x * 100)} %`;
+    wpBar = `<div class="cmp gc-wp" style="--h-color:${hc};--a-color:${ac}"><div class="cmp-row"><span class="v num">${pc(p)}</span>
+      <div class="mid"><span class="lbl">Vinstchans</span><div class="cmp-bar"><i style="width:${p * 100}%"></i><i style="width:${(1 - p) * 100}%"></i></div></div>
+      <span class="v num">${pc(1 - p)}</span></div></div>`;
+  }
   return `<article class="gcard ${fav ? 'fav' : ''} ${live ? 'is-live' : ''}" data-href="#/match/${esc(g.id)}" tabindex="0" role="link" aria-label="${esc(`${tName(g.home)} mot ${tName(g.away)}`)}">
     <div class="gc-head">${chip}${fav ? '<span class="gc-mine" title="Mitt lag" aria-label="Mitt lag">★</span>' : ''}</div>
-    ${row(g.home, 'home')}${row(g.away, 'away')}${mid}
+    ${row(g.home, 'home')}${row(g.away, 'away')}${mid}${wpBar}
     ${left === '<span></span>' ? '' : `<div class="gc-foot">${left}</div>`}</article>`;
 }
 // Cards open their page when tapped anywhere except on a button or link inside them

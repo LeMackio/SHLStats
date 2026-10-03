@@ -2212,3 +2212,8 @@ footer#foot p { margin: 0; }
 .alla-card.open .alla-chev { transform: rotate(180deg); }
 .alla-card > .p-body { padding-top: 0; }
 @media (max-width: 700px) { .alla-toggle { padding: 16px; } .alla-title b { font-size: 18px; } }
+
+/* Live game cards: the win chance as a team-stats style bar */
+.gc-wp { margin-top: 12px; }
+.gc-wp .cmp-row { grid-template-columns: 52px 1fr 52px; }
+.gc-wp .v { font-size: 17px; }
