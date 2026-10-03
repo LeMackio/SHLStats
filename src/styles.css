@@ -2225,3 +2225,12 @@ footer#foot p { margin: 0; }
 .gc-wp .mid { gap: 3px; }
 .gc-wp .lbl { font-size: 10.5px; letter-spacing: .1em; }
 .gc-wp .cmp-bar { height: 4px; border-radius: 2px; gap: 2px; }
+
+/* Live game cards: the percentages sit on the bar's line (the label above, centred) */
+.gc-wp .cmp-row { grid-template-rows: auto auto; row-gap: 3px; align-items: center; }
+.gc-wp .mid { display: contents; }
+.gc-wp .lbl { grid-column: 2; grid-row: 1; }
+.gc-wp .cmp-bar { grid-column: 2; grid-row: 2; }
+.gc-wp .v:first-child { grid-column: 1; grid-row: 2; }
+.gc-wp .v:last-child { grid-column: 3; grid-row: 2; }
+.gc-wp .v { line-height: 1; }
