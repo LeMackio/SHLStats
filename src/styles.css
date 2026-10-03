@@ -2217,3 +2217,11 @@ footer#foot p { margin: 0; }
 .gc-wp { margin-top: 12px; }
 .gc-wp .cmp-row { grid-template-columns: 52px 1fr 52px; }
 .gc-wp .v { font-size: 17px; }
+
+/* Live game cards: a slimmer win chance row */
+.gc-wp { margin-top: 10px; }
+.gc-wp .cmp-row { grid-template-columns: 40px 1fr 40px; gap: 8px; }
+.gc-wp .v { font-size: 14px; }
+.gc-wp .mid { gap: 3px; }
+.gc-wp .lbl { font-size: 10.5px; letter-spacing: .1em; }
+.gc-wp .cmp-bar { height: 4px; border-radius: 2px; gap: 2px; }
