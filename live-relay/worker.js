@@ -60,10 +60,22 @@ async function pbpOf(id) {
   return Array.isArray(pbp) ? pbp : [];
 }
 
+// SHL's event numbers are not in time order (an event entered late can get a higher number and still carry an old
+// score), so "latest" is the event with the newest real-world time, and the score comes from the goals themselves:
+// the highest score among them, plus one for the shootout winner.
+const latestOf = (list) => list.reduce((a, e) => (!a || String(e.realWorldTime || '') > String(a.realWorldTime || '') ? e : a), null);
+const scoreOf = (list) => {
+  const goals = list.filter((e) => e.type === 'goal' && typeof e.homeGoals === 'number');
+  const so = list.filter((e) => e.type === 'shootout-penalty-shot' && e.isGoal);
+  const soH = so.filter((e) => e.eventTeam?.place === 'home').length, soA = so.filter((e) => e.eventTeam?.place === 'away').length;
+  const ended = list.some((e) => /ended/i.test(String(e.gameState)));
+  return [Math.max(0, ...goals.map((e) => e.homeGoals)) + (ended && soH > soA ? 1 : 0), Math.max(0, ...goals.map((e) => e.awayGoals)) + (ended && soA > soH ? 1 : 0)];
+};
+
 async function game(id) {
   if (!ID.test(id)) return { status: 400, body: { error: 'bad id' } };
   const list = await pbpOf(id);
-  const latest = list.reduce((a, e) => (!a || e.eventId > a.eventId ? e : a), null);
+  const latest = latestOf(list), [hs, as] = scoreOf(list);
   // Everything the live feed shows. Shots: goalSection above 0 is on goal ("shot"), 0 missed the net ("miss"),
   // below 0 was blocked ("block"); this matches the official blocked-shot counts. The site counts only "shot" as on goal.
   const kind = (e) => e.type === 'shot' ? (e.goalSection > 0 ? 'shot' : e.goalSection < 0 ? 'block' : 'miss')
@@ -82,7 +94,7 @@ async function game(id) {
     status: 200,
     body: {
       state: latest?.gameState || null, p: latest?.period ?? null, t: latest?.time ?? null,
-      hs: latest?.homeTeam?.score ?? 0, as: latest?.awayTeam?.score ?? 0,
+      hs, as,
       arena: latest?.arena || null, att: latest?.attendance || null, events,
     },
   };
@@ -172,8 +184,7 @@ async function checkGames(env) {
     if (!known && now > t + 3 * 60e3) {
       const list = await pbpOf(g.id).catch(() => []);
       st.pre = 1; st.goals = list.filter((x) => x.type === 'goal').map((x) => x.eventId);
-      const latest = list.reduce((a, e) => (!a || e.eventId > a.eventId ? e : a), null);
-      st.final = latest && /ended/i.test(String(latest.gameState)) ? 1 : 0;
+      st.final = list.some((e) => /ended/i.test(String(e.gameState))) ? 1 : 0;
       await putJson(env, key, st, 3 * 86400);
       continue;
     }
@@ -191,10 +202,9 @@ async function checkGames(env) {
           title: `MÅL ${teamName(g[side])}! ${g.home} ${e.homeGoals}–${e.awayGoals} ${g.away}`,
           body: `${shortName(scorer) || 'Mål'} ${e.period === 4 ? 'i förlängningen' : `i period ${e.period}`} (${e.time})${e.goalStatus && /^PP/.test(e.goalStatus) ? ', powerplay' : ''}.` }, g]);
       }
-      const latest = list.reduce((a, e) => (!a || e.eventId > a.eventId ? e : a), null);
-      if (!st.final && latest && /ended/i.test(String(latest.gameState))) {
+      if (!st.final && list.some((e) => /ended/i.test(String(e.gameState)))) {
         st.final = 1; changed = true;
-        const hs = latest.homeTeam?.score ?? 0, as = latest.awayTeam?.score ?? 0;
+        const [hs, as] = scoreOf(list);
         fresh.push([{ id: `${g.id}:final`, kind: 'final', title: `Slut: ${teamName(g.home)} ${hs}–${as} ${teamName(g.away)}`, body: 'Se målen och matchrapporten.' }, g]);
       }
     }

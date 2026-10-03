@@ -149,6 +149,9 @@ async function loadLive(id, maxAge = 15000) {
     // The feed calls the shootout period "shootout"; use 5 like the rest of the site
     const per = (p) => typeof p === 'number' ? p : /shoot/i.test(String(p)) ? 5 : Number(p) || null;
     data.p = per(data.p); for (const e of data.events || []) e.p = per(e.p) || 0;
+    // The score: never lower than the highest score among the goals (an event entered late can carry an old score)
+    const gl = (data.events || []).filter((e) => e.type === 'goal' && Array.isArray(e.score) && typeof e.score[0] === 'number');
+    if (gl.length) { data.hs = Math.max(data.hs || 0, ...gl.map((e) => e.score[0])); data.as = Math.max(data.as || 0, ...gl.map((e) => e.score[1])); }
     // The clock: the latest game time among the events (SHL sometimes re-sends an older event last)
     const at = (p, t) => p * 1e4 + (([m, s]) => (m || 0) * 60 + (s || 0))(String(t || '0:0').split(':').map(Number));
     for (const e of data.events || []) if (e.t && e.type !== 'period' && e.p < 5 && at(e.p, e.t) > at(data.p || 0, data.t)) { data.p = e.p; data.t = e.t; }

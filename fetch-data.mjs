@@ -175,12 +175,18 @@ async function fetchGame(g) {
   const periods = (ts.home?.statistics || []).map((s) => s.period).filter((p) => p > 0).sort()
     .map((p) => ({ p, h: stat('home', p).G ?? 0, a: stat('away', p).G ?? 0, hs: stat('home', p).SOG ?? 0, as: stat('away', p).SOG ?? 0 }));
   const first = Array.isArray(pbp) ? pbp[0] : null;
-  // The final score as the play-by-play has it (its last numbered event), with overtime/shootout: used when the
-  // schedule gets a finished game's result wrong
-  const numbered = Array.isArray(pbp) ? pbp.filter((e) => typeof e.eventId === 'number' && e.homeTeam && typeof e.homeTeam.score === 'number') : [];
-  const last = numbered.reduce((a, e) => (!a || e.eventId > a.eventId ? e : a), null);
-  const pbpFinal = last ? { hs: last.homeTeam.score, as: last.awayTeam.score,
-    ot: numbered.some((e) => e.type === 'goal' && periodNo(e.period) === 4), so: Array.isArray(pbp) && pbp.some((e) => e.type === 'shootout-penalty-shot') } : null;
+  // The final score from the play-by-play, used when the schedule gets a finished game's result wrong. Taken from
+  // the goals (event numbers are not in time order, so "the last event" can carry an old score), plus one goal for
+  // the shootout winner.
+  const list = Array.isArray(pbp) ? pbp : [];
+  const pbpGoals = list.filter((e) => e.type === 'goal' && typeof e.homeGoals === 'number');
+  const soShots = list.filter((e) => e.type === 'shootout-penalty-shot');
+  const soH = soShots.filter((e) => e.isGoal && e.eventTeam?.place === 'home').length, soA = soShots.filter((e) => e.isGoal && e.eventTeam?.place === 'away').length;
+  const pbpFinal = pbpGoals.length || soShots.length ? {
+    hs: Math.max(0, ...pbpGoals.map((e) => e.homeGoals)) + (soH > soA ? 1 : 0),
+    as: Math.max(0, ...pbpGoals.map((e) => e.awayGoals)) + (soA > soH ? 1 : 0),
+    ot: pbpGoals.some((e) => periodNo(e.period) === 4), so: soShots.length > 0,
+  } : null;
   return {
     v: 2, // cache version: 2 = shots on goal only
     id: g.id, start: g.start, home: g.home, away: g.away, hs: g.hs, as: g.as, ot: g.ot, so: g.so, state: g.state, pbpFinal,
@@ -222,7 +228,7 @@ await inBatches(toFetch, 3, async (g) => {
 // result from the game's own play-by-play instead, for the standings model, the game pages and the cached copy
 const fixedResults = [];
 for (const g of cur.games) {
-  if (!isFinal(g) || g.hs !== g.as) continue;
+  if (!isFinal(g) || g.hs !== g.as) continue; // the schedule's own (non-level) result stands
   const d = gameDetails[g.id], f = d?.pbpFinal;
   if (!f || typeof f.hs !== 'number' || f.hs === f.as) continue;
   Object.assign(g, { hs: f.hs, as: f.as, ot: !!(f.ot || f.so), so: !!f.so });
