@@ -1839,7 +1839,12 @@ function pageStats() {
       <div class="p-body" id="lb-${s.id}">${leaderBody(s, s.stats[0])}</div>
       <div class="p-foot"><button class="more" data-all="${s.id}">Alla ${s.title.toLowerCase()} ›</button></div>
     </section>`).join('')}</div>
-    <section class="panel" id="alla"><div class="p-head"><h2>Alla spelare</h2></div><div class="p-body">
+    <section class="panel alla-card ${statsState.allOpen ? 'open' : ''}" id="alla">
+      <button class="alla-toggle" id="alla-toggle" aria-expanded="${!!statsState.allOpen}" aria-controls="alla-body">
+        <span class="alla-title"><b>Alla spelare</b><small>Hela tabellen med filter för lag, position, säsong och rookies</small></span>
+        <svg class="alla-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="p-body" id="alla-body" ${statsState.allOpen ? '' : 'hidden'}>
       <div class="controls">
         <div class="seg" id="sk">${[['skaters', 'Spelare'], ['goalies', 'Målvakter']].map(([v, l]) => `<button data-v="${v}" aria-pressed="${statsState.kind === v}">${l}</button>`).join('')}</div>
         <label class="field">Säsong <select id="ss">${[CUR, PREV].map((s) => `<option ${s === statsState.season ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
@@ -1891,6 +1896,15 @@ function pageStats() {
   $('gs').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; [...$('gs').children].forEach((c) => c.setAttribute('aria-pressed', c === b)); $('gchart').innerHTML = gsaaChart(b.dataset.v); };
   teamOpts(); draw();
 
+  // Alla spelare: a closed card until you open it (remembered while browsing)
+  const setAllOpen = (open) => {
+    statsState.allOpen = open;
+    $('alla').classList.toggle('open', open);
+    $('alla-toggle').setAttribute('aria-expanded', open);
+    $('alla-body').hidden = !open;
+  };
+  $('alla-toggle').onclick = () => setAllOpen(!statsState.allOpen);
+
   // Phones: the section tabs show one leader section at a time
   if ($('stat-tabs')) $('stat-tabs').onclick = (e) => {
     const b = e.target.closest('button[data-sec]'); if (!b) return;
@@ -1921,6 +1935,7 @@ function pageStats() {
     [...$('sk').children].forEach((c) => c.setAttribute('aria-pressed', c.dataset.v === statsState.kind));
     $('ss').value = CUR; $('sp').value = statsState.pos; $('sr').value = statsState.rk ? '1' : ''; $('sq').value = '';
     teamOpts(); draw();
+    setAllOpen(true); // "Alla …" opens the card, sorted by the stat you were looking at
     $('alla').scrollIntoView({ behavior: 'smooth' });
   });
 }

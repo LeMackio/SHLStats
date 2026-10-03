@@ -2199,3 +2199,16 @@ footer#foot p { margin: 0; }
   .stat-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 14px; }
   .stat-tabs button { padding: 9px 4px; font-size: 14px; text-align: center; white-space: nowrap; }
 }
+
+/* Statistik: "Alla spelare" is a closed card with a header you tap to open it */
+.alla-card { padding: 0; overflow: hidden; }
+.alla-toggle { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 20px; cursor: pointer; }
+.alla-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: var(--radius); }
+.alla-title { display: grid; gap: 3px; min-width: 0; }
+.alla-title b { font: 700 20px var(--display); text-transform: uppercase; letter-spacing: .02em; }
+.alla-title small { color: var(--muted); font-size: 13px; }
+.alla-chev { flex: none; width: 34px; height: 34px; padding: 7px; border-radius: 50%; background: var(--panel-2); color: var(--text); transition: transform .25s cubic-bezier(.3, .8, .3, 1); }
+.alla-toggle:hover .alla-chev { background: color-mix(in srgb, var(--accent) 18%, var(--panel-2)); }
+.alla-card.open .alla-chev { transform: rotate(180deg); }
+.alla-card > .p-body { padding-top: 0; }
+@media (max-width: 700px) { .alla-toggle { padding: 16px; } .alla-title b { font-size: 18px; } }
