@@ -3206,6 +3206,27 @@ function syncSliders() {
 new MutationObserver(syncSliders).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-pressed', 'aria-selected', 'class', 'hidden'] });
 addEventListener('resize', syncSliders);
 document.fonts?.ready.then(syncSliders);
+// Phone menu: shrinks to a compact bar while scrolling down, and grows back when scrolling up or at the top
+(function compactNav() {
+  let lastY = scrollY, ticking = false;
+  addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      const y = scrollY, compact = document.body.classList.contains('nav-compact');
+      if (!isNarrow()) { if (compact) document.body.classList.remove('nav-compact'); lastY = y; return; }
+      if (y < 40) { if (compact) document.body.classList.remove('nav-compact'); }
+      else if (y > lastY + 6) { if (!compact) document.body.classList.add('nav-compact'); }
+      else if (y < lastY - 6) { if (compact) document.body.classList.remove('nav-compact'); }
+      if (Math.abs(y - lastY) > 6) lastY = y;
+    });
+  }, { passive: true });
+  // The highlight pill follows the bar while it changes size
+  const nav = document.querySelector('.bottom-nav');
+  if (nav && 'ResizeObserver' in window) new ResizeObserver(syncSliders).observe(nav);
+})();
+
 // Pull to refresh (phones): pull down from the top of a page and let go past the line to reload with fresh data.
 // Sideways swipes (date tabs, goal chips, tables) and open sheets are left alone.
 (function pullToRefresh() {
