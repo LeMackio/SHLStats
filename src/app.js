@@ -68,12 +68,10 @@ const lum = (h) => { const c = hexToRgb(h).map((v) => { v /= 255; return v <= 0.
 const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
 const mixHex = (a, b, t) => '#' + hexToRgb(a).map((v, i) => Math.round(v + (hexToRgb(b)[i] - v) * t).toString(16).padStart(2, '0')).join('');
 function teamAccent(code) {
-  const [bg, fg] = TC[code] || [];
+  const [bg] = TC[code] || [];
   if (!bg) return null;
-  const panelColor = getComputedStyle(document.documentElement).getPropertyValue('--panel').trim() || '#212934';
-  const dark = lum(panelColor) < 0.2;
-  const options = dark ? [bg, fg, mixHex(bg, '#ffffff', 0.35), mixHex(bg, '#ffffff', 0.6)] : [bg, mixHex(bg, '#000000', 0.25), fg, mixHex(bg, '#000000', 0.5)];
-  const pick = options.find((c) => contrast(c, panelColor) >= 3) || options[options.length - 1];
+  // The same vivid, readable club colour as everywhere else (a navy club gets a clear blue, not a grey)
+  const pick = readable(bg);
   return { accent: pick, ink: lum(pick) > 0.35 ? '#10151c' : '#ffffff' };
 }
 
@@ -1131,7 +1129,7 @@ function teamCompare(d) {
 /* ---------- Live feed: every shot, block, miss, penalty, goal and goalie change, newest first ---------- */
 const FEED = { id: null, filter: 'all', seen: new Map() }; // the open full-screen feed, its filter, and events already shown per game
 const FEED_ICON = {
-  goal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linejoin="round"><path d="M4 19V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v11" stroke-width="2.2"/><path d="M3 19h18" stroke-width="2.2"/><path d="M9 6v13M15 6v13M4 11h16M4 15h16" stroke-width="1.2" opacity=".75"/></svg>',
+  goal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17v-3a5 5 0 0 1 10 0v3" fill="currentColor" fill-opacity=".35"/><path d="M5 17h14v3H5zM12 3v2.5M5.2 6.2l1.6 1.6M18.8 6.2l-1.6 1.6M3 11.5h2M19 11.5h2"/></svg>',
   shot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>',
   miss: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"><circle cx="12" cy="12" r="8"/></svg>',
   block: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/></svg>',
@@ -3114,29 +3112,47 @@ document.addEventListener('click', (e) => {
 
 // A club colour made vivid for big coloured backgrounds (match header): full saturation and a lightness where
 // white text still reads well. Black or grey club colours (no real hue) stay as they are.
-const vivid = (hex) => {
+// Hue, saturation and lightness (0–1) to and from hex
+const toHsl = (hex) => {
   const [r, g, b] = hexToRgb(hex).map((v) => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, dd = mx - mn;
   const s = dd ? dd / (1 - Math.abs(2 * l - 1)) : 0;
-  if (s < 0.2 || dd < 0.12) return hex; // near-black or grey: no hue worth boosting
   const h = dd === 0 ? 0 : mx === r ? ((g - b) / dd + 6) % 6 : mx === g ? (b - r) / dd + 2 : (r - g) / dd + 4;
-  const S = Math.max(s, 0.78), L = Math.min(0.44, Math.max(0.34, l)), C = (1 - Math.abs(2 * L - 1)) * S, X = C * (1 - Math.abs((h % 2) - 1)), m = L - C / 2;
+  return { h, s, l, dd };
+};
+const fromHsl = (h, s, l) => {
+  const C = (1 - Math.abs(2 * l - 1)) * s, X = C * (1 - Math.abs((h % 2) - 1)), m = l - C / 2;
   const [R, G, B] = [[C, X, 0], [X, C, 0], [0, C, X], [0, X, C], [X, 0, C], [C, 0, X]][Math.floor(h) % 6];
-  return '#' + [R, G, B].map((v) => Math.round((v + m) * 255).toString(16).padStart(2, '0')).join('');
+  return '#' + [R, G, B].map((v) => Math.round(Math.min(1, Math.max(0, v + m)) * 255).toString(16).padStart(2, '0')).join('');
+};
+const hasHue = ({ s, dd }) => s >= 0.2 && dd >= 0.12; // false for black, white and greys
+const vivid = (hex) => {
+  const c = toHsl(hex);
+  if (!hasHue(c)) return hex; // near-black or grey: no hue worth boosting
+  return fromHsl(c.h, Math.max(c.s, 0.78), Math.min(0.44, Math.max(0.34, c.l)));
 };
 // Two team colours that can be told apart: if they are too alike, the away side switches to its second colour or a neutral steel
 const colorDist = (a, b) => { const [r1, g1, b1] = hexToRgb(a), [r2, g2, b2] = hexToRgb(b), rm = (r1 + r2) / 2; return Math.sqrt((2 + rm / 256) * (r1 - r2) ** 2 + 4 * (g1 - g2) ** 2 + (2 + (255 - rm) / 256) * (b1 - b2) ** 2); };
+// A club colour that reads on the current cards. Coloured clubs keep their hue and stay saturated: only the lightness
+// moves (brighter on dark themes, deeper on light ones), so a navy turns a clear blue rather than grey.
 const readable = (c) => {
   const panel = getComputedStyle(document.documentElement).getPropertyValue('--panel').trim() || '#212934';
-  const toward = lum(panel) < 0.2 ? '#ffffff' : '#000000';
-  let x = c;
-  for (let i = 0; i < 5 && contrast(x, panel) < 2.4; i++) x = mixHex(x, toward, 0.22);
+  const dark = lum(panel) < 0.2, base = toHsl(c);
+  if (!hasHue(base)) { // black or grey clubs: mix toward white/black as before
+    let x = c;
+    for (let i = 0; i < 5 && contrast(x, panel) < 2.4; i++) x = mixHex(x, dark ? '#ffffff' : '#000000', 0.22);
+    return x;
+  }
+  const v = toHsl(vivid(c));
+  let l = v.l, x = fromHsl(v.h, v.s, l);
+  for (let i = 0; i < 8 && contrast(x, panel) < 2.6; i++) { l = Math.min(0.78, Math.max(0.18, l + (dark ? 0.05 : -0.05))); x = fromHsl(v.h, Math.min(1, v.s), l); }
   return x;
 };
 function pairColors(h, a) {
   const hc = readable(tColor(h)); let ac = readable(tColor(a));
-  if (colorDist(hc, ac) < 170) {
-    const alt = (TC[a] || [])[1];
-    ac = alt && colorDist(hc, alt) >= 170 && lum(alt) > 0.03 && lum(alt) < 0.85 ? alt : colorDist(hc, '#8fa3b8') >= 170 ? '#8fa3b8' : '#e3b75a';
+  if (colorDist(hc, ac) < 150) {
+    // Too alike: the away side's second colour if it has a real colour, otherwise a neutral steel
+    const alt = (TC[a] || [])[1], altR = alt && hasHue(toHsl(alt)) ? readable(alt) : null;
+    ac = altR && colorDist(hc, altR) >= 150 ? altR : colorDist(hc, '#8fa3b8') >= 150 ? '#8fa3b8' : '#e3b75a';
   }
   return [hc, ac];
 }
@@ -3352,11 +3368,20 @@ function setupAppMode() {
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
-  let loadedAt = Date.now();
+  let loadedAt = Date.now(), checkedAt = Date.now();
   document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState !== 'visible' || Date.now() - loadedAt < 5 * 60 * 1000) return;
-    loadedAt = Date.now();
+    if (document.visibilityState !== 'visible') return;
     try {
+      // A new version of the site (new build number in the page): reload, so a home-screen app never keeps an old design
+      if (Date.now() - checkedAt > 60 * 1000 && window.SHL_BUILD) {
+        checkedAt = Date.now();
+        const html = await (await fetch(`./?check=${Date.now()}`, { cache: 'no-store' })).text();
+        const build = html.match(/SHL_BUILD = '([^']+)'/)?.[1];
+        if (build && build !== window.SHL_BUILD) { location.reload(); return; }
+      }
+      // New data after a while away: reload to show it
+      if (Date.now() - loadedAt < 5 * 60 * 1000) return;
+      loadedAt = Date.now();
       const fresh = await (await fetch(`data/core.json?check=${Date.now()}`, { cache: 'no-store' })).json();
       if (fresh.updated !== D.updated) location.reload();
     } catch { /* offline: keep showing what we have */ }

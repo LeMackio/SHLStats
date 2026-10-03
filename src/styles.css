@@ -2155,3 +2155,9 @@ footer#foot p { margin: 0; }
   body.nav-compact .bottom-nav a .ic { width: 21px; height: 21px; }
 }
 @media (max-width: 700px) and (prefers-reduced-motion: reduce) { .bottom-nav, .bottom-nav a, .bottom-nav a .ic { transition: none; } }
+
+/* Live feed: every icon (the larger goal icon too) sits exactly on the centre line */
+.fd { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); }
+.fd-ic { justify-self: center; }
+.fd-goal .fd-ic svg { width: 21px; height: 21px; }
+@media (max-width: 700px) { .fd { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); } }

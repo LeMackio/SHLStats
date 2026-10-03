@@ -21,7 +21,10 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET' || url.origin !== location.origin) return; // logos, photos and video load normally
   e.respondWith((async () => {
     try {
-      const res = await fetch(req);
+      // The page itself and the data are always checked with the server (the browser may otherwise reuse a copy
+      // for up to 10 minutes after a new version is published); versioned files (?v=) can come from the browser cache
+      const fresh = req.mode === 'navigate' || /\.json$/.test(url.pathname) || url.pathname.endsWith('/');
+      const res = await fetch(req, fresh ? { cache: 'no-cache' } : undefined);
       if (res.ok) {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(req, copy));
