@@ -2161,3 +2161,20 @@ footer#foot p { margin: 0; }
 .fd-ic { justify-self: center; }
 .fd-goal .fd-ic svg { width: 21px; height: 21px; }
 @media (max-width: 700px) { .fd { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); } }
+
+/* Pull to refresh: a Liquid Glass circle like the bottom bar, always centred (it only moves down, never sideways or round) */
+@media (max-width: 700px) {
+  .ptr { left: 0; right: 0; margin: 0 auto; width: 46px; height: 46px; transform: translateY(0); top: calc(env(safe-area-inset-top, 0px) + 6px);
+    background: color-mix(in srgb, var(--bg) 58%, transparent); border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+    backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .35), inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent); color: var(--text); }
+  .ptr .ptr-ring { position: absolute; inset: 4px; width: auto; height: auto; transform: rotate(-90deg); }
+  .ptr-track { fill: none; stroke: color-mix(in srgb, var(--text) 14%, transparent); stroke-width: 3; }
+  .ptr-fill { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: calc(100 - var(--p, 0) * 100); }
+  .ptr .ptr-arrow { width: 18px; height: 18px; transition: transform .22s cubic-bezier(.3, .8, .3, 1), color .15s; } /* points down while pulling... */
+  .ptr.armed .ptr-arrow { transform: rotate(180deg); color: var(--accent); } /* ...and flips up when you can let go */
+  .ptr.loading .ptr-arrow { display: none; }
+  .ptr.loading .ptr-fill { stroke-dashoffset: 70; }
+  .ptr.loading .ptr-ring { animation: ptrSpin .8s linear infinite; }
+  .ptr.loading svg.ptr-ring { width: auto; height: auto; }
+}

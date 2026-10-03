@@ -3248,11 +3248,13 @@ document.fonts?.ready.then(syncSliders);
 (function pullToRefresh() {
   const ind = document.createElement('div');
   ind.className = 'ptr'; ind.setAttribute('aria-hidden', 'true');
-  ind.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>';
+  // A glass circle: a ring that fills as you pull, with an arrow in the middle that flips up when you can let go
+  ind.innerHTML = '<svg class="ptr-ring" viewBox="0 0 40 40"><circle cx="20" cy="20" r="15" class="ptr-track"/><circle cx="20" cy="20" r="15" class="ptr-fill" pathLength="100"/></svg>'
+    + '<svg class="ptr-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>';
   document.body.append(ind);
   const LIMIT = 72;
   let y0 = null, x0 = 0, pull = 0, active = false;
-  const reset = () => { y0 = null; active = false; pull = 0; ind.classList.remove('armed'); ind.style.transform = ''; ind.style.opacity = ''; };
+  const reset = () => { y0 = null; active = false; pull = 0; ind.classList.remove('armed'); ind.style.transform = ''; ind.style.opacity = ''; ind.style.removeProperty('--p'); };
   addEventListener('touchstart', (e) => {
     if (!isNarrow() || scrollY > 0 || e.touches.length !== 1 || document.querySelector('dialog[open]') || document.body.classList.contains('search-open')) return;
     if (e.target.closest('.gc-goals, .datetabs, .strip, .tscroll, .chips, input, textarea, select, .smap-stage')) return;
@@ -3268,13 +3270,14 @@ document.fonts?.ready.then(syncSliders);
     }
     pull = Math.max(0, Math.min(120, dy * 0.5));
     ind.style.opacity = String(Math.min(1, pull / 40));
-    ind.style.transform = `translate(-50%, ${pull}px) rotate(${pull * 3}deg)`;
+    ind.style.transform = `translateY(${pull}px)`;
+    ind.style.setProperty('--p', String(Math.min(1, pull / LIMIT)));
     ind.classList.toggle('armed', pull >= LIMIT);
   }, { passive: true });
   addEventListener('touchend', () => {
     if (!active) { reset(); return; }
     if (pull >= LIMIT) {
-      ind.classList.add('loading'); ind.style.transform = `translate(-50%, ${LIMIT}px)`;
+      ind.classList.add('loading'); ind.style.transform = `translateY(${LIMIT}px)`;
       setTimeout(() => location.reload(), 250);
       return;
     }
