@@ -3201,8 +3201,7 @@ function syncSlider(box, spec) {
     ind = document.createElement('span');
     ind.className = `sl-ind sl-${spec.kind}`; ind.setAttribute('aria-hidden', 'true');
     box.prepend(ind);
-    if (!box.classList.contains('has-ind')) box.classList.add('has-ind');
-    if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
+    if (!box.classList.contains('has-ind')) box.classList.add('has-ind'); // the stylesheet positions .has-ind groups
   }
   const items = [...box.querySelectorAll(`:scope > ${spec.item}`)];
   const on = items.find((el) => el.matches(spec.on));
@@ -3348,7 +3347,10 @@ async function boot() {
   buildCards();
   // Menu icons (top menu on desktop, bottom bar on phones)
   const NAV_ICON = { '': 'home', statistik: 'chart', tabell: 'table', matcher: 'calendar', nexus: 'target', media: 'play' };
-  document.querySelectorAll('nav.main a, .bottom-nav a').forEach((a) => a.insertAdjacentHTML('afterbegin', icon(NAV_ICON[a.dataset.nav])));
+  document.querySelectorAll('nav.main a, .bottom-nav a').forEach((a) => {
+    // The label in its own element, so the phone menu can fold it away completely when it shrinks
+    a.innerHTML = `${icon(NAV_ICON[a.dataset.nav])}<span class="nl">${esc(a.textContent.trim())}</span>`;
+  });
   app.removeAttribute('aria-busy');
   setupTheme();
   setupSearch();

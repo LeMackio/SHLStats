@@ -2178,3 +2178,17 @@ footer#foot p { margin: 0; }
   .ptr.loading .ptr-ring { animation: ptrSpin .8s linear infinite; }
   .ptr.loading svg.ptr-ring { width: auto; height: auto; }
 }
+
+/* Phone menu labels fold away completely when the bar shrinks, so each icon sits in the exact middle */
+@media (max-width: 700px) {
+  .bottom-nav a { align-content: center; }
+  .bottom-nav a .ic { display: block; }
+  .bottom-nav a .nl { display: block; max-height: 16px; line-height: 16px; overflow: hidden; opacity: 1; transition: max-height .3s, opacity .2s; }
+  body.nav-compact .bottom-nav a { gap: 0; }
+  body.nav-compact .bottom-nav a .nl { max-height: 0; opacity: 0; }
+}
+
+/* Groups with a sliding highlight are its positioning box. (Set here, not inline, so it never overrides a group that
+   is positioned differently at another screen size, like the theme menu that floats under its button on computers.) */
+.seg.has-ind, .utabs.has-ind, .tabs.has-ind, .ltop10.has-ind { position: relative; }
+@media (min-width: 701px) { nav.main.has-ind { position: relative; } }
