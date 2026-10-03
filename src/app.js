@@ -1057,7 +1057,7 @@ async function pageMatch(id, tab = '') {
     : [['', 'Preview'], ['uppstallning', 'Uppställningar'], ['inbordes', 'Inbördes möten']];
   if (!tabList.some(([k]) => k === tab)) tab = '';
   const meta = [`${fmtDay(g.start)} ${dateParts(g.start).y}, ${fmtTime(g.start)}`, d?.arena || g.arena, d?.att ? `Publik ${d.att.toLocaleString('sv-SE')}` : ''].filter(Boolean);
-  const head = `<section class="panel mpanel" style="--hc:${pairColors(g.home, g.away)[0]};--ac:${pairColors(g.home, g.away)[1]}">
+  const head = `<section class="panel mpanel" style="--hc:${pairColors(g.home, g.away)[0]};--ac:${pairColors(g.home, g.away)[1]};--hb:${vivid(tColor(g.home))};--ab:${vivid(tColor(g.away))}">
     <div class="band">
     <div class="crumbs" style="padding:16px 22px 0"><a href="#/matcher">Matcher</a> / ${esc(tName(g.home))} – ${esc(tName(g.away))}</div>
     <div class="mhead">
@@ -1207,7 +1207,7 @@ function drawFeed(d) {
       <button class="fd-close" data-feed-close aria-label="Stäng"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       <div class="fd-match">
         <span class="fd-tm">${tb(d.home, 'lg')}<small>${esc(d.home)}</small></span>
-        <span class="fd-mid"><b class="num">${d.hs}–${d.as}</b><span class="fd-clock"><i class="live-dot"></i>${esc(liveClock(d.live))}</span></span>
+        <span class="fd-scorebox"><b class="num">${d.hs}–${d.as}</b><span class="fd-clock"><i class="live-dot"></i>${esc(liveClock(d.live))}</span></span>
         <span class="fd-tm">${tb(d.away, 'lg')}<small>${esc(d.away)}</small></span>
       </div>
     </div>
@@ -3112,6 +3112,17 @@ document.addEventListener('click', (e) => {
   applyTT(b.closest('.tt'), b.dataset.tt);
 });
 
+// A club colour made vivid for big coloured backgrounds (match header): full saturation and a lightness where
+// white text still reads well. Black or grey club colours (no real hue) stay as they are.
+const vivid = (hex) => {
+  const [r, g, b] = hexToRgb(hex).map((v) => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, dd = mx - mn;
+  const s = dd ? dd / (1 - Math.abs(2 * l - 1)) : 0;
+  if (s < 0.2 || dd < 0.12) return hex; // near-black or grey: no hue worth boosting
+  const h = dd === 0 ? 0 : mx === r ? ((g - b) / dd + 6) % 6 : mx === g ? (b - r) / dd + 2 : (r - g) / dd + 4;
+  const S = Math.max(s, 0.78), L = Math.min(0.44, Math.max(0.34, l)), C = (1 - Math.abs(2 * L - 1)) * S, X = C * (1 - Math.abs((h % 2) - 1)), m = L - C / 2;
+  const [R, G, B] = [[C, X, 0], [X, C, 0], [0, C, X], [0, X, C], [X, 0, C], [C, 0, X]][Math.floor(h) % 6];
+  return '#' + [R, G, B].map((v) => Math.round((v + m) * 255).toString(16).padStart(2, '0')).join('');
+};
 // Two team colours that can be told apart: if they are too alike, the away side switches to its second colour or a neutral steel
 const colorDist = (a, b) => { const [r1, g1, b1] = hexToRgb(a), [r2, g2, b2] = hexToRgb(b), rm = (r1 + r2) / 2; return Math.sqrt((2 + rm / 256) * (r1 - r2) ** 2 + 4 * (g1 - g2) ** 2 + (2 + (255 - rm) / 256) * (b1 - b2) ** 2); };
 const readable = (c) => {
