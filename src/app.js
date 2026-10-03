@@ -1762,16 +1762,16 @@ const LEADER_SECTIONS = () => {
     { k: 'pm', label: '+/-', v: (p) => p.pm, tie: (p) => p.pts, f: signed },
   ];
   return [
-    { id: 'sk', title: 'Spelare', rows: sk, stats: skStats, all: { kind: 'skaters', pos: 'ALL' } },
-    { id: 'gk', title: 'Målvakter', note: `Minst ${gmin} ${gmin === 1 ? 'match' : 'matcher'}`, rows: goalies().filter((g) => g.gpi >= gmin), all: { kind: 'goalies', pos: 'ALL' },
+    { id: 'sk', title: 'Spelare', rows: sk, stats: skStats },
+    { id: 'gk', title: 'Målvakter', note: `Minst ${gmin} ${gmin === 1 ? 'match' : 'matcher'}`, rows: goalies().filter((g) => g.gpi >= gmin),
       stats: [
         { k: 'svp', label: 'Rädd%', v: (g) => g.svp, f: (x) => dec(x, 2) },
         { k: 'gaa', label: 'GAA', v: (g) => g.gaa, asc: true, f: (x) => dec(x, 2) },
         { k: 'so', label: 'Nollor', v: (g) => g.so, tie: (g) => g.svp },
         { k: 'gsaa', label: 'GSAA', v: (g) => gsaa(g, CUR), f: (x) => (x > 0 ? '+' : '') + dec(x) },
       ] },
-    { id: 'df', title: 'Backar', rows: sk.filter((p) => posGroup(p.pos) === 'D'), stats: skStats, all: { kind: 'skaters', pos: 'D' } },
-    { id: 'rk', title: 'Rookies', note: 'Första SHL-säsongen', rows: sk.filter((p) => p.rk), stats: skStats, all: { kind: 'skaters', pos: 'ALL', rk: true } },
+    { id: 'df', title: 'Backar', rows: sk.filter((p) => posGroup(p.pos) === 'D'), stats: skStats },
+    { id: 'rk', title: 'Rookies', note: 'Första SHL-säsongen', rows: sk.filter((p) => p.rk), stats: skStats },
   ];
 };
 // The big card on the left of a leader section, for any player in its top 10
@@ -1836,9 +1836,7 @@ function pageStats() {
     <div class="lsec-row">${sections.map((s) => `<section class="panel lsec" data-sec="${s.id}" ${narrow && s.id !== statsState.sec ? 'hidden' : ''}>
       <div class="p-head"><h2>${s.title}</h2>${s.note ? `<span class="stamp">${esc(s.note)}</span>` : ''}</div>
       <div class="utabs" id="lt-${s.id}" role="tablist">${s.stats.map((st, i) => `<button role="tab" data-k="${st.k}" aria-selected="${i === 0}">${st.label}</button>`).join('')}</div>
-      <div class="p-body" id="lb-${s.id}">${leaderBody(s, s.stats[0])}</div>
-      <div class="p-foot"><button class="more" data-all="${s.id}">Alla ${s.title.toLowerCase()} ›</button></div>
-    </section>`).join('')}</div>
+      <div class="p-body" id="lb-${s.id}">${leaderBody(s, s.stats[0])}</div>    </section>`).join('')}</div>
     <section class="panel alla-card ${statsState.allOpen ? 'open' : ''}" id="alla">
       <button class="alla-toggle" id="alla-toggle" aria-expanded="${!!statsState.allOpen}" aria-controls="alla-body">
         <span class="alla-title"><b>Alla spelare</b><small>Hela tabellen med filter för lag, position, säsong och rookies</small></span>
@@ -1876,14 +1874,13 @@ function pageStats() {
       { k: 'ppg', label: 'PPM', title: 'Powerplaymål' }, { k: 'gwg', label: 'GWG', title: 'Matchvinnande mål' }, { k: 'sog', label: 'Skott' },
       { k: 'shp', label: 'Sk%', title: 'Skotteffektivitet', f: (v) => dec(v * 100, 1) }, { k: 'toi', label: 'Istid', title: 'Istid per match', f: mmss },
       { k: 'hits', label: 'Tackl.' }, { k: 'blk', label: 'Block' },
-    ], rows, { key: S.sortKey || 'pts', limit: 25 });
+    ], rows, { key: 'pts', limit: 25 });
     else sortable($('stable'), [nameCol,
       { k: 'gpi', label: 'SM', title: 'Spelade matcher' }, { k: 'w_', label: 'V', title: 'Vinster' }, { k: 'l', label: 'F', title: 'Förluster' },
       { k: 'sv', label: 'Räddn.' }, { k: 'ga', label: 'Insl.', asc: true }, { k: 'svp', label: 'Rädd%', f: (v) => dec(v, 2) },
       { k: 'gaa', label: 'GAA', title: 'Insläppta mål per 60 minuter', asc: true, f: (v) => dec(v, 2) }, { k: 'so', label: 'Nollor' },
       { k: 'gsaa', label: 'GSAA', title: 'Räddade mål över snittet', f: (v) => (v > 0 ? '+' : '') + dec(v) }, { k: 'mins', label: 'Minuter', f: (v) => Math.round(v) },
-    ], rows, { key: S.sortKey || 'svp', limit: 25, desc: !['gaa', 'ga'].includes(S.sortKey) });
-    S.sortKey = null; // only the first draw after "Alla" uses the chosen stat
+    ], rows, { key: 'svp', limit: 25 });
   };
   const bindSeg = (id, key, after) => $(id).onclick = (e) => { const b = e.target.closest('button'); if (!b) return; statsState[key] = b.dataset.v; [...$(id).children].forEach((c) => c.setAttribute('aria-pressed', c === b)); after?.(); draw(); };
   bindSeg('sk', 'kind', teamOpts);
@@ -1916,28 +1913,16 @@ function pageStats() {
     syncSliders(); // the sections' own stat tabs were hidden until now
   };
 
-  // Leader sections: switch stat, or jump to the full table sorted by that stat
-  const active = {};
+  // Leader sections: switch the stat shown (the full table is the "Alla spelare" card below)
   for (const s of sections) {
-    active[s.id] = s.stats[0];
     bindLeaderHover($(`lb-${s.id}`), s.id);
     $(`lt-${s.id}`).onclick = (e) => {
       const b = e.target.closest('button'); if (!b) return;
       [...$(`lt-${s.id}`).children].forEach((c) => c.setAttribute('aria-selected', c === b));
-      active[s.id] = s.stats.find((st) => st.k === b.dataset.k);
-      $(`lb-${s.id}`).innerHTML = leaderBody(s, active[s.id]);
+      $(`lb-${s.id}`).innerHTML = leaderBody(s, s.stats.find((st) => st.k === b.dataset.k));
       countUpEl($(`lb-${s.id}`).querySelector('.lfeat-val'));
     };
   }
-  app.querySelectorAll('[data-all]').forEach((b) => b.onclick = () => {
-    const s = sections.find((x) => x.id === b.dataset.all);
-    Object.assign(statsState, { rk: false }, s.all, { season: CUR, team: 'ALL', q: '', sortKey: active[s.id].k });
-    [...$('sk').children].forEach((c) => c.setAttribute('aria-pressed', c.dataset.v === statsState.kind));
-    $('ss').value = CUR; $('sp').value = statsState.pos; $('sr').value = statsState.rk ? '1' : ''; $('sq').value = '';
-    teamOpts(); draw();
-    setAllOpen(true); // "Alla …" opens the card, sorted by the stat you were looking at
-    $('alla').scrollIntoView({ behavior: 'smooth' });
-  });
 }
 
 /* ---------- Nexus: shot quality and expected goals (desktop menu) ---------- */
