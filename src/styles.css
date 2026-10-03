@@ -2192,3 +2192,10 @@ footer#foot p { margin: 0; }
    is positioned differently at another screen size, like the theme menu that floats under its button on computers.) */
 .seg.has-ind, .utabs.has-ind, .tabs.has-ind, .ltop10.has-ind { position: relative; }
 @media (min-width: 701px) { nav.main.has-ind { position: relative; } }
+
+/* Statistik on phones: four tabs at the top pick the leader section shown */
+.stat-tabs { display: none; }
+@media (max-width: 700px) {
+  .stat-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 14px; }
+  .stat-tabs button { padding: 9px 4px; font-size: 14px; text-align: center; white-space: nowrap; }
+}

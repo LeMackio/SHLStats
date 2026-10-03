@@ -1825,9 +1825,15 @@ function pageStats() {
   setTitle('Statistik');
   statsState.season ??= CUR;
   const sections = LEADER_SECTIONS();
+  // Phones: one leader section at a time, picked with tabs at the top (in the order Spelare, Backar, Målvakter, Rookies)
+  const narrow = isNarrow(), TAB_ORDER = ['sk', 'df', 'gk', 'rk'];
+  if (!TAB_ORDER.includes(statsState.sec)) statsState.sec = 'sk';
+  const secTabs = narrow ? `<div class="seg stat-tabs" id="stat-tabs">${TAB_ORDER.map((id) => sections.find((s) => s.id === id)).filter(Boolean)
+    .map((s) => `<button data-sec="${s.id}" aria-pressed="${s.id === statsState.sec}">${s.title}</button>`).join('')}</div>` : '';
   render(`
     <div class="page-head"><div><h1>Statistik</h1><p>Topplistor och fullständig statistik för alla SHL-spelare. Tryck på en spelare för hela profilen.</p></div></div>
-    <div class="lsec-row">${sections.map((s) => `<section class="panel lsec">
+    ${secTabs}
+    <div class="lsec-row">${sections.map((s) => `<section class="panel lsec" data-sec="${s.id}" ${narrow && s.id !== statsState.sec ? 'hidden' : ''}>
       <div class="p-head"><h2>${s.title}</h2>${s.note ? `<span class="stamp">${esc(s.note)}</span>` : ''}</div>
       <div class="utabs" id="lt-${s.id}" role="tablist">${s.stats.map((st, i) => `<button role="tab" data-k="${st.k}" aria-selected="${i === 0}">${st.label}</button>`).join('')}</div>
       <div class="p-body" id="lb-${s.id}">${leaderBody(s, s.stats[0])}</div>
@@ -1884,6 +1890,17 @@ function pageStats() {
   $('sr').onchange = (e) => { statsState.rk = !!e.target.value; draw(); };
   $('gs').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; [...$('gs').children].forEach((c) => c.setAttribute('aria-pressed', c === b)); $('gchart').innerHTML = gsaaChart(b.dataset.v); };
   teamOpts(); draw();
+
+  // Phones: the section tabs show one leader section at a time
+  if ($('stat-tabs')) $('stat-tabs').onclick = (e) => {
+    const b = e.target.closest('button[data-sec]'); if (!b) return;
+    statsState.sec = b.dataset.sec;
+    $('stat-tabs').querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', x === b));
+    app.querySelectorAll('.lsec[data-sec]').forEach((s) => { s.hidden = s.dataset.sec !== statsState.sec; });
+    const shown = app.querySelector(`.lsec[data-sec="${statsState.sec}"]`);
+    countUpEl(shown?.querySelector('.lfeat-val'));
+    syncSliders(); // the sections' own stat tabs were hidden until now
+  };
 
   // Leader sections: switch stat, or jump to the full table sorted by that stat
   const active = {};
