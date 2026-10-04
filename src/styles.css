@@ -2520,3 +2520,45 @@ a, .vid-dot, .strip-today, .s-date.today b, .s-date.today span, .rm-tag, details
 .lfeat .portrait img { filter: none;
   -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%), linear-gradient(to bottom, #000 74%, transparent 100%);
   -webkit-mask-composite: source-in; mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%), linear-gradient(to bottom, #000 74%, transparent 100%); mask-composite: intersect; }
+
+/* Leader photos: just the player, no colour glow behind */
+.lfeat .portrait { background: none; }
+
+/* Toggles, tabs and chips: never blue. The chosen option gets a neutral tint (white on dark themes, ink on light ones) */
+.sl-pill { background: color-mix(in srgb, var(--text) 13%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 9%, transparent); }
+.sl-line { background: var(--text); }
+.seg button[aria-pressed="true"], .theme-toggle button[aria-pressed="true"] { background: color-mix(in srgb, var(--text) 13%, transparent); color: var(--text); }
+.seg.has-ind button[aria-pressed="true"], .theme-toggle.has-ind button[aria-pressed="true"] { background: none; color: var(--text); }
+.chip[aria-pressed="true"] { border-color: color-mix(in srgb, var(--text) 40%, transparent); color: var(--text); background: color-mix(in srgb, var(--text) 10%, transparent); }
+.tabs a.on, .datetabs a.on { border-bottom-color: var(--text); }
+.datetabs a.on b, nav.main a.on .ic { color: var(--text); }
+.set-teams button[aria-pressed="true"] { border-color: color-mix(in srgb, var(--text) 45%, transparent); background: color-mix(in srgb, var(--text) 9%, var(--panel)); }
+.set-tog input:checked + i { background: #34c759; }
+.ref .ref-btn[aria-pressed="true"] { border-color: rgba(255, 255, 255, .6); background: rgba(255, 255, 255, .16); }
+
+@media (min-width: 701px) {
+  /* The match cards at the top: a touch smaller than the enlarged size, still larger than the original */
+  .s-game { width: 170px; min-width: 170px; padding: 9px 12px; gap: 5px; }
+  .s-row { grid-template-columns: 27px minmax(0, 1fr) auto; gap: 8px; }
+  .s-row .tb { width: 27px; height: 27px; }
+  .s-row .code { font-size: 16px; }
+  .s-game .score { font-size: 19.5px; }
+  .strip-track { padding-top: 10px; padding-bottom: 10px; }
+
+  /* Header tools: your team, search and theme as three round buttons of the same size */
+  .top-tools { gap: 8px; align-items: center; }
+  .favlink, .search-toggle, .theme-btn { width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%; background: var(--panel-2); color: var(--text); display: grid; place-items: center; cursor: pointer; flex: none; }
+  .favlink span { display: none; }
+  .favlink .tb { width: 26px; height: 26px; }
+  .favlink:hover, .search-toggle:hover, .theme-btn:hover { background: color-mix(in srgb, var(--text) 10%, var(--panel-2)); }
+  .search-toggle .ic { width: 17px; height: 17px; stroke-width: 2.2; }
+  /* Search: the round button widens into the field when pressed (or on "/") and folds back when left empty */
+  .gsearch { display: flex; align-items: center; height: 38px; }
+  .gsearch input, .gsearch > svg, .gsearch .kbd { display: none; }
+  body.search-open .search-toggle { display: none; }
+  body.search-open .gsearch input { display: block; width: 260px; height: 38px; animation: gs-open .24s cubic-bezier(.3, .8, .3, 1); }
+  body.search-open .gsearch input:focus { box-shadow: 0 0 0 2px color-mix(in srgb, var(--text) 25%, transparent); }
+  body.search-open .gsearch > svg { display: block; }
+  @keyframes gs-open { from { width: 38px; } }
+}
+@media (min-width: 701px) and (prefers-reduced-motion: reduce) { body.search-open .gsearch input { animation: none; } }

@@ -762,7 +762,7 @@ function setupSearch() {
   bindSearch($('gsearch'), $('gsearch-results'), (item) => { location.hash = item.type === 't' ? `#/lag/${item.id}` : `#/spelare/${item.id}`; });
   // "/" focuses search from anywhere
   document.addEventListener('keydown', (e) => {
-    if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) && !$('video').open) { e.preventDefault(); $('gsearch').focus(); }
+    if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) && !$('video').open) { e.preventDefault(); document.body.classList.add('search-open'); $('gsearch').focus(); }
   });
 }
 function bindSearch(input, res, onPick, filter = () => true) {
@@ -801,7 +801,7 @@ function renderFavLink() {
   const a = $('favlink');
   if (!FAV || !TEAMS[FAV]) { a.hidden = true; return; }
   a.hidden = false; a.href = `#/lag/${FAV}`; a.title = `Mitt lag: ${tName(FAV)}`;
-  a.innerHTML = `${tb(FAV)}<span>${esc(FAV)}</span>`;
+  a.innerHTML = `${tb(FAV)}<span>${esc(FAV)}</span>`; a.setAttribute('aria-label', `Mitt lag: ${tName(FAV)}`);
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-fav]');
@@ -1147,9 +1147,9 @@ async function pageMatch(id, tab = '') {
   const base = `/match/${id}`;
   // Played and live games: phones get the line-ups where computers have the players' stats; video is always last
   const tabList = done || live
-    ? [['', 'Översikt'], isNarrow() ? ['uppstallning', 'Uppställning'] : ['spelare', 'Spelare'], ['skott', isNarrow() ? 'Skott & utv.' : 'Skott & utvisningar'],
+    ? [['', 'Översikt'], isNarrow() ? ['uppstallning', 'Uppställning'] : ['spelare', 'Spelarstatistik'], ['skott', isNarrow() ? 'Skott & utv.' : 'Skott & utvisningar'],
       ['video', 'Video', d ? d.goals.filter((x) => x.clip).length + (d.hl ? 1 : 0) || '' : '']]
-    : [['', 'Preview'], ['uppstallning', 'Uppställningar'], ['inbordes', 'Inbördes möten']];
+    : [['', 'Preview'], ['uppstallning', 'Uppställningar']];
   if (!tabList.some(([k]) => k === tab)) tab = '';
   const meta = [`${fmtDay(g.start)} ${dateParts(g.start).y}, ${fmtTime(g.start)}`, d?.arena || g.arena, d?.att ? `Publik ${d.att.toLocaleString('sv-SE')}` : ''].filter(Boolean);
   const head = `<section class="panel mpanel" style="--hc:${pairColors(g.home, g.away)[0]};--ac:${pairColors(g.home, g.away)[1]};--hb:${vivid(teamHue(g.home))};--ab:${vivid(teamHue(g.away))}">
@@ -1170,8 +1170,7 @@ async function pageMatch(id, tab = '') {
     if (!d) body = panel('Matchfakta', '<p class="empty-state">Detaljerad matchdata finns inte för den här matchen ännu. Den hämtas vid nästa uppdatering.</p>');
     else body = tab === 'video' ? matchVideo(d) : tab === 'spelare' ? matchPlayers(d) : tab === 'uppstallning' ? matchLineup(d) : tab === 'skott' ? matchEvents(d) : matchSummary(d, done);
   } else {
-    body = tab === 'uppstallning' ? board([lineupPanel(g)])
-      : tab === 'inbordes' ? matchH2H(g) : matchPreview(g);
+    body = tab === 'uppstallning' ? board([lineupPanel(g)]) : matchPreview(g);
   }
   render(head + body);
   // The live feed: remember this game's data for the full-screen view, and refresh that view if it is open
@@ -1587,10 +1586,7 @@ function matchPlayers(d) {
     `<tr><td class="l"><div class="pcell">${tb(r.team)}${isNarrow() ? '' : avatar(r.id, r.name, r.team)}${pLink(r.id, isNarrow() ? shortName(r.name) : r.name)}</div></td><td>${r.soga}</td><td>${r.svs}</td><td>${r.ga}</td><td class="hl">${dec(r.svs / r.soga * 100, 1)}</td></tr>`).join('')}</tbody></table></div>`;
   return board([
     panel('Målvakter', gkHtml, { cls: 'wide' }),
-    ...(isNarrow()
-      ? [panel('Spelare', `<div class="tt">${teamToggle(d.home, d.away)}<div data-pane="home"><div class="tscroll"><table class="t stick" id="box-home"></table></div></div><div data-pane="away" hidden><div class="tscroll"><table class="t stick" id="box-away"></table></div></div></div>`, { cls: 'wide' })]
-      : [panel(esc(tName(d.home)), `<div class="tscroll"><table class="t stick" id="box-home"></table></div>`, { cls: 'wide' }),
-        panel(esc(tName(d.away)), `<div class="tscroll"><table class="t stick" id="box-away"></table></div>`, { cls: 'wide' })]),
+    panel('Spelare', `<div class="tt">${teamToggle(d.home, d.away)}<div data-pane="home"><div class="tscroll"><table class="t stick" id="box-home"></table></div></div><div data-pane="away" hidden><div class="tscroll"><table class="t stick" id="box-away"></table></div></div></div>`, { cls: 'wide' }),
   ]);
 }
 // Uppställning for a played or live game: the lines each team used (from the game's player list), one team at a time
@@ -1708,6 +1704,7 @@ function matchPreview(g) {
     </div>`),
     panel('Säsongsjämförelse', cmp),
     panel('Form och poängbästa', `<div style="display:grid;gap:18px">${hot(g.home)}${hot(g.away)}</div>`),
+    ...matchH2H(g),
   ]);
 }
 function matchH2H(g) {
@@ -1715,17 +1712,17 @@ function matchH2H(g) {
     ...GAMES.filter((x) => isFinal(x) && [x.home, x.away].includes(g.home) && [x.home, x.away].includes(g.away)).map((x) => ({ s: CUR, d: x.start.slice(0, 10), home: x.home, away: x.away, hs: x.hs, as: x.as, ex: x.ot || x.so, id: x.id })),
     ...D.pastGames.filter((x) => [x[2], x[3]].includes(g.home) && [x[2], x[3]].includes(g.away)).map((x) => ({ s: x[0], d: x[1], home: x[2], away: x[3], hs: x[4], as: x[5], ex: x[6] })),
   ].sort((x, y) => y.d.localeCompare(x.d));
-  if (!meet.length) return panel('Inbördes möten', '<p class="empty-state">Lagen har inte mötts i SHL de senaste säsongerna.</p>');
+  if (!meet.length) return [panel('Inbördes möten', '<p class="empty-state">Lagen har inte mötts i SHL de senaste säsongerna.</p>')];
   const winsOf = (c) => meet.filter((m) => (m.home === c ? m.hs > m.as : m.as > m.hs)).length;
   const goalsOf = (c) => sum(meet.map((m) => m.home === c ? m.hs : m.as));
-  return board([
-    panel('Sammanställning', `<div class="tiles">
+  return [
+    panel('Inbördes möten', `<div class="tiles">
       <div class="tile"><span class="k">${esc(g.home)} vinster</span><span class="v">${winsOf(g.home)}</span><span class="s">${goalsOf(g.home)} gjorda mål</span></div>
       <div class="tile"><span class="k">${esc(g.away)} vinster</span><span class="v">${winsOf(g.away)}</span><span class="s">${goalsOf(g.away)} gjorda mål</span></div>
       <div class="tile"><span class="k">Möten</span><span class="v">${meet.length}</span><span class="s">sedan ${meet[meet.length - 1].s}</span></div></div>`),
     panel('Alla möten', `<div class="tscroll"><table class="t"><thead><tr><th class="l">Säsong</th><th class="l">Datum</th><th class="l">Hemma</th><th>Resultat</th><th class="l">Borta</th></tr></thead><tbody>${meet.map((m) =>
       `<tr><td class="l">${m.s}</td><td class="l">${fmtDate(m.d)}</td><td class="l">${teamLink(m.home, { name: true })}</td><td class="hl">${m.id ? `<a href="#/match/${m.id}">${m.hs}–${m.as}</a>` : `${m.hs}–${m.as}`}${m.ex ? ' <span class="faint">ÖT</span>' : ''}</td><td class="l">${teamLink(m.away, { name: true })}</td></tr>`).join('')}</tbody></table></div>`, { cls: 'wide' }),
-  ]);
+  ];
 }
 
 // Line-ups as rows of player chips: goalies, the forward lines and the defence pairs.
@@ -3499,7 +3496,8 @@ async function route() {
     a.classList.toggle('on', on);
     if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
-  document.body.classList.remove('search-open');
+  // A new page closes the search with nothing left in it (live refreshes of the same page leave it alone)
+  if (location.hash !== route.last) { route.last = location.hash; document.body.classList.remove('search-open'); $('gsearch').value = ''; $('gsearch-results').hidden = true; }
   document.body.classList.toggle('is-home', path === '/'); // the settings button shows on Hem (phones)
   const TITLES = { matcher: 'Matcher', statistik: 'Statistik', tabell: 'Tabell', media: 'Media', match: 'Match', spelare: 'Spelare', lag: 'Lag', nyheter: 'Nyheter', nexus: 'Nexus', avancerat: 'Nexus' };
   mTitle(TITLES[seg] || '');
@@ -3566,13 +3564,15 @@ async function boot() {
   setupAppMode();
 }
 
-// Phones: the search button opens a full-screen search sheet
+// The search button: phones get a full-screen search sheet, computers a round button that widens into the field
 function setupMobileSearch() {
   const open = () => { document.body.classList.add('search-open'); $('gsearch').focus(); };
   const close = () => { document.body.classList.remove('search-open'); $('gsearch').value = ''; $('gsearch-results').hidden = true; };
   $('search-open').onclick = open;
   $('search-close').onclick = close;
-  $('gsearch').addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  $('gsearch').addEventListener('keydown', (e) => { if (e.key === 'Escape') { close(); $('gsearch').blur(); } });
+  // Computers: an empty field folds back into the button when you leave it
+  $('gsearch').addEventListener('blur', () => { if (!isNarrow() && !$('gsearch').value) setTimeout(() => { if (document.activeElement !== $('gsearch')) close(); }, 150); });
 }
 
 // Web app: works offline with the latest data, and refreshes when reopened after a while
