@@ -71,7 +71,7 @@ function teamAccent(code) {
   const [bg] = TC[code] || [];
   if (!bg) return null;
   // The same vivid, readable club colour as everywhere else (a navy club gets a clear blue, not a grey)
-  const pick = readable(bg);
+  const pick = readable(teamHue(code));
   return { accent: pick, ink: lum(pick) > 0.35 ? '#10151c' : '#ffffff' };
 }
 
@@ -334,17 +334,21 @@ function layoutBoards() {
   }));
 }
 // Stat numbers count up from zero when a page opens
-function countUpEl(el, dur = 420) {
+// A shown number back to a number ("98,82" → 98.82, "+3" → 3); null for times, dashes and the like
+const numOf = (txt) => { const m = String(txt ?? '').trim().match(/^[+<>]?(-?\d+)(,\d+)?\s?%?$/); return m ? parseFloat(m[1] + (m[2] ? '.' + m[2].slice(1) : '')) : null; };
+// Animates a number into place, from 0 or from the number that was showing before
+function countUpEl(el, dur = 420, from = 0) {
   if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const top = el.getBoundingClientRect().top;
   if (top > innerHeight || top < -200) return; // off screen: just show the number
   const m = el.textContent.trim().match(/^([+<>]?)(-?\d+)(,\d+)?(\s?%?)$/);
   if (!m) return; // times, ranges and dashes stay as they are
   const decs = m[3] ? m[3].length - 1 : 0, target = parseFloat(m[2] + (m[3] ? '.' + m[3].slice(1) : ''));
+  if (from === target) return;
   const t0 = performance.now();
   const step = (t) => {
     const k = Math.min(1, (t - t0) / dur), e = 1 - (1 - k) ** 3;
-    el.textContent = m[1] + (target * e).toFixed(decs).replace('.', ',') + m[4];
+    el.textContent = m[1] + (from + (target - from) * e).toFixed(decs).replace('.', ',') + m[4];
     if (k < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
@@ -735,7 +739,7 @@ document.addEventListener('click', (e) => {
 // mode: 'full' (standings page), 'stats' (compact, results only) or 'proj' (compact, predictions)
 function standingsTable({ mode = 'full' } = {}) {
   const compact = mode !== 'full';
-  const zone = (r) => r <= 6 ? 'var(--accent)' : r <= 10 ? 'color-mix(in srgb, var(--accent) 60%, var(--muted))' : r >= 13 ? 'var(--bad)' : 'var(--faint)';
+  const zone = rankZone;
   const shade = (p, color = 'var(--accent)') => p <= 0.005 ? '' : `background:color-mix(in srgb, ${color} ${Math.round(8 + p * 62)}%, transparent)`;
   const head = {
     stats: `<th class="rank">#</th><th class="l">Lag</th><th>SM</th><th>V</th><th class="hide-sm">ÖV</th><th class="hide-sm">ÖF</th><th>F</th><th class="hide-sm">GM–IM</th><th>+/-</th><th>P</th>`,
@@ -760,7 +764,9 @@ function standingsTable({ mode = 'full' } = {}) {
   }).join('');
   return `<div class="tscroll"><table class="t ${compact ? 'compact' : ''}" style="min-width:${compact ? 300 : 900}px"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
-const legendHtml = `<div class="legend"><span><i style="background:var(--accent)"></i>Kvartsfinal (1–6)</span><span><i style="background:color-mix(in srgb, var(--accent) 60%, var(--muted))"></i>Play in (7–10)</span><span><i style="background:var(--bad)"></i>SHL-kval (13–14)</span></div>`;
+// Placement colours: white for the playoff places (a little dimmer for play in), grey outside, red for SHL-kval
+const rankZone = (r) => r <= 6 ? 'var(--text)' : r <= 10 ? 'color-mix(in srgb, var(--text) 62%, transparent)' : r >= 13 ? 'var(--bad)' : 'var(--faint)';
+const legendHtml = `<div class="legend"><span><i style="background:var(--text)"></i>Kvartsfinal (1–6)</span><span><i style="background:color-mix(in srgb, var(--text) 62%, transparent)"></i>Play in (7–10)</span><span><i style="background:var(--bad)"></i>SHL-kval (13–14)</span></div>`;
 
 // A game as a clickable row, built like the game cards: when on the left, one line per team (logo, name, table
 // position, then the score or the win chance), and a link on the right. Inside a day group the date is in the heading.
@@ -1071,7 +1077,7 @@ async function pageMatch(id, tab = '') {
     : [['', 'Preview'], ['uppstallning', 'Uppställningar'], ['inbordes', 'Inbördes möten']];
   if (!tabList.some(([k]) => k === tab)) tab = '';
   const meta = [`${fmtDay(g.start)} ${dateParts(g.start).y}, ${fmtTime(g.start)}`, d?.arena || g.arena, d?.att ? `Publik ${d.att.toLocaleString('sv-SE')}` : ''].filter(Boolean);
-  const head = `<section class="panel mpanel" style="--hc:${pairColors(g.home, g.away)[0]};--ac:${pairColors(g.home, g.away)[1]};--hb:${vivid(tColor(g.home))};--ab:${vivid(tColor(g.away))}">
+  const head = `<section class="panel mpanel" style="--hc:${pairColors(g.home, g.away)[0]};--ac:${pairColors(g.home, g.away)[1]};--hb:${vivid(teamHue(g.home))};--ab:${vivid(teamHue(g.away))}">
     <div class="band">
     <div class="crumbs" style="padding:16px 22px 0"><a href="#/matcher">Matcher</a> / ${esc(tName(g.home))} – ${esc(tName(g.away))}</div>
     <div class="mhead">
@@ -1805,7 +1811,7 @@ function leaderBody(sec, stat) {
   for (const p of top.slice(1)) if (HS[p.id]) new Image().src = HS[p.id][1];
   return `<div class="lsec-grid">
     <div class="lfeat-slot">${featHtml(top[0], stat.label, shown[0])}</div>
-    <ol class="ltop10">${top.map((p, i) => `<li class="${i === 0 ? 'on' : ''}" data-i="${i}"><span class="r num">${tied(i) ? 'T' : ''}${rankOf(i)}.</span>${tb(p.team)}${pLink(p.id, p.name)}<b class="num">${shown[i]}</b></li>`).join('')}</ol>
+    <ol class="ltop10" style="--pill-c:${readable(teamHue(top[0].team))}">${top.map((p, i) => `<li class="${i === 0 ? 'on' : ''}" data-i="${i}" style="--rc:${readable(teamHue(p.team))}"><span class="r num">${tied(i) ? 'T' : ''}${rankOf(i)}.</span>${tb(p.team)}${pLink(p.id, p.name)}<b class="num">${shown[i]}</b></li>`).join('')}</ol>
   </div>`;
 }
 // Hovering (or tapping) a row in the top 10 moves the highlight there and shows that player in the big card
@@ -1815,9 +1821,11 @@ function bindLeaderHover(body, secId) {
     if (!st || st.on === i) return;
     st.on = i;
     body.querySelectorAll('.ltop10 li').forEach((x) => x.classList.toggle('on', x === li));
+    li.parentElement.style.setProperty('--pill-c', li.style.getPropertyValue('--rc')); // the highlight in this player's team colour
     const slot = body.querySelector('.lfeat-slot');
+    const before = numOf(slot.querySelector('.lfeat-val')?.textContent); // the number showing now (even mid-count)
     slot.innerHTML = featHtml(st.top[i], st.label, st.shown[i]);
-    countUpEl(slot.querySelector('.lfeat-val'), 450);
+    countUpEl(slot.querySelector('.lfeat-val'), 450, before ?? 0); // counts from the last player's number to this one's
   };
   body.addEventListener('mouseover', (e) => { const li = e.target.closest('.ltop10 li'); if (li) select(li); });
   body.addEventListener('focusin', (e) => { const li = e.target.closest('.ltop10 li'); if (li) select(li); });
@@ -2537,7 +2545,7 @@ function teamStatsTab(head) {
     ])}`);
   const tcols = [
     { k: 'rank', label: '#', asc: true, h: (r) => {
-      const z = r.rank <= 6 ? 'var(--accent)' : r.rank <= 10 ? 'color-mix(in srgb, var(--accent) 60%, var(--muted))' : r.rank >= 13 ? 'var(--bad)' : 'var(--faint)';
+      const z = rankZone(r.rank);
       return `<span class="rank" style="--zone:${z}">${r.rank}</span>`; } },
     { k: 'name', label: 'Lag', l: true, asc: true, h: (r) => `<a class="teamcell" href="#/lag/${r.code}">${tb(r.code, 'md')}<div class="nm"><b>${esc(r.name)}</b><span>${esc(r.code)}</span></div></a>` },
     { k: 'gp', label: 'SM' }, { k: 'w', label: 'V' }, { k: 'otw', label: 'ÖV' }, { k: 'otl', label: 'ÖF' }, { k: 'l', label: 'F', asc: true },
@@ -3248,6 +3256,12 @@ const vivid = (hex) => {
   if (!hasHue(c)) return hex; // near-black or grey: no hue worth boosting
   return fromHsl(c.h, Math.max(c.s, 0.78), Math.min(0.44, Math.max(0.34, c.l)));
 };
+// The colour that stands for a club in charts, bars and highlights: its main colour, or its second colour when the
+// main one is black or grey (Skellefteå's black → their yellow); clubs with no colour at all keep the main one
+const teamHue = (code) => {
+  const [a, b] = TC[code] || ['#5b6b7e'];
+  return hasHue(toHsl(a)) || !b || !hasHue(toHsl(b)) ? a : b;
+};
 // Two team colours that can be told apart: if they are too alike, the away side switches to its second colour or a neutral steel
 const colorDist = (a, b) => { const [r1, g1, b1] = hexToRgb(a), [r2, g2, b2] = hexToRgb(b), rm = (r1 + r2) / 2; return Math.sqrt((2 + rm / 256) * (r1 - r2) ** 2 + 4 * (g1 - g2) ** 2 + (2 + (255 - rm) / 256) * (b1 - b2) ** 2); };
 // A club colour that reads on the current cards. Coloured clubs keep their hue and stay saturated: only the lightness
@@ -3266,7 +3280,7 @@ const readable = (c) => {
   return x;
 };
 function pairColors(h, a) {
-  const hc = readable(tColor(h)); let ac = readable(tColor(a));
+  const hc = readable(teamHue(h)); let ac = readable(teamHue(a));
   if (colorDist(hc, ac) < 150) {
     // Too alike: the away side's second colour if it has a real colour, otherwise a neutral steel
     const alt = (TC[a] || [])[1], altR = alt && hasHue(toHsl(alt)) ? readable(alt) : null;

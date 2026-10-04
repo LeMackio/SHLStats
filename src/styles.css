@@ -2409,3 +2409,16 @@ footer#foot p { margin: 0; }
   table.t th, .ref-cell small, .tn-meta { font-size: 12px; }
   .gr-day, .crumbs, .crumbs a, .controls .field { font-size: 12px; letter-spacing: .08em; }
 }
+
+/* Placements and links in white (blue was overused); 13th and 14th keep their red even on your team's row */
+tr.fav td.rank { color: var(--zone, var(--text)); }
+.ltop10.has-ind li.on .r, .ltop10 li.on .r { color: var(--text); }
+ol.lb.noav li:first-child .v { color: var(--text); }
+.pertab td.hl b { color: var(--text); }
+.more, .more-link, .p-head .more-link, .p-foot .more-link, .card-foot, .list-foot, .gc-foot span:last-child { color: var(--text); }
+.more:hover, .more-link:hover, .card-foot:hover { color: var(--text); opacity: .8; text-decoration: none; }
+
+/* Statistik top-10 lists: the highlight in the hovered player's team colour (the same vivid colour used site-wide) */
+.ltop10 .sl-pill { background: color-mix(in srgb, var(--pill-c, var(--accent)) 14%, transparent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--pill-c, var(--accent)) 75%, transparent); transition-property: transform, width, height, opacity, background-color, box-shadow; }
+.ltop10.has-ind li.on { background: color-mix(in srgb, var(--rc, var(--accent)) 12%, var(--panel-2)); }
+.ltop10 li:not(.on):hover { background: color-mix(in srgb, var(--rc, var(--accent)) 10%, var(--panel-2)); }
