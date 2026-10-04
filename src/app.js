@@ -911,6 +911,8 @@ const render = (html) => {
   const side = TT_SIDE[location.hash]; // a team toggle shows the team picked before the page redrew
   if (side && side !== 'home') app.querySelectorAll('.tt').forEach((box) => applyTT(box, side));
   layoutBoards(); countUp(app);
+  // Tab rows wider than the screen (phones) scroll so the open tab is in view
+  app.querySelectorAll('.tabs').forEach((t) => { const on = t.querySelector('a.on'); if (on && t.scrollWidth > t.clientWidth) t.scrollLeft = on.offsetLeft - (t.clientWidth - on.offsetWidth) / 2; });
 };
 
 /* ---------- Översikt ---------- */
@@ -953,7 +955,7 @@ function myTeamSide(fav) {
       <a class="mts-hero" href="#/lag/${fav}">
         ${LOGOS[fav] ? `<img class="mts-logo" src="${esc(LOGOS[fav])}" alt="">` : ''}
         <span class="mts-lbl">★ Mitt lag</span>
-        <b class="mts-name">${esc(tName(fav))}</b>
+        <b class="mts-name" style="--n:${tName(fav).length}">${esc(tName(fav))}</b>
         <span class="mts-pos"><span class="mts-rank">${TABLE.indexOf(r) + 1}</span>${r.pts} poäng · ${r.gp} matcher</span>
       </a>
       <div class="mts-body">
@@ -1145,9 +1147,9 @@ async function pageMatch(id, tab = '') {
     }
   }
   const base = `/match/${id}`;
-  // Played and live games: phones get the line-ups where computers have the players' stats; video is always last
+  // Played and live games: phones also get the line-ups (second, before the players' stats); video is always last
   const tabList = done || live
-    ? [['', 'Översikt'], isNarrow() ? ['uppstallning', 'Uppställning'] : ['spelare', 'Spelarstatistik'], ['skott', isNarrow() ? 'Skott & utv.' : 'Skott & utvisningar'],
+    ? [['', 'Översikt'], ...(isNarrow() ? [['uppstallning', 'Uppställning']] : []), ['spelare', 'Spelarstatistik'], ['skott', isNarrow() ? 'Skott & utv.' : 'Skott & utvisningar'],
       ['video', 'Video', d ? d.goals.filter((x) => x.clip).length + (d.hl ? 1 : 0) || '' : '']]
     : [['', 'Preview'], ['uppstallning', 'Uppställningar']];
   if (!tabList.some(([k]) => k === tab)) tab = '';
@@ -1783,7 +1785,9 @@ function pageTable(tab = '') {
   if (!['', 'odds'].includes(tab)) tab = '';
   setTitle('Tabell');
   const head = `<div class="page-head"><div><h1>Tabell</h1><p>SHL ${CUR.replace('-', '/')}. Tryck på ett lag för trupp, schema och odds.</p></div></div>
-    <section class="panel tabs-only">${tabs('/tabell', [['', 'Tabell', '', 'table'], ['odds', 'Odds', '', 'trophy']], tab)}</section>`;
+    ${isNarrow() // phones: the page's two tabs as a pill toggle (the toggle inside the card is an underlined tab row instead)
+      ? `<nav class="seg seg-links" aria-label="Flikar">${[['', 'Tabell'], ['odds', 'Odds']].map(([k, label]) => `<a href="#/tabell${k ? '/' + k : ''}" class="${k === tab ? 'on' : ''}" ${k === tab ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav>`
+      : `<section class="panel tabs-only">${tabs('/tabell', [['', 'Tabell', '', 'table'], ['odds', 'Odds', '', 'trophy']], tab)}</section>`}`;
   const foot = `<span class="stamp">Uppdaterad ${esc(stampTxt)}</span>`;
   if (tab === '') return teamStatsTab(head);
   // Poängprognos and Slutplacering share one layout: the same rows (ordered by projected points) and the same team labels
@@ -2435,7 +2439,7 @@ function refHero({ bg, photo, photoCls = '', first, firstCls = '', last, badge =
     ${action ? `<div class="ref-action">${action}</div>` : ''}
     <div class="ref-main"><div class="ref-left">
       <div class="ref-first ${firstCls}">${first}</div>
-      <div class="ref-namerow"><h1 class="ref-last">${last}</h1>${badge ? `<span class="ref-badge">${badge}</span>` : ''}</div>
+      <div class="ref-namerow"><h1 class="ref-last" style="--w:${Math.max(...String(last).split(/\s+/).map((x) => x.length))}">${last}</h1>${badge ? `<span class="ref-badge">${badge}</span>` : ''}</div>
       <span class="ref-rule"></span>
       ${big.length ? `<div class="ref-big">${big.map(([k, v, unit]) => `<div><span>${k}</span><b class="num">${v}${unit ? `<small>${unit}</small>` : ''}</b></div>`).join('')}</div><span class="ref-rule"></span>` : ''}
       ${facts.length ? `<dl class="ref-facts">${facts.map(([k, v]) => `<dt>${k} :</dt><dd>${v}</dd>`).join('')}</dl>` : ''}
@@ -2465,26 +2469,8 @@ async function pagePlayer(id, tab = '') {
   const careerRows = gk ? (P.goalieCareer[id] || []) : (P.career[id] || []);
   const tabList = [['', 'Översikt'], ['karriar', 'Karriär'], ['matchlogg', 'Matchlogg', log.length || ''], ...(clips.length ? [['mal', 'Målvideor', clips.length]] : [])];
   if (!tabList.some(([k]) => k === tab)) tab = '';
-  const hw = [bio.h ? `${bio.h} cm` : '', bio.w ? `${bio.w} kg` : ''].filter(Boolean).join(', ');
-  const tiles = gk
-    ? [['Matcher', cur?.gpi ?? 0], ['Rädd%', cur ? dec(cur.svp, 2) : '–'], ['GAA', cur ? dec(cur.gaa, 2) : '–'], ['Nollor', cur?.so ?? 0], ['GSAA', cur ? dec(gsaa(cur, CUR)) : '–']]
-    : [['Matcher', cur?.gp ?? 0], ['Poäng', cur?.pts ?? 0], ['Mål', cur?.g ?? 0], ['Assist', cur?.a ?? 0], ['+/-', cur ? signed(cur.pm) : '–'], ['Istid', cur ? mmss(cur.toi) : '–']];
-  // The top card's tiles and their label; the Karriär tab swaps in the career totals
-  let heroTiles = tiles, heroLabel = `Grundserien ${CUR.replace('-', '/')}`;
-  const [tbg] = TC[team] || ['#3a4a5e'], shot = HS[id];
+  const shot = HS[id];
   const [first, ...rest] = String(bio.name).split(' ');
-  const hero = () => `<section class="panel phero" style="--tc:${tbg}">
-    <div class="phero-top">
-      <span class="phero-num" aria-hidden="true">${esc(bio.num ?? '')}</span>
-      ${shot ? `<img class="phero-img" src="${esc(shot[1])}" alt="" onerror="this.remove()">` : `<span class="phero-ini">${esc(initials(bio.name))}</span>`}
-      <div class="phero-info">
-        <div class="phero-team">${tb(team, 'md')}<span>${esc(tName(team))} · #${esc(bio.num ?? '–')} · ${POS[bio.pos] || 'Forward'}</span></div>
-        <h1><span>${esc(first)}</span>${esc(rest.join(' '))}</h1>
-      </div>
-    </div>
-    <div class="phero-meta"><span>Ålder <b>${ageOf(bio.born)}</b></span><span>Nation <b>${esc(NAT[bio.nat] || bio.nat || '–')}</b></span>${hw ? `<span><b>${hw}</b></span>` : ''}${bio.born ? `<span>Född <b>${fmtDate(bio.born)}</b></span>` : ''}</div>
-    <div class="p-body"><div class="phero-season">${esc(heroLabel)}</div><div class="tiles">${heroTiles.map(([k, v]) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('')}</div></div>
-    ${tabs(`/spelare/${encodeURIComponent(id)}`, tabList, tab)}</section>`;
 
   const res = (gid, code) => { const g = GAMES_BY_ID[gid]; if (!g) return ''; const r = resultFor(g, code); const mine = g.home === code ? g.hs : g.as, th = g.home === code ? g.as : g.hs;
     return `<a href="#/match/${gid}">${r === 'v' || r === 'ov' ? 'V' : 'F'} ${mine}–${th}${g.ot || g.so ? ' ÖT' : ''}</a>`; };
@@ -2495,29 +2481,23 @@ async function pagePlayer(id, tab = '') {
     else {
     const col = (i) => careerRows.map((r) => +r[i] || 0);
     const tot = (i) => sum(col(i));
-    const seasons = new Set(careerRows.map((r) => r[0])).size;
-    const span = `${careerRows.at(-1)[0].replace('-', '/')} – ${careerRows[0][0].replace('-', '/')}`;
     // Each stat's best season gets highlighted (only when there is more than one season to compare)
     const bestOf = (i, low = false) => { if (careerRows.length < 2) return null; const v = col(i).filter((x, k) => !low || careerRows[k][2] >= 10); return v.length ? (low ? Math.min(...v) : Math.max(...v)) : null; };
     const cell = (v, shown, best, cls = '') => `<td class="${[cls, best !== null && v === best && v !== 0 ? 'best' : ''].filter(Boolean).join(' ')}">${shown}</td>`;
-    let sumTiles, t;
+    let t;
     if (gk) {
       const sv = tot(3), ga = tot(4), mins = tot(10);
-      sumTiles = [['Matcher', tot(2)], ['Rädd%', sv + ga ? dec(sv / (sv + ga) * 100, 2) : '–'], ['GAA', mins ? dec(ga * 60 / mins, 2) : '–'], ['Nollor', tot(7)], ['Säsonger', seasons], ['Vinster', tot(8)]];
       const b = { gp: bestOf(2), sv: bestOf(3), svp: bestOf(5), gaa: bestOf(6, true), so: bestOf(7), w: bestOf(8) };
       t = `<table class="t"><thead><tr><th class="l">Säsong</th><th class="l">Lag</th><th>SM</th><th>Räddn.</th><th>Insl.</th><th>Rädd%</th><th>GAA</th><th>Nollor</th><th>V</th><th>F</th></tr></thead><tbody>${careerRows.map((r) =>
         `<tr><td class="l">${r[0]}</td><td class="l">${teamLink(r[1], { name: true })}</td>${cell(r[2], r[2], b.gp)}${cell(r[3], r[3], b.sv)}<td>${r[4]}</td>${r[2] >= 10 ? cell(r[5], dec(r[5], 2), b.svp, 'hl') : `<td class="hl">${dec(r[5], 2)}</td>`}${r[2] >= 10 ? cell(r[6], dec(r[6], 2), b.gaa) : `<td>${dec(r[6], 2)}</td>`}${cell(r[7], r[7], b.so)}${cell(r[8], r[8] ?? '–', b.w)}<td>${r[9] ?? '–'}</td></tr>`).join('')}
         ${careerRows.length > 1 ? `<tr class="total"><td class="l"><b>Totalt</b></td><td></td><td><b>${tot(2)}</b></td><td><b>${sv}</b></td><td><b>${ga}</b></td><td class="hl">${sv + ga ? dec(sv / (sv + ga) * 100, 2) : '–'}</td><td><b>${mins ? dec(ga * 60 / mins, 2) : '–'}</b></td><td><b>${tot(7)}</b></td><td><b>${tot(8)}</b></td><td><b>${tot(9)}</b></td></tr>` : ''}</tbody></table>`;
     } else {
       const gp = tot(2);
-      sumTiles = [['Matcher', gp], ['Poäng', tot(5)], ['Mål', tot(3)], ['Assist', tot(4)], ['Säsonger', seasons], ['Poäng/match', gp ? dec(tot(5) / gp, 2) : '–']];
       const b = { gp: bestOf(2), g: bestOf(3), a: bestOf(4), p: bestOf(5), pm: bestOf(6), sog: bestOf(8), ppg: bestOf(10) };
       t = `<table class="t"><thead><tr><th class="l">Säsong</th><th class="l">Lag</th><th>SM</th><th>M</th><th>A</th><th>P</th><th>P/M</th><th>+/-</th><th>Utv</th><th>PPM</th><th>Skott</th><th>Istid</th></tr></thead><tbody>${careerRows.map((r) =>
         `<tr><td class="l">${r[0]}</td><td class="l">${teamLink(r[1], { name: true })}</td>${cell(r[2], r[2], b.gp)}${cell(r[3], r[3], b.g)}${cell(r[4], r[4], b.a)}${cell(r[5], r[5], b.p, 'hl')}<td>${dec(r[2] ? r[5] / r[2] : 0, 2)}</td>${cell(r[6], signed(r[6]), b.pm)}<td>${r[7]}</td>${cell(r[10] ?? 0, r[10] ?? '–', b.ppg)}${cell(r[8], r[8], b.sog)}<td>${mmss(r[9])}</td></tr>`).join('')}
         ${careerRows.length > 1 ? `<tr class="total"><td class="l"><b>Totalt</b></td><td></td><td><b>${gp}</b></td><td><b>${tot(3)}</b></td><td><b>${tot(4)}</b></td><td class="hl">${tot(5)}</td><td><b>${gp ? dec(tot(5) / gp, 2) : '–'}</b></td><td><b>${signed(tot(6))}</b></td><td><b>${tot(7)}</b></td><td><b>${tot(10)}</b></td><td><b>${tot(8)}</b></td><td></td></tr>` : ''}</tbody></table>`;
     }
-    heroTiles = sumTiles; heroLabel = `SHL-karriär ${span}`;
-
     // Teams played for, most recent first, with their season spans
     const clubs = new Map();
     for (const r of [...careerRows].reverse()) {
@@ -2563,9 +2543,9 @@ async function pagePlayer(id, tab = '') {
     body = board([card, trend, latestClips, recentGames]) || '';
     if (!card && !trend && !latestClips && !recentGames) body = panel('', '<p class="empty-state">Ingen statistik den här säsongen ännu.</p>');
   }
-  render((isNarrow() ? hero() : playerRefHero()) + body);
+  render(playerRefHero() + body);
 
-  // Computers: the profile-style top card (this season and last season in the stats band)
+  // The profile-style top card (this season and last season in the stats band)
   function playerRefHero() {
     const big = [bio.h ? ['Längd', bio.h, 'cm'] : null, bio.w ? ['Vikt', bio.w, 'kg'] : null, bio.born ? ['Ålder', ageOf(bio.born), 'år'] : null].filter(Boolean);
     const chrono = [...careerRows].reverse(); // oldest first
@@ -2605,7 +2585,7 @@ function teamStatsTab(head) {
   });
   render(`${head}
     ${board([
-      ...(narrow ? [panel('Tabell', `<div class="tt"><div class="seg tt-seg"><button data-tt="std" aria-pressed="true">Tabell</button><button data-tt="adv" aria-pressed="false">Avancerat</button></div>
+      ...(narrow ? [panel('Tabell', `<div class="tt"><div class="utabs tt-tabs"><button data-tt="std" aria-pressed="true">Tabell</button><button data-tt="adv" aria-pressed="false">Avancerat</button></div>
           <div data-pane="std">${standingsTable({ mode: 'stats' })}${legendHtml}</div>
           <div data-pane="adv" hidden><div class="tscroll"><table class="t stick" id="ttable" style="min-width:860px"></table></div><p class="note">Tryck på en kolumnrubrik för att sortera.</p></div></div>`, { cls: 'wide' })]
       : [panel('Tabell', `<div class="tscroll"><table class="t stick" id="ttable" style="min-width:1040px"></table></div>${legendHtml}`,
@@ -2690,25 +2670,6 @@ async function pageTeam(code, tab = '') {
   // Charts and highlights on this page use the club colour, picked to stay readable on the current theme
   const ta = teamAccent(code);
   if (ta) { app.style.setProperty('--accent', ta.accent); app.style.setProperty('--accent-ink', ta.ink); }
-  const [tbg, tfg] = TC[code] || ['#5b6b7e', '#fff'];
-  // Top card: the club logo large on a fade in the club colour, the team code as a watermark, the name over it
-  // (the same layout as the player pages). Below: form and key numbers, then the odds as a ladder from SHL-kval up to SM-guld.
-  const hero = `<section class="panel phero thero" style="--tc:${tbg};--tt:${tfg}">
-    <div class="phero-top">
-      ${favButton(code, isFav).replace('class="ref-btn"', 'class="favbtn thero-fav"')}
-      ${LOGOS[code] ? `<img class="thero-img" src="${esc(LOGOS[code])}" alt="" onerror="this.remove()">` : ''}
-      <div class="phero-info">
-        <div class="phero-team"><span class="gc-rank" style="--zone:${zoneBad(rank)}">${rank}</span><span>${r.pts} poäng · ${r.gp} matcher</span></div>
-        <h1>${esc(tName(code))}</h1>
-      </div>
-    </div>
-    <div class="phero-meta thero-meta"><span class="thero-form">${formChips(code)}</span>
-      <span class="thero-stats"><span>Mål <b>${r.gf}–${r.ga}</b></span><span>Proj. <b>${dec(s.proj, 0)} p</b></span></span></div>
-    <div class="p-body"><div class="phero-season">Prognos ${CUR.replace('-', '/')}</div><div class="odds-ladder">${[
-      ['SM-guld', s.gold], ['SM-final', s.final], ['Semifinal', s.semi], ['Topp 6', s.top6], ['Slutspel', s.top10], ['SHL-kval', s.rel, 'bad'],
-    ].map(([k, p, cls = '']) => `<div class="ol-row ${cls}"><span class="ol-k">${k}</span><span class="ol-bar"><i style="width:${Math.max(0, Math.min(100, p * 100))}%"></i></span><span class="ol-v num">${oddsTxt(p)}</span></div>`).join('')}</div></div>
-    ${tabs(`/lag/${code}`, tabList, tab)}</section>`;
-
   let body;
   if (tab === 'trupp') body = teamRoster(code, roster);
   else if (tab === 'schema') {
@@ -2720,7 +2681,7 @@ async function pageTeam(code, tab = '') {
   } else if (tab === 'historik') body = teamHistory(code);
   else if (tab === 'form') body = teamForm(code, TD.logs[code] || []);
   else body = teamOverview(code, teamGames, TD.news[code] || []);
-  render((isNarrow() ? hero : teamRefHero()) + body);
+  render(teamRefHero() + body);
   // Poängliga tabs (Poäng, Mål, Assist, +/-)
   if ($('tl-tabs')) {
     const sk = skaters().filter((p) => p.team === code);
@@ -2731,7 +2692,7 @@ async function pageTeam(code, tab = '') {
     };
   }
 
-  // Computers: the profile-style top card, with the club logo where a player's photo would be
+  // The profile-style top card, with the club logo where a player's photo would be
   function teamRefHero() {
     // Every home arena, the most used first (Djurgården: Hovet and Avicii Arena)
     const arenaCount = {};
@@ -3385,6 +3346,8 @@ const SLIDERS = [
   { sel: '.utabs', item: 'button', on: '[aria-selected="true"]', kind: 'line' },
   { sel: '.tabs', item: 'a', on: '.on', kind: 'line' },
   { sel: '.ltop10', item: 'li', on: '.on', kind: 'pill' },
+  { sel: '.seg-links', item: 'a', on: '.on', kind: 'pill' }, // link rows drawn as a toggle (Tabell on phones)
+  { sel: '.tt-tabs', item: 'button', on: '[aria-pressed="true"]', kind: 'line' }, // toggles drawn as a tab row
 ];
 const SLIDE_LAST = new Map();
 function syncSlider(box, spec) {
