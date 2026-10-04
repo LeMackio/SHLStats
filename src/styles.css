@@ -2501,3 +2501,8 @@ a, .vid-dot, .strip-today, .s-date.today b, .s-date.today span, .rm-tag, details
 /* Last blue text: the chosen theme in the theme menu and small tags (PP, BP ...) */
 .theme-toggle.has-ind button[aria-pressed="true"], .theme-toggle button[aria-pressed="true"] { color: var(--text); }
 .tag { color: var(--text); }
+
+/* Statistik / Nexus leader photos: no frame or shape at all, just the cut-out player standing on the card */
+.lfeat .portrait { width: 170px; aspect-ratio: 4 / 5; border-radius: 0; background: none; box-shadow: none; border: 0; overflow: visible; }
+.lfeat .portrait img { height: 100%; bottom: 0; -webkit-mask-image: none; mask-image: none; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .35)); }
+@media (max-width: 700px) { .lfeat .portrait { width: 124px; } }
