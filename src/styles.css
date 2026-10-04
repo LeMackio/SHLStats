@@ -2422,3 +2422,82 @@ ol.lb.noav li:first-child .v { color: var(--text); }
 .ltop10 .sl-pill { background: color-mix(in srgb, var(--pill-c, var(--accent)) 14%, transparent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--pill-c, var(--accent)) 75%, transparent); transition-property: transform, width, height, opacity, background-color, box-shadow; }
 .ltop10.has-ind li.on { background: color-mix(in srgb, var(--rc, var(--accent)) 12%, var(--panel-2)); }
 .ltop10 li:not(.on):hover { background: color-mix(in srgb, var(--rc, var(--accent)) 10%, var(--panel-2)); }
+
+/* ---------- Spelarkort on a player's own page (computers) ---------- */
+.pk { display: grid; gap: 16px; }
+.pk-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.pk-imp { display: grid; gap: 4px; }
+.pk-k { font: 600 12px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.pk-imp b { font: 300 52px/1 var(--body); color: var(--text); }
+.pk-imp b small { font-size: 24px; margin-left: 2px; color: var(--muted); }
+.pk-sub { font-size: 13px; color: var(--muted); }
+.pk-role { flex: none; padding: 6px 12px; border-radius: 999px; background: var(--panel-2); font: 600 13px var(--body); color: var(--text); }
+.pk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; }
+.pk-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px 30px; gap: 10px; align-items: center; }
+.pk-l { font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pk-bar { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--line) 85%, transparent); overflow: hidden; }
+.pk-bar i { display: block; height: 100%; border-radius: 3px; }
+.pk-v { font: 700 14px var(--body); color: var(--text); text-align: right; }
+.pk-note { margin: 0; font-size: 12px; color: var(--faint); }
+@media (max-width: 1100px) { .pk-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Statistik / Nexus leader photos: a clean circle with a soft team-colour glow, no frame ---------- */
+.lfeat .portrait { width: 168px; aspect-ratio: 1; border-radius: 50%; box-shadow: none; border: 0;
+  background: radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--tc, var(--accent)) 55%, var(--panel-2)) 0%, var(--panel-2) 74%); }
+.lfeat .portrait img { height: 116%; bottom: -4%; -webkit-mask-image: none; mask-image: none; filter: none; }
+@media (max-width: 700px) { .lfeat .portrait { width: 124px; } }
+
+/* ---------- No blue text anywhere: blue stays for fills (bars, pills); text is white ---------- */
+a, .vid-dot, .strip-today, .s-date.today b, .s-date.today span, .rm-tag, details.explain summary, table.t th.sorted, .t td.best,
+.gc-mine, .gc-tops b, .gch-play, .mt-hot-v b, .sheet-close, .sheet-btn, body.search-open .search-cancel, .sm-hint .ic,
+.fd-pill svg, .feed-cta, .datetabs a.on b, .section-title .ic, .p-head h2 .ic { color: var(--text); }
+.vid-dot::before { border-left-color: var(--text); }
+.pcard .metric .pct { color: var(--text) !important; }
+.teamlink:hover, .pcell a:hover, ol.lb .n a:hover, .lfeat-name:hover, .mday-teamname:hover b, .mday-last:hover b { color: var(--text); text-decoration: underline; }
+.chip[aria-pressed="true"] { color: var(--text); border-color: color-mix(in srgb, var(--text) 40%, transparent); background: color-mix(in srgb, var(--text) 10%, transparent); }
+
+/* Form: the last games as small result tiles (opponent logo and score), green for wins and red for losses */
+.fm-row { display: flex; gap: 4px; flex-wrap: nowrap; }
+.fm { display: grid; justify-items: center; gap: 2px; min-width: 38px; padding: 4px 4px 3px; border-radius: 6px; text-decoration: none !important; color: var(--text);
+  background: color-mix(in srgb, var(--fmc) 16%, transparent); box-shadow: inset 0 -2px 0 var(--fmc); }
+.fm .tb { width: 18px; height: 18px; }
+.fm b { font: 700 11.5px/1.1 var(--body); letter-spacing: .01em; }
+.fm:hover { background: color-mix(in srgb, var(--fmc) 26%, transparent); }
+.fm-w { --fmc: var(--good); } .fm-o { --fmc: color-mix(in srgb, var(--good) 55%, var(--faint)); }
+.fm-ol { --fmc: color-mix(in srgb, var(--bad) 55%, var(--faint)); } .fm-l { --fmc: var(--bad); }
+
+/* Team page, Form & statistik: game list, and power play / penalty kill bars */
+.tf-list { display: grid; gap: 4px; }
+.tf-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) 110px 170px; gap: 14px; align-items: center; padding: 9px 12px; border-radius: var(--r-in, 10px);
+  background: var(--panel-2); color: var(--text); text-decoration: none !important; }
+.tf-row:hover { background: color-mix(in srgb, var(--text) 6%, var(--panel-2)); }
+.tf-date { font: 600 12px var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tf-opp { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 8px; min-width: 0; }
+.tf-opp small { color: var(--muted); font-size: 13px; }
+.tf-opp .tb { width: 22px; height: 22px; }
+.tf-opp b { font: 700 15px var(--body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tf-res { display: grid; justify-items: center; gap: 1px; padding: 4px 8px; border-radius: 6px; background: color-mix(in srgb, var(--fmc) 16%, transparent); box-shadow: inset 3px 0 0 var(--fmc); }
+.tf-res b { font: 700 17px/1.1 var(--body); }
+.tf-res small { font-size: 11.5px; color: var(--muted); }
+.tf-xg { display: grid; gap: 5px; }
+.tf-xg small { font-size: 12.5px; color: var(--muted); }
+.tf-xgbar { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--bad) 55%, transparent); overflow: hidden; }
+.tf-xgbar i { display: block; height: 100%; background: var(--accent); }
+.tf-sps { display: grid; gap: 18px; }
+.tf-sp { display: grid; gap: 6px; }
+.tf-sp-top { display: flex; justify-content: space-between; align-items: baseline; }
+.tf-sp-top span { font: 600 14px var(--body); }
+.tf-sp-top b { font: 300 30px/1 var(--body); }
+.tf-sp-bar { position: relative; height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--line) 85%, transparent); }
+.tf-sp-bar i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+.tf-sp-bar em { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--text); border-radius: 1px; }
+.tf-sp small { font-size: 12.5px; color: var(--muted); }
+@media (max-width: 700px) {
+  .tf-row { grid-template-columns: 1fr auto; grid-template-areas: "opp res" "date xg"; gap: 6px 10px; }
+  .tf-opp { grid-area: opp; } .tf-res { grid-area: res; } .tf-date { grid-area: date; } .tf-xg { grid-area: xg; min-width: 120px; }
+  .tf-opp small { display: none; }
+}
+
+/* Last blue text: the chosen theme in the theme menu and small tags (PP, BP ...) */
+.theme-toggle.has-ind button[aria-pressed="true"], .theme-toggle button[aria-pressed="true"] { color: var(--text); }
+.tag { color: var(--text); }

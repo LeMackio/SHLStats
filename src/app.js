@@ -298,12 +298,16 @@ const resultFor = (g, code) => {
   const home = g.home === code, mine = home ? g.hs : g.as, theirs = home ? g.as : g.hs, extra = g.ot || g.so;
   return mine > theirs ? (extra ? 'ov' : 'v') : (extra ? 'of' : 'f');
 };
+// The last games as small result tiles: the opponent's logo and the score seen from this team (4–2), tinted green
+// for a win and red for a loss (lighter after overtime or a shootout). Oldest first.
 const formChips = (code, n = 5) => {
   const last = GAMES.filter((g) => isFinal(g) && (g.home === code || g.away === code)).slice(-n);
   if (!last.length) return '<span class="faint">Inga matcher än</span>';
-  const map = { v: ['w', 'V', 'Vinst'], ov: ['o', 'V', 'Vinst efter övertid/straffar'], of: ['ol', 'F', 'Förlust efter övertid/straffar'], f: ['l', 'F', 'Förlust'] };
-  return `<div class="form">${last.map((g) => { const [c, t, tt] = map[resultFor(g, code)]; const opp = g.home === code ? g.away : g.home;
-    return `<a href="#/match/${g.id}" title="${tt} mot ${esc(tName(opp))}, ${g.hs}–${g.as}"><i class="${c}">${t}</i></a>`; }).join('')}</div>`;
+  const map = { v: ['w', 'Vinst'], ov: ['o', 'Vinst efter övertid/straffar'], of: ['ol', 'Förlust efter övertid/straffar'], f: ['l', 'Förlust'] };
+  return `<div class="fm-row">${last.map((g) => {
+    const [c, tt] = map[resultFor(g, code)], home = g.home === code, opp = home ? g.away : g.home, mine = home ? g.hs : g.as, theirs = home ? g.as : g.hs;
+    return `<a class="fm fm-${c}" href="#/match/${g.id}" title="${tt} ${home ? 'hemma' : 'borta'} mot ${esc(tName(opp))}, ${mine}–${theirs}${g.so ? ' efter straffar' : g.ot ? ' efter övertid' : ''}">${tb(opp)}<b class="num">${mine}–${theirs}</b></a>`;
+  }).join('')}</div>`;
 };
 
 /* ---------- layout: panels, masonry board, tabs ---------- */
@@ -572,10 +576,24 @@ const pColor = (p) => {
   const [a, b, t] = p < 0.5 ? [LOW, MID, p / 0.5] : [MID, HIGH, (p - 0.5) / 0.5];
   return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',')})`;
 };
+// The player card on a player's own page (computers): the profile card above already shows the photo, name and age,
+// so this is just the impact number and the percentiles, in the team's colour
+function cardCompact(x) {
+  const grpName = x.grp === 'G' ? 'målvakter' : x.grp === 'D' ? 'backar' : 'forwards', minGp = x.minGp || MIN_GP, pct = Math.round(x.impact * 100);
+  const tc = readable(teamHue(x.team));
+  const rows = (x.metrics || METRICS).map((m) => {
+    const p = x.pct[m.k], c = p < 0.25 ? 'var(--bad)' : tc;
+    return `<div class="pk-row"><span class="pk-l">${m.label}</span><span class="pk-bar"><i style="width:${Math.max(2, p * 100)}%;background:${c}"></i></span><b class="pk-v num">${Math.round(p * 100)}</b></div>`;
+  }).join('');
+  return `<div class="pk">
+    <div class="pk-top"><div class="pk-imp"><span class="pk-k">Påverkan</span><b class="num">${pct}<small>%</small></b><span class="pk-sub">Bättre än ${pct} % av SHL-${grpName}</span></div>
+      ${x.role ? `<span class="pk-role">${esc(x.role)}</span>` : ''}</div>
+    <div class="pk-grid">${rows}</div>
+    <p class="pk-note">Percentiler bland SHL-${grpName} med minst ${minGp} matcher, viktat 25/26 och 26/27.${x.gp < minGp ? ` Litet underlag (${Math.round(x.gp)} viktade matcher).` : ''}</p>
+  </div>`;
+}
 function cardHtml(x, { link = true, compact = false } = {}) {
-  // Compact (a player's own page on computers, under the profile card): no repeated photo, name, number or age
-  if (compact) return cardHtml(x, { link }).replace(/<div class="pc-top pc-hero"[\s\S]*?<div class="pc-grid">/, `<div class="pc-top pc-slim"><div class="pc-war"><span class="lbl">Påverkan</span><span class="big num">${Math.round(x.impact * 100)}%</span></div><div class="pc-meta"><span>Roll <b>${x.role || '–'}</b></span></div></div>
-    <div class="pc-grid">`);
+  if (compact) return cardCompact(x);
   const grpName = x.grp === 'G' ? 'målvakter' : x.grp === 'D' ? 'backar' : 'forwards', minGp = x.minGp || MIN_GP;
   const rows = (x.metrics || METRICS).map((m) => {
     const p = x.pct[m.k];
@@ -2510,11 +2528,9 @@ async function pagePlayer(id, tab = '') {
       ? [['SM', p.gpi], ['V', p.w_ ?? '–'], ['Rädd%', dec(p.svp, 2)], ['GAA', dec(p.gaa, 2)], ['Nollor', p.so], ['Räddn.', p.sv], ['GSAA', dec(gsaa(p, CUR))]]
       : [['SM', p.gp], ['M', p.g], ['A', p.a], ['P', p.pts], ['P/M', dec(p.gp ? p.pts / p.gp : 0, 2)], ['+/-', signed(p.pm)], ['Utv', p.pim], ['Skott', p.sog], ['Istid', mmss(p.toi)]];
     const rows = cur ? [{ label: `Grundserien ${CUR.replace('-', '/')}`, cells: cellsOf(cur) }] : []; // this season only
-    const isFav = FAV === team;
     return refHero({
       bg: shot?.[1], photo: shot?.[1], first: esc(first), last: esc(rest.join(' ')),
       badge: `${tb(team, 'md')}<b>#${esc(bio.num ?? '–')}</b><i></i><b>${gk ? 'MV' : POS_SHORT[bio.pos] || 'F'}</b>`,
-      action: favButton(team, isFav),
       big, facts, rows, tabsHtml: tabs(`/spelare/${encodeURIComponent(id)}`, tabList, tab),
     });
   }
@@ -2651,13 +2667,25 @@ async function pageTeam(code, tab = '') {
   else if (tab === 'form') body = teamForm(code, TD.logs[code] || []);
   else body = teamOverview(code, teamGames, TD.news[code] || []);
   render((isNarrow() ? hero : teamRefHero()) + body);
+  // Poängliga tabs (Poäng, Mål, Assist, +/-)
+  if ($('tl-tabs')) {
+    const sk = skaters().filter((p) => p.team === code);
+    $('tl-tabs').onclick = (e) => {
+      const b = e.target.closest('button[data-k]'); if (!b) return;
+      $('tl-tabs').querySelectorAll('button').forEach((x) => x.setAttribute('aria-selected', x === b));
+      $('tl-body').innerHTML = teamLeaderList(sk, TEAM_LEADER_STATS.find((st) => st.k === b.dataset.k));
+    };
+  }
 
   // Computers: the profile-style top card, with the club logo where a player's photo would be
   function teamRefHero() {
-    const homeArena = teamGames.find((g) => g.home === code && g.arena)?.arena;
+    // Every home arena, the most used first (Djurgården: Hovet and Avicii Arena)
+    const arenaCount = {};
+    for (const g of teamGames) if (g.home === code && g.arena) arenaCount[g.arena] = (arenaCount[g.arena] || 0) + 1;
+    const arenas = Object.keys(arenaCount).sort((a, b) => arenaCount[b] - arenaCount[a]);
     // Results and odds only: power play, penalty kill and shots are in the Säsongsstatistik card (with league ranks)
     const facts = [
-      homeArena ? ['Arena', esc(homeArena)] : null,
+      arenas.length ? [arenas.length > 1 ? 'Arenor' : 'Arena', arenas.map(esc).join(', ')] : null,
       ['Form', formChips(code)],
       ['Prognos', `${dec(s.proj, 0)} poäng`],
     ].filter(Boolean);
@@ -2718,7 +2746,8 @@ function teamOverview(code, teamGames, news = []) {
   return board([
     `<div class="ov-row r-two wide">
       <div class="stack">
-        ${panel('Poängliga', leaderList(sk, { val: (p) => p.pts, n: 8, logos: false }), { more: moreLink(`#/lag/${code}/trupp`, 'Hela truppen') })}
+        ${panel('Poängliga', `<div class="utabs" id="tl-tabs" role="tablist">${TEAM_LEADER_STATS.map((st, i) => `<button role="tab" data-k="${st.k}" aria-selected="${i === 0}">${st.label}</button>`).join('')}</div>
+          <div id="tl-body">${teamLeaderList(sk, TEAM_LEADER_STATS[0])}</div>`, { more: moreLink(`#/lag/${code}/trupp`, 'Hela truppen') })}
         ${panel('Säsongsstatistik', statTiles)}
       </div>
       <div class="stack">
@@ -2748,34 +2777,15 @@ function teamNewsPanel(code, news) {
   return panel(`Nyheter om ${esc(tName(code))}`, `<div class="tnews-row">${cards}</div>`, { cls: 'wide', sub: 'Från klubbens egen sajt och shl.se. Artiklarna öppnas hos källan.' });
 }
 
-// One column per game: a bar up (for) and a bar down (against), optional dots for the actual outcome
-const RES_COLOR = { V: 'var(--accent)', 'ÖV': 'color-mix(in srgb, var(--accent) 55%, var(--faint))', 'ÖF': 'color-mix(in srgb, var(--bad) 45%, var(--faint))', F: 'var(--bad)' };
-function mirrorChart(rows, { up, down, upDot, downDot, chip = false, fmt = (v) => v, tip }) {
-  const n = rows.length, left = 34, right = 8, top = chip ? 30 : 12, bottom = 34, H = 220;
-  const W = Math.max(cw(640), left + right + n * 24), step = (W - left - right) / n, bw = Math.max(6, Math.min(18, step - 6));
-  const half = (H - top - bottom) / 2 - 4, mid = top + (H - top - bottom) / 2;
-  const mx = Math.max(1, ...rows.flatMap((r) => [up(r), down(r), upDot ? upDot(r) : 0, downDot ? downDot(r) : 0]));
-  const s = (v) => Math.max(0, v) / mx * half;
-  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" style="min-width:${Math.min(W, left + right + n * 24)}px">
-    <line x1="${left}" x2="${W - right}" y1="${mid}" y2="${mid}" style="stroke:var(--line)" stroke-width="1.5"/>
-    <line x1="${left}" x2="${W - right}" y1="${mid - half}" y2="${mid - half}" style="stroke:var(--line)" stroke-dasharray="3 4"/>
-    <line x1="${left}" x2="${W - right}" y1="${mid + half}" y2="${mid + half}" style="stroke:var(--line)" stroke-dasharray="3 4"/>
-    <text x="${left - 6}" y="${mid - half + 4}" text-anchor="end" font-size="11" style="fill:var(--faint)">${fmt(mx)}</text>
-    <text x="${left - 6}" y="${mid + half + 4}" text-anchor="end" font-size="11" style="fill:var(--faint)">${fmt(mx)}</text>`;
-  rows.forEach((r, i) => {
-    const x = left + i * step + step / 2, u = up(r), dn = down(r);
-    svg += `<a href="#/match/${esc(r.id)}"><g class="mc-col"><rect x="${x - step / 2}" y="${top - (chip ? 26 : 0)}" width="${step}" height="${H - top - bottom + (chip ? 26 : 0) + 30}" style="fill:transparent"/>
-      <rect x="${x - bw / 2}" y="${mid - s(u)}" width="${bw}" height="${s(u)}" rx="2" style="fill:${chip ? RES_COLOR[r.res] : 'var(--accent)'}"/>
-      <rect x="${x - bw / 2}" y="${mid}" width="${bw}" height="${s(dn)}" rx="2" style="fill:${chip ? 'color-mix(in srgb, var(--text) 22%, transparent)' : 'color-mix(in srgb, var(--bad) 80%, transparent)'}"/>
-      ${upDot ? `<circle cx="${x}" cy="${mid - s(upDot(r))}" r="3.4" style="fill:var(--text);stroke:var(--panel)" stroke-width="1.5"/>` : ''}
-      ${downDot ? `<circle cx="${x}" cy="${mid + s(downDot(r))}" r="3.4" style="fill:var(--text);stroke:var(--panel)" stroke-width="1.5"/>` : ''}
-      ${chip ? `<rect x="${x - Math.max(bw, 18) / 2 - 2}" y="${top - 26}" width="${Math.max(bw, 18) + 4}" height="17" rx="4" style="fill:${RES_COLOR[r.res]}"/><text x="${x}" y="${top - 13.5}" text-anchor="middle" font-size="9.5" font-weight="700" style="fill:var(--accent-ink)">${r.res}</text>` : ''}
-      <text x="${x}" y="${H - 18}" text-anchor="middle" font-size="10" style="fill:var(--muted)">${esc(r.opp)}</text>
-      <text x="${x}" y="${H - 5}" text-anchor="middle" font-size="9.5" style="fill:var(--faint)">${r.home ? 'H' : 'B'}</text>
-      <title>${esc(tip(r))}</title></g></a>`;
-  });
-  return `<div class="mchart">${svg}</svg></div>`;
-}
+// Team page Poängliga: the same stats as the Statistik page, switched with tabs
+const TEAM_LEADER_STATS = [
+  { k: 'pts', label: 'Poäng', v: (p) => p.pts, tie: (p) => p.g, sub: (p) => `${p.g} mål, ${p.a} assist` },
+  { k: 'g', label: 'Mål', v: (p) => p.g, tie: (p) => p.pts, sub: (p) => `${p.sog} skott` },
+  { k: 'a', label: 'Assist', v: (p) => p.a, tie: (p) => p.pts, sub: (p) => `${p.pts} poäng` },
+  { k: 'pm', label: '+/-', v: (p) => p.pm, tie: (p) => p.pts, sub: (p) => `${p.gp} matcher`, f: signed },
+];
+const teamLeaderList = (sk, st) => leaderList([...sk].sort((a, b) => st.v(b) - st.v(a) || st.tie(b) - st.tie(a)),
+  { val: st.v, fmt: st.f || ((v) => v), n: 8, logos: false, sub: st.sub });
 
 function teamForm(code, logs) {
   const rows = logs.map((r) => {
@@ -2799,7 +2809,7 @@ function teamForm(code, logs) {
   let streak = 0; for (let i = rows.length - 1; i >= 0 && (rows[i].pts >= 2) === lastWin; i--) streak++;
   const t = (k, v, sub) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span>${sub ? `<span class="s">${sub}</span>` : ''}</div>`;
   const tiles = `<div class="tiles">
-    ${t('Senaste 5', `${last5.pts} p`, rows.slice(-5).map((r) => r.res).join(' '))}
+    ${t('Senaste 5', `${last5.pts} p`, `av 15 möjliga`)}
     ${t('Svit', `${streak} ${lastWin ? (streak === 1 ? 'vinst' : 'vinster') : (streak === 1 ? 'förlust' : 'förluster')}`, 'i rad')}
     ${t('Poäng/match hemma', home.gp ? dec(home.pts / home.gp, 2) : '–', `${home.gp} matcher`)}
     ${t('Poäng/match borta', away.gp ? dec(away.pts / away.gp, 2) : '–', `${away.gp} matcher`)}
@@ -2807,29 +2817,38 @@ function teamForm(code, logs) {
     ${t('Mål över xG', all.xgp != null ? (all.gf - all.xgf > 0 ? '+' : '') + dec(all.gf - all.xgf, 1) : '–', 'avslutsskärpa')}
   </div>`;
 
-  const resChart = mirrorChart(rows, { up: (r) => r.gf, down: (r) => r.ga, chip: true,
-    tip: (r) => `${r.res} ${r.gf}–${r.ga} ${r.home ? 'hemma mot' : 'borta mot'} ${tName(r.opp)}, ${fmtDay(r.g.start)}` });
+  // Match för match: one row per game, newest first: when, where, who, the result, and how the chances (xG) were split
+  const RES_TXT = { V: 'Vinst', 'ÖV': 'Vinst ÖT', 'ÖF': 'Förlust ÖT', F: 'Förlust' }, RES_CLS = { V: 'w', 'ÖV': 'o', 'ÖF': 'ol', F: 'l' };
   const hasXg = rows.some((r) => r.xgf != null);
-  const xgChart = hasXg ? mirrorChart(rows, { up: (r) => r.xgf ?? 0, down: (r) => r.xga ?? 0, upDot: (r) => r.gf, downDot: (r) => r.ga, fmt: (v) => dec(v, 1),
-    tip: (r) => `xG ${dec(r.xgf ?? 0, 2)}–${dec(r.xga ?? 0, 2)}, mål ${r.gf}–${r.ga} mot ${tName(r.opp)}` }) : '';
+  const gameRows = [...rows].reverse().map((r) => {
+    const share = r.xgf != null && r.xgf + r.xga > 0 ? r.xgf / (r.xgf + r.xga) : null;
+    return `<a class="tf-row" href="#/match/${esc(r.id)}">
+      <span class="tf-date">${fmtDay(r.g.start)}</span>
+      <span class="tf-opp"><small>${r.home ? 'Hemma mot' : 'Borta mot'}</small>${tb(r.opp)}<b>${esc(tName(r.opp))}</b></span>
+      <span class="tf-res fm-${RES_CLS[r.res]}"><b class="num">${r.gf}–${r.ga}</b><small>${RES_TXT[r.res]}</small></span>
+      ${hasXg ? `<span class="tf-xg">${share == null ? '<small>–</small>' : `<small class="num">xG ${dec(r.xgf, 1)}–${dec(r.xga, 1)}</small><span class="tf-xgbar"><i style="width:${share * 100}%"></i></span>`}</span>` : ''}
+    </a>`;
+  }).join('');
+  const gamesList = `<div class="tf-list">${gameRows}</div>`;
 
   const splitRow = (label, a) => `<tr><td class="l"><b>${label}</b></td><td>${a.gp}</td><td>${a.V}</td><td>${a['ÖV']}</td><td>${a['ÖF']}</td><td>${a.F}</td><td>${a.gf}–${a.ga}</td><td class="hl">${a.pts}</td><td>${a.gp ? dec(a.pts / a.gp, 2) : '–'}</td><td>${a.pp != null ? pctTxt(a.pp, 1) : '–'}</td><td>${a.pk != null ? pctTxt(a.pk, 1) : '–'}</td><td>${a.xgp != null ? pctTxt(a.xgp, 1) : '–'}</td></tr>`;
   const splits = `<div class="tscroll"><table class="t"><thead><tr><th class="l"></th><th>SM</th><th>V</th><th>ÖV</th><th>ÖF</th><th>F</th><th>Mål</th><th>P</th><th>P/M</th><th title="Powerplay">PP%</th><th title="Boxplay">BP%</th><th title="Andel av matchernas xG">xG%</th></tr></thead>
     <tbody>${splitRow('Hemma', home)}${splitRow('Borta', away)}${splitRow('Totalt', all)}</tbody></table></div>`;
 
-  let a = 0, b = 0, c = 0, e = 0;
-  const pp = rows.map((r) => { a += r.ppg; b += r.ppo; return b ? a / b * 100 : 0; });
-  const pk = rows.map((r) => { c += r.ppga; e += r.pko; return e ? (1 - c / e) * 100 : 100; });
-  const special = rows.length >= 2 ? `<div class="chart">${lineChart([{ pts: pk, color: 'var(--gold)' }, { pts: pp, color: 'var(--accent)' }], { yMax: 100, yFmt: (v) => Math.round(v) + '%', xLabels: rows.map((r) => r.opp) })}</div>
-    <div class="legend"><span><i style="background:var(--accent)"></i>Powerplay</span><span><i style="background:var(--gold)"></i>Boxplay</span><span>Hittills under säsongen, efter varje match</span></div>`
-    : '<p class="empty-state">Kurvan visas efter två matcher.</p>';
+  // Power play and penalty kill: the team's percentage as a bar, with a marker for the league average
+  const lg = Object.values(D.teamStats || {}), lsum = (k) => sum(lg.map((x) => x[k] || 0));
+  const lgPP = lsum('ppo') ? lsum('ppg') / lsum('ppo') : null, lgPK = lsum('pko') ? 1 - lsum('ppga') / lsum('pko') : null;
+  const special = (label, v, avg, made) => `<div class="tf-sp"><div class="tf-sp-top"><span>${label}</span><b class="num">${v != null ? pctTxt(v, 1) : '–'}</b></div>
+    <div class="tf-sp-bar"><i style="width:${(v ?? 0) * 100}%"></i>${avg != null ? `<em style="left:${avg * 100}%" title="Ligasnitt"></em>` : ''}</div>
+    <small>${made}${avg != null ? ` · ligasnitt ${pctTxt(avg, 1)}` : ''}</small></div>`;
+  const specials = `<div class="tf-sps">${special('Powerplay', all.pp, lgPP, `${sum(rows.map((r) => r.ppg))} mål på ${sum(rows.map((r) => r.ppo))} chanser`)}
+    ${special('Boxplay', all.pk, lgPK, `${sum(rows.map((r) => r.ppga))} insläppta på ${sum(rows.map((r) => r.pko))} utvisningar`)}</div>`;
 
   return board([
     panel('Formen just nu', tiles, { cls: 'wide' }),
-    panel('Resultat match för match', resChart + `<div class="legend"><span><i style="background:${RES_COLOR.V}"></i>Vinst</span><span><i style="background:${RES_COLOR['ÖV']}"></i>Vinst ÖT/str</span><span><i style="background:${RES_COLOR['ÖF']}"></i>Förlust ÖT/str</span><span><i style="background:${RES_COLOR.F}"></i>Förlust</span><span>Upp = gjorda mål, ner = insläppta</span></div>`, { cls: 'wide', sub: 'Tryck på en match för matchfakta. H = hemma, B = borta.' }),
-    xgChart ? panel('xG match för match', xgChart + '<div class="legend"><span><i style="background:var(--accent)"></i>xG för</span><span><i style="background:var(--bad)"></i>xG mot</span><span><i style="background:var(--text);border-radius:50%"></i>Faktiska mål</span></div>', { cls: 'wide', sub: 'Förväntade mål utifrån chansernas kvalitet, jämfört med hur många mål det faktiskt blev.' }) : '',
+    panel('Match för match', gamesList, { cls: 'wide', sub: hasXg ? 'Nyast först. Stapeln visar hur chanserna (xG) fördelades i matchen: fylld del = lagets andel.' : 'Nyast först.' }),
     panel('Hemma och borta', splits),
-    panel('Powerplay och boxplay', special),
+    panel('Powerplay och boxplay', specials, { sub: 'Strecket i stapeln är ligasnittet.' }),
   ]);
 }
 
