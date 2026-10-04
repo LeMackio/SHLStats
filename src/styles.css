@@ -2506,3 +2506,17 @@ a, .vid-dot, .strip-today, .s-date.today b, .s-date.today span, .rm-tag, details
 .lfeat .portrait { width: 170px; aspect-ratio: 4 / 5; border-radius: 0; background: none; box-shadow: none; border: 0; overflow: visible; }
 .lfeat .portrait img { height: 100%; bottom: 0; -webkit-mask-image: none; mask-image: none; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .35)); }
 @media (max-width: 700px) { .lfeat .portrait { width: 124px; } }
+
+/* Form tiles: no coloured line along the bottom, the tint alone shows the result */
+.fm { box-shadow: none; }
+
+/* Nexus is in beta: a slim note at the top of the page */
+.beta-note { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 10px 14px; border-radius: var(--r-in, 10px); background: var(--panel); border: 1px solid var(--line); font-size: 13.5px; color: var(--muted); }
+.beta-note span { padding: 2px 8px; border-radius: 999px; background: var(--panel-2); color: var(--text); font: 700 11.5px var(--body); letter-spacing: .08em; text-transform: uppercase; }
+
+/* Leader photos: the player (background removed where there was one) with softly faded sides and bottom, so no
+   straight cut-off edges show, over a soft glow in the team colour that has no edge of its own */
+.lfeat .portrait { background: radial-gradient(closest-side, color-mix(in srgb, var(--tc, var(--accent)) 38%, transparent), transparent); }
+.lfeat .portrait img { filter: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%), linear-gradient(to bottom, #000 74%, transparent 100%);
+  -webkit-mask-composite: source-in; mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%), linear-gradient(to bottom, #000 74%, transparent 100%); mask-composite: intersect; }

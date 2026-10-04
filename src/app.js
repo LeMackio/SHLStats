@@ -277,8 +277,65 @@ const avatar = (id, name, team, size = '') => {
 // Initials sit behind the photo and only show when there is no photo or it fails to load
 const portrait = (id, name, team, size = '') => {
   const h = id && HS[id];
-  return `<div class="portrait ${size}" style="--tc:${tColor(team)}">${h
-    ? `<img src="${esc(h[1])}" alt="" onload="this.classList.add('in')" onerror="this.remove()">` : ''}<span class="ini">${esc(initials(name))}</span></div>`;
+  // Leader photos ('feat') are cleaned up first: a studio background is taken away so every player looks the same
+  const img = !h ? '' : size === 'feat'
+    ? `<img src="${esc(CLEAN.get(h[1]) || h[1])}" data-orig="${esc(h[1])}" ${CLEAN.has(h[1]) ? 'data-done="1"' : ''} crossorigin="anonymous" alt="" onload="cleanPortrait(this)" onerror="this.remove()">`
+    : `<img src="${esc(h[1])}" alt="" onload="this.classList.add('in')" onerror="this.remove()">`;
+  return `<div class="portrait ${size}" style="--tc:${tColor(team)}">${img}<span class="ini">${esc(initials(name))}</span></div>`;
+};
+// Player photos come in two kinds: cut-outs (transparent around the player) and photos with a studio background
+// (grey, sometimes white). For the leader cards the background is removed so they all match: starting from the
+// top edge and the upper sides, pixels close to the background colour are made transparent, spreading only through
+// smooth areas. The lower part (the jersey) is left alone apart from thin strips at the sides, so a white jersey
+// on a white background survives. Results are kept per photo.
+const CLEAN = new Map();
+window.cleanPortrait = (img) => {
+  if (img.dataset.done) { img.classList.add('in'); return; }
+  img.dataset.done = '1';
+  const url = img.dataset.orig;
+  const keep = () => { CLEAN.set(url, url); img.classList.add('in'); };
+  try {
+    const W = img.naturalWidth, H = img.naturalHeight;
+    if (!W || !H) return keep();
+    const k = Math.min(1, 360 / W), w = Math.round(W * k), h = Math.round(H * k);
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0, w, h);
+    const im = cx.getImageData(0, 0, w, h), d = im.data, at = (x, y) => (y * w + x) * 4;
+    const corner = (x0) => { let a = 0, r = 0, g = 0, b = 0, n = 0; for (let y = 0; y < 8; y++) for (let x = x0; x < x0 + 8; x++) { const i = at(x, y); a += d[i + 3]; r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; } return { a: a / n, r: r / n, g: g / n, b: b / n }; };
+    const tl = corner(0), tr = corner(w - 8);
+    if (tl.a < 40 && tr.a < 40) return keep(); // already a cut-out
+    const seed = { r: (tl.r + tr.r) / 2, g: (tl.g + tr.g) / 2, b: (tl.b + tr.b) / 2 };
+    const toSeed = (i) => Math.hypot(d[i] - seed.r, d[i + 1] - seed.g, d[i + 2] - seed.b);
+    const step = (i, j) => Math.hypot(d[i] - d[j], d[i + 1] - d[j + 1], d[i + 2] - d[j + 2]);
+    // Above 60 % of the height anything close to the background goes; lower down (beside the shoulders) only pixels that
+    // are almost exactly the background colour, so a white jersey on a white background is kept. The bottom tenth is left.
+    const upper = Math.round(h * 0.6), maxY = Math.round(h * 0.9);
+    const allowed = (x, y) => y <= maxY;
+    const limit = (y) => (y <= upper ? 70 : 26);
+    const gone = new Uint8Array(w * h), stack = [];
+    const seedAt = (x, y) => { const p = y * w + x; if (!gone[p] && toSeed(p * 4) < 70) { gone[p] = 1; stack.push(p); } };
+    for (let x = 0; x < w; x++) seedAt(x, 0);
+    for (let y = 0; y <= upper; y++) { seedAt(0, y); seedAt(w - 1, y); }
+    while (stack.length) {
+      const p = stack.pop(), x = p % w, y = (p - x) / w;
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h || !allowed(nx, ny)) continue;
+        const q = ny * w + nx;
+        if (gone[q] || toSeed(q * 4) > limit(ny) || step(q * 4, p * 4) > 18) continue;
+        gone[q] = 1; stack.push(q);
+      }
+    }
+    for (let p = 0; p < w * h; p++) if (gone[p]) d[p * 4 + 3] = 0;
+    // A softer edge: pixels next to the removed background are made half see-through
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const p = y * w + x; if (gone[p]) continue;
+      if (gone[p - 1] || gone[p + 1] || gone[p - w] || gone[p + w]) d[p * 4 + 3] = Math.round(d[p * 4 + 3] * 0.45);
+    }
+    cx.putImageData(im, 0, 0);
+    const out = cv.toDataURL('image/png');
+    CLEAN.set(url, out);
+    img.src = out; // loads again, now marked done
+  } catch { keep(); }
 };
 const pLink = (id, name) => id ? `<a href="#/spelare/${encodeURIComponent(id)}">${esc(name)}</a>` : esc(name);
 const playerCell = (p, team, sub = '') =>
@@ -1283,15 +1340,15 @@ function matchSummary(d, done = true) {
   // During a game the goals card appears with the first goal (the clock is in the header above), and the
   // win chance sits at the bottom.
   const feed = d.live ? feedCard(d) : '';
-  const wp = MODEL ? panel(d.live ? 'Vinstchans live' : 'Vinstchans under matchen', winChart(d), { cls: 'wide wp-card',
-    sub: d.live ? 'Uppdateras under matchen. Bygger på lagens styrka, ställningen och tiden som är kvar.' : 'Hur chansen att vinna svängde, mål för mål.' }) : '';
+  // The win chance only while the game is on; a played game shows the match report right after goals and team stats
+  const wp = MODEL && d.live ? panel('Vinstchans live', winChart(d), { cls: 'wide wp-card', sub: 'Uppdateras under matchen. Bygger på lagens styrka, ställningen och tiden som är kvar.' }) : '';
   return board([
     feed,
     d.live && !d.goals.length ? '' : panel('Mål', goalEvents(d)), // half width on computers, with Lagstatistik beside it
     stats,
+    done ? matchRecap(d) : '',
     flow,
     wp,
-    done ? matchRecap(d) : '',
   ]);
 }
 
@@ -1615,9 +1672,7 @@ function matchPreview(g) {
   const lh = MODEL.L * MODEL.rating[g.home].att * MODEL.rating[g.away].def * MODEL.HOME;
   const la = MODEL.L * MODEL.rating[g.away].att * MODEL.rating[g.home].def * MODEL.AWAY;
   const pmf = (l) => { const o = []; let p = Math.exp(-l); for (let k = 0; k < 10; k++) { o.push(p); p *= l / (k + 1); } return o; };
-  const a = pmf(lh), b = pmf(la), scores = [];
-  for (let i = 0; i < 10; i++) for (let j = 0; j < 10; j++) scores.push({ s: `${i}–${j}`, p: a[i] * b[j] });
-  scores.sort((x, y) => y.p - x.p);
+  const a = pmf(lh), b = pmf(la);
   const tie = sum(a.map((x, i) => x * b[i]));
   const row = (c) => TABLE.find((t) => t.code === c) || { gp: 0, pts: 0, gf: 0, ga: 0 };
   const T = (c) => D.teamStats[c] || {};
@@ -1653,7 +1708,6 @@ function matchPreview(g) {
     </div>`),
     panel('Säsongsjämförelse', cmp),
     panel('Form och poängbästa', `<div style="display:grid;gap:18px">${hot(g.home)}${hot(g.away)}</div>`),
-    panel('Troligaste resultat', `<div class="chart">${hBars(scores.slice(0, 6).map((s) => ({ label: s.s, v: s.p })), { labelW: 56, fmt: (v) => pctTxt(v, 1), W: 440, rowH: 26 })}</div>`, { sub: 'Efter ordinarie tid (60 minuter).' }),
   ]);
 }
 function matchH2H(g) {
@@ -2150,6 +2204,7 @@ async function pageEdge() {
   const coef = E.model.coef.map((c) => `<tr><td class="l">${esc(c.name)}</td><td class="${c.weight > 0 ? '' : 'faint'}">${c.weight > 0 ? 'Ökar' : 'Minskar'}</td></tr>`).join('');
 
   render(`
+    <p class="beta-note"><span>Beta</span>Nexus är i beta: siffrorna, modellerna och vyerna kan ändras medan vi bygger vidare.</p>
     <div class="page-head"><div><h1>Nexus</h1><p>Skottkvalitet och förväntade mål (xG) för SHL ${E.season.replace('-', '/')}. Varje skott på mål värderas efter var det kom ifrån och i vilket läge.</p></div></div>
     <div class="lsec-row">${sections.map((s) => `<section class="panel lsec">
       <div class="p-head"><h2>${s.title}</h2><span class="stamp">${esc(s.note)}</span></div>
@@ -2529,7 +2584,7 @@ async function pagePlayer(id, tab = '') {
       : [['SM', p.gp], ['M', p.g], ['A', p.a], ['P', p.pts], ['P/M', dec(p.gp ? p.pts / p.gp : 0, 2)], ['+/-', signed(p.pm)], ['Utv', p.pim], ['Skott', p.sog], ['Istid', mmss(p.toi)]];
     const rows = cur ? [{ label: `Grundserien ${CUR.replace('-', '/')}`, cells: cellsOf(cur) }] : []; // this season only
     return refHero({
-      bg: shot?.[1], photo: shot?.[1], first: esc(first), last: esc(rest.join(' ')),
+      bg: LOGOS[team], photo: shot?.[1], first: esc(first), last: esc(rest.join(' ')), // the team logo behind, like the team page
       badge: `${tb(team, 'md')}<b>#${esc(bio.num ?? '–')}</b><i></i><b>${gk ? 'MV' : POS_SHORT[bio.pos] || 'F'}</b>`,
       big, facts, rows, tabsHtml: tabs(`/spelare/${encodeURIComponent(id)}`, tabList, tab),
     });
