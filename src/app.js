@@ -568,7 +568,10 @@ const pColor = (p) => {
   const [a, b, t] = p < 0.5 ? [LOW, MID, p / 0.5] : [MID, HIGH, (p - 0.5) / 0.5];
   return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',')})`;
 };
-function cardHtml(x, { link = true } = {}) {
+function cardHtml(x, { link = true, compact = false } = {}) {
+  // Compact (a player's own page on computers, under the profile card): no repeated photo, name, number or age
+  if (compact) return cardHtml(x, { link }).replace(/<div class="pc-top pc-hero"[\s\S]*?<div class="pc-grid">/, `<div class="pc-top pc-slim"><div class="pc-war"><span class="lbl">Påverkan</span><span class="big num">${Math.round(x.impact * 100)}%</span></div><div class="pc-meta"><span>Roll <b>${x.role || '–'}</b></span></div></div>
+    <div class="pc-grid">`);
   const grpName = x.grp === 'G' ? 'målvakter' : x.grp === 'D' ? 'backar' : 'forwards', minGp = x.minGp || MIN_GP;
   const rows = (x.metrics || METRICS).map((m) => {
     const p = x.pct[m.k];
@@ -2338,6 +2341,36 @@ async function pageEdge() {
 }
 
 /* ---------- Spelare ---------- */
+// Desktop top card for player and team pages, laid out like a broadcast profile: a thin first line and a big
+// uppercase name with a badge and a button, two large numbers, a short facts list, a big photo on the right over a
+// blurred copy of it, and a stats band along the bottom. rows: [{ label, cells: [[key, value], …] }]
+function refHero({ bg, photo, photoCls = '', first, firstCls = '', last, badge = '', action = '', big = [], facts = [], rows = [], tabsHtml = '' }) {
+  let prevKeys = '';
+  const rowHtml = rows.map((r) => {
+    const keys = r.cells.map(([k]) => k).join('|'), showKeys = keys !== prevKeys; prevKeys = keys;
+    return `<div class="ref-row ${showKeys ? '' : 'nokeys'}" style="--n:${r.cells.length}"><span class="ref-row-l">${esc(r.label)}</span>${r.cells.map(([k, v]) =>
+      `<span class="ref-cell">${showKeys ? `<small>${k}</small>` : ''}<b class="num">${v}</b></span>`).join('')}</div>`;
+  }).join('');
+  return `<section class="ref">
+    ${bg ? `<div class="ref-bg" style="background-image:url('${esc(bg)}')"></div>` : ''}
+    ${photo ? `<img class="ref-photo ${photoCls}" src="${esc(photo)}" alt="" onerror="this.remove()">` : ''}
+    ${action ? `<div class="ref-action">${action}</div>` : ''}
+    <div class="ref-main"><div class="ref-left">
+      <div class="ref-first ${firstCls}">${first}</div>
+      <div class="ref-namerow"><h1 class="ref-last">${last}</h1>${badge ? `<span class="ref-badge">${badge}</span>` : ''}</div>
+      <span class="ref-rule"></span>
+      ${big.length ? `<div class="ref-big">${big.map(([k, v, unit]) => `<div><span>${k}</span><b class="num">${v}${unit ? `<small>${unit}</small>` : ''}</b></div>`).join('')}</div><span class="ref-rule"></span>` : ''}
+      ${facts.length ? `<dl class="ref-facts">${facts.map(([k, v]) => `<dt>${k} :</dt><dd>${v}</dd>`).join('')}</dl>` : ''}
+    </div></div>
+    ${rows.length ? `<div class="ref-stats">${rowHtml}</div>` : ''}
+    ${tabsHtml}</section>`;
+}
+
+// Follow a team: a small button in the profile card's top-right corner (a filled star once it is your team)
+const favButton = (code, isFav) => `<button class="ref-btn" data-fav="${code}" aria-pressed="${isFav}"><svg viewBox="0 0 24 24" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.9l-5.3 2.7 1-5.8-4.2-4.1 5.9-.9z"/></svg>${isFav ? 'Mitt lag' : 'Följ laget'}</button>`;
+// Swedish ordinals: 1:a, 2:a, 3:e … 21:a, 22:a
+const ordinal = (n) => `${n}:${[1, 2].includes(n % 10) && ![11, 12].includes(n % 100) ? 'a' : 'e'}`;
+
 async function pagePlayer(id, tab = '') {
   if (!PLAYERS) app.innerHTML = skeleton();
   const P = await loadPlayers();
@@ -2439,7 +2472,7 @@ async function pagePlayer(id, tab = '') {
       let c = 0; const pts = log.map((r) => (c += r[4] + r[5]));
       trend = panel('Poängutveckling', `<div class="chart">${lineChart([{ pts, color: 'var(--accent)', area: true }], { xLabels: log.map((r) => GAMES_BY_ID[r[0]] ? `${dateParts(GAMES_BY_ID[r[0]].start).d}/${dateParts(GAMES_BY_ID[r[0]].start).m}` : ''), yFmt: (v) => Math.round(v) })}</div>`, { sub: `Ackumulerade poäng ${CUR}.` });
     }
-    const card = CARD.get(id) ? panel('Spelarkort', cardHtml(CARD.get(id), { link: false }), { sub: gk ? 'Percentiler jämfört med andra SHL-målvakter.' : 'Percentiler jämfört med andra SHL-spelare på samma position.' }) : '';
+    const card = CARD.get(id) ? panel('Spelarkort', cardHtml(CARD.get(id), { link: false, compact: !isNarrow() }), { sub: gk ? 'Percentiler jämfört med andra SHL-målvakter.' : 'Percentiler jämfört med andra SHL-spelare på samma position.' }) : '';
     const recent = clips.slice(-3).reverse();
     const latestClips = recent.length ? panel('Senaste målen', `<div class="clips">${recent.map(([gid, cid, thumb, embed, date, opp]) => clipCard({ id: cid, thumb, embed }, `Mot ${esc(tName(opp))}`, fmtDay(date))).join('')}</div>`,
       { more: clips.length > 3 ? moreLink(`#/spelare/${encodeURIComponent(id)}/mal`, 'Alla mål') : '' }) : '';
@@ -2450,7 +2483,33 @@ async function pagePlayer(id, tab = '') {
     body = board([card, trend, latestClips, recentGames]) || '';
     if (!card && !trend && !latestClips && !recentGames) body = panel('', '<p class="empty-state">Ingen statistik den här säsongen ännu.</p>');
   }
-  render(hero() + body);
+  render((isNarrow() ? hero() : playerRefHero()) + body);
+
+  // Computers: the profile-style top card (this season and last season in the stats band)
+  function playerRefHero() {
+    const big = [bio.h ? ['Längd', bio.h, 'cm'] : null, bio.w ? ['Vikt', bio.w, 'kg'] : null, bio.born ? ['Ålder', ageOf(bio.born), 'år'] : null].filter(Boolean);
+    const chrono = [...careerRows].reverse(); // oldest first
+    const earlier = [];
+    for (const r of chrono) if (r[1] !== team) { const e = earlier.find((x) => x.code === r[1]); if (e) e.to = r[0]; else earlier.push({ code: r[1], from: r[0], to: r[0] }); }
+    const yr = (s) => `20${s.slice(0, 2)}`, span = (e) => e.from === e.to ? yr(e.from) : `${yr(e.from)}–${String(+yr(e.to) + 1).slice(2)}`;
+    const facts = [
+      bio.born ? ['Född', fmtDate(bio.born)] : null,
+      ['Nation', esc(NAT[bio.nat] || bio.nat || '–')],
+      chrono.length ? ['SHL-debut', `${yr(chrono[0][0])}/${chrono[0][0].slice(-2)}`] : null,
+      earlier.length ? ['Tidigare', earlier.slice(-2).reverse().map((e) => `${esc(e.code)} ${span(e)}`).join(', ')] : null,
+    ].filter(Boolean);
+    const cellsOf = (p) => gk
+      ? [['SM', p.gpi], ['V', p.w_ ?? '–'], ['Rädd%', dec(p.svp, 2)], ['GAA', dec(p.gaa, 2)], ['Nollor', p.so], ['Räddn.', p.sv], ['GSAA', dec(gsaa(p, CUR))]]
+      : [['SM', p.gp], ['M', p.g], ['A', p.a], ['P', p.pts], ['P/M', dec(p.gp ? p.pts / p.gp : 0, 2)], ['+/-', signed(p.pm)], ['Utv', p.pim], ['Skott', p.sog], ['Istid', mmss(p.toi)]];
+    const rows = cur ? [{ label: `Grundserien ${CUR.replace('-', '/')}`, cells: cellsOf(cur) }] : []; // this season only
+    const isFav = FAV === team;
+    return refHero({
+      bg: shot?.[1], photo: shot?.[1], first: esc(first), last: esc(rest.join(' ')),
+      badge: `${tb(team, 'md')}<b>#${esc(bio.num ?? '–')}</b><i></i><b>${gk ? 'MV' : POS_SHORT[bio.pos] || 'F'}</b>`,
+      action: favButton(team, isFav),
+      big, facts, rows, tabsHtml: tabs(`/spelare/${encodeURIComponent(id)}`, tabList, tab),
+    });
+  }
 }
 
 /* ---------- Tabell: Lagstatistik tab ---------- */
@@ -2583,7 +2642,28 @@ async function pageTeam(code, tab = '') {
   } else if (tab === 'historik') body = teamHistory(code);
   else if (tab === 'form') body = teamForm(code, TD.logs[code] || []);
   else body = teamOverview(code, teamGames, TD.news[code] || []);
-  render(hero + body);
+  render((isNarrow() ? hero : teamRefHero()) + body);
+
+  // Computers: the profile-style top card, with the club logo where a player's photo would be
+  function teamRefHero() {
+    const homeArena = teamGames.find((g) => g.home === code && g.arena)?.arena;
+    // Results and odds only: power play, penalty kill and shots are in the Säsongsstatistik card (with league ranks)
+    const facts = [
+      homeArena ? ['Arena', esc(homeArena)] : null,
+      ['Form', formChips(code)],
+      ['Prognos', `${dec(s.proj, 0)} poäng`],
+    ].filter(Boolean);
+    const rows = [
+      { label: `Grundserien ${CUR.replace('-', '/')}`, cells: [['V', r.w], ['ÖV', r.otw], ['ÖF', r.otl], ['F', r.l], ['GM', r.gf], ['IM', r.ga], ['+/-', signed(r.gf - r.ga)]] },
+      { label: 'Odds', cells: [['Slutspel', oddsTxt(s.top10)], ['Topp 6', oddsTxt(s.top6)], ['Semifinal', oddsTxt(s.semi)], ['Final', oddsTxt(s.final)], ['SM-guld', oddsTxt(s.gold)], ['SHL-kval', oddsTxt(s.rel)]] },
+    ];
+    return refHero({
+      bg: LOGOS[code], photo: LOGOS[code], photoCls: 'ref-logo', firstCls: 'ref-kicker', first: `SHL ${CUR.replace('-', '/').replace(/^(\d\d)/, '20$1')}`, last: esc(tName(code)),
+      action: favButton(code, isFav),
+      big: [['Placering', ordinal(rank)], ['Poäng', r.pts], ['Matcher', r.gp]], facts, rows,
+      tabsHtml: tabs(`/lag/${code}`, tabList, tab),
+    });
+  }
 }
 function teamOverview(code, teamGames, news = []) {
   const s = SIM[code], T = D.teamStats[code] || {};

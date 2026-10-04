@@ -2234,3 +2234,178 @@ footer#foot p { margin: 0; }
 .gc-wp .v:first-child { grid-column: 1; grid-row: 2; }
 .gc-wp .v:last-child { grid-column: 3; grid-row: 2; }
 .gc-wp .v { line-height: 1; }
+
+/* =====================================================================================================
+   DESKTOP REDESIGN: calm, flat, broadcast-profile look (charcoal, one blue accent, Lato thin + bold).
+   Everything here is for computers only; phones keep their own design.
+   ===================================================================================================== */
+@media (min-width: 701px) {
+  :root { --body: "Lato", "Segoe UI", system-ui, sans-serif; --display: "Lato", "Segoe UI", system-ui, sans-serif; --radius: 8px; --r-in: 6px; --r-sm: 4px; }
+  :root[data-theme="dark"] { --bg: #17181b; --bg-2: #121315; --panel: #1f2023; --panel-2: #27282c; --line: #313236; --text: #f2f2f3; --muted: #9b9da3; --faint: #74767c; --accent: #3d7be0; --accent-ink: #fff; }
+}
+@media (min-width: 701px) and (prefers-color-scheme: dark) {
+  :root:not([data-theme]) { --bg: #17181b; --bg-2: #121315; --panel: #1f2023; --panel-2: #27282c; --line: #313236; --text: #f2f2f3; --muted: #9b9da3; --faint: #74767c; --accent: #3d7be0; --accent-ink: #fff; }
+}
+@media (min-width: 701px) and (prefers-color-scheme: no-preference) {
+  :root:not([data-theme]) { --bg: #17181b; --bg-2: #121315; --panel: #1f2023; --panel-2: #27282c; --line: #313236; --text: #f2f2f3; --muted: #9b9da3; --faint: #74767c; --accent: #3d7be0; --accent-ink: #fff; }
+}
+@media (min-width: 701px) {
+  body { font-family: var(--body); letter-spacing: .005em; }
+
+  /* Top bar: flat, full width; text links, the page you're on in white with a white underline */
+  header.top { padding: 0; pointer-events: auto; background: color-mix(in srgb, var(--bg-2) 92%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  .top-in { max-width: 1320px; border-radius: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 0 16px; min-height: 60px; gap: 24px; }
+  nav.main { background: none; box-shadow: none; padding: 0; gap: 4px; align-self: stretch; }
+  nav.main a { padding: 0 14px; height: 60px; border-radius: 0; font: 400 13.5px var(--body); letter-spacing: .02em; color: var(--muted); }
+  nav.main a .ic { display: none; }
+  nav.main a:hover { color: var(--text); }
+  nav.main a.on { color: var(--text); font-weight: 700; }
+  nav.main .sl-pill { top: auto !important; background: none; border-radius: 0; box-shadow: inset 0 -2px 0 var(--text); }
+  .brand-word { font-size: 24px; }
+  .gsearch input { background: var(--panel-2); font-family: var(--body); }
+  .favlink { font-family: var(--body); letter-spacing: .03em; }
+  .theme-btn { background: var(--panel-2); }
+
+  /* Score cards along the top: flat */
+  .strip { background: var(--bg-2); border-bottom: 1px solid var(--line); }
+  .s-game { background: var(--panel); border-radius: var(--r-in); box-shadow: inset 0 0 0 1px var(--line); }
+  .s-row .code, .s-game .score, .s-date span, .s-status { font-family: var(--body); }
+
+  /* Panels: flat with a thin line, quiet sentence-case headings */
+  .panel { border-radius: var(--radius); box-shadow: none; border: 1px solid var(--line); background: var(--panel); }
+  .p-head h2, .section-title { font: 700 16px var(--body); text-transform: none; letter-spacing: .01em; }
+  .p-head h2::first-letter { text-transform: uppercase; }
+  .p-sub { font-size: 13px; }
+  .tile, .ltile, .grow, .lp, .mini-game, .smd, .tnews, .clip { border-radius: var(--r-in); }
+  .tile .k, .stamp, .lbl, .mini-lbl, .lfeat-lbl, .gr-st, .gr-day, .mts-k, .gl-per, .phero-season { font-family: var(--body); letter-spacing: .06em; }
+  .tile .v, .lfeat-val, .gr-num, .gr-time, .mts-odds b, .mts-res, .gl-sc, .gl-name a, .wp-team b, .score, .big { font-family: var(--body); }
+  .lfeat-name, .mday-teamname b, .mts-name { font-family: var(--body); font-weight: 900; font-style: normal; }
+
+  /* Tables: small grey uppercase headers, plain rows */
+  table.t th { font: 400 11.5px var(--body); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+  table.t td { font-family: var(--body); }
+  table.t td.hl, table.t th.sorted { color: var(--text); }
+
+  /* Tabs and toggles: lighter type, white underline */
+  .tabs a, .utabs button { font: 400 13.5px var(--body); letter-spacing: .02em; color: var(--muted); }
+  .tabs a.on, .utabs button[aria-selected="true"] { color: var(--text); font-weight: 700; }
+  .tabs .sl-line, .utabs .sl-line { background: var(--text); height: 2px; }
+  .seg button, .chip { font-family: var(--body); }
+
+  /* ---------- The profile card (player and team pages) ---------- */
+  .ref { position: relative; overflow: hidden; isolation: isolate; margin-bottom: 18px; border-radius: var(--radius); border: 1px solid #2c2d31; background: #1b1c1f; color: #f2f2f3; --muted-ref: #a0a2a8; }
+  .ref-bg { position: absolute; inset: -40px; z-index: -2; background-size: cover; background-position: 60% 25%; filter: grayscale(1) blur(16px) brightness(.32); transform: scale(1.08); }
+  .ref::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(90deg, rgba(22, 23, 26, .94) 0%, rgba(22, 23, 26, .78) 38%, rgba(22, 23, 26, .2) 70%, rgba(22, 23, 26, .05) 100%); }
+  .ref-photo { position: absolute; z-index: 0; right: 5%; bottom: 0; height: 96%; max-width: 52%; width: auto; object-fit: contain; object-position: bottom right; filter: drop-shadow(0 20px 40px rgba(0, 0, 0, .45)); }
+  .ref-photo.ref-logo { height: 58%; bottom: 30%; right: 9%; object-position: center; filter: drop-shadow(0 18px 36px rgba(0, 0, 0, .5)); }
+  .ref-main { position: relative; z-index: 1; padding: 44px 48px 8px; min-height: 360px; }
+  .ref-left { max-width: 56%; }
+  .ref-first { font: 300 28px/1.1 var(--body); color: #c8cacf; }
+  .ref-namerow { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 24px; margin-top: 2px; }
+  .ref-last { margin: 0; font: 900 58px/1.02 var(--body); text-transform: uppercase; letter-spacing: .005em; color: #fff; }
+  .ref-badge { display: inline-flex; align-items: center; gap: 12px; font: 700 21px var(--body); color: #fff; }
+  .ref-badge .tb.md { width: 34px; height: 34px; }
+  .ref-badge i { width: 1px; height: 24px; background: rgba(255, 255, 255, .35); }
+  .ref-btn { border: 1px solid var(--accent); border-radius: 999px; padding: 7px 18px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: #fff; font: 600 13px var(--body); cursor: pointer; }
+  .ref-btn:hover, .ref-btn[aria-pressed="true"] { background: var(--accent); }
+  .ref-rule { display: block; width: 190px; height: 2px; margin: 18px 0 20px; background: var(--accent); }
+  .ref-big { display: flex; gap: 52px; }
+  .ref-big span { display: block; font: 400 13px var(--body); color: var(--muted-ref); margin-bottom: 4px; }
+  .ref-big b { font: 300 40px/1 var(--body); color: #fff; }
+  .ref-big small { font-size: 14px; color: var(--muted-ref); margin-left: 5px; font-weight: 400; }
+  .ref-facts { display: grid; grid-template-columns: max-content auto; gap: 11px 34px; margin: 0; font: 400 14px var(--body); }
+  .ref-facts dt { color: var(--muted-ref); }
+  .ref-facts dd { margin: 0; font-weight: 700; color: #fff; display: flex; align-items: center; }
+  .ref-facts dd .form { gap: 3px; }
+  .ref-stats { position: relative; z-index: 1; margin-top: 26px; padding: 6px 48px 10px; background: rgba(20, 21, 24, .74); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(255, 255, 255, .06); }
+  .ref-row { display: grid; grid-template-columns: 220px repeat(var(--n), minmax(0, 1fr)); align-items: end; padding: 12px 0 10px; }
+  .ref-row + .ref-row { border-top: 1px solid color-mix(in srgb, var(--accent) 75%, transparent); }
+  .ref-row-l { font: 400 17px var(--body); color: #fff; padding-bottom: 2px; }
+  .ref-cell { display: grid; justify-items: end; gap: 4px; }
+  .ref-cell small { font: 400 11.5px var(--body); color: var(--muted-ref); letter-spacing: .04em; }
+  .ref-cell b { font: 700 22px/1 var(--body); color: #fff; }
+  .ref .tabs { position: relative; z-index: 1; background: rgba(20, 21, 24, .86); border-top: 1px solid rgba(255, 255, 255, .06); padding: 0 34px; }
+  .ref .tabs a { color: var(--muted-ref); }
+  .ref .tabs a.on { color: #fff; }
+  .ref .tabs .sl-line { background: #fff; }
+}
+@media (min-width: 701px) and (max-width: 1100px) {
+  .ref-last { font-size: 44px; } .ref-left { max-width: 62%; } .ref-photo { max-width: 46%; }
+  .ref-row { grid-template-columns: 150px repeat(var(--n), minmax(0, 1fr)); } .ref-cell b { font-size: 18px; }
+}
+
+@media (min-width: 701px) {
+  /* Follow button: a small ghost button in the profile card's top-right corner */
+  .ref-action { position: absolute; top: 20px; right: 22px; z-index: 3; }
+  .ref .ref-btn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border: 1px solid rgba(255, 255, 255, .22); background: rgba(20, 21, 24, .55);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: #fff; font: 600 12.5px var(--body); letter-spacing: .02em; }
+  .ref .ref-btn svg { width: 14px; height: 14px; }
+  .ref .ref-btn:hover { border-color: rgba(255, 255, 255, .5); background: rgba(20, 21, 24, .75); }
+  .ref .ref-btn[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 30%, rgba(20, 21, 24, .6)); }
+  .ref-big small { white-space: nowrap; }
+
+  /* Spelarkort on a player's own page: one slim line (impact and role) instead of repeating the profile */
+  .pc-top.pc-slim { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 6px 2px 14px; height: auto; background: none; }
+  .pc-slim .pc-war { display: grid; gap: 2px; padding: 0; position: static; }
+  .pc-slim .pc-war .lbl { color: var(--muted); }
+  .pc-slim .pc-war .big { font: 300 36px/1 var(--body); color: var(--text) !important; text-shadow: none; }
+  .pc-slim .pc-meta { color: var(--muted); font-size: 14px; }
+  .pc-slim .pc-meta b { color: var(--text); }
+
+  /* Match header: calm, the same charcoal as the profile cards with a soft glow of each team's colour on its side */
+  .mpanel .band { background: radial-gradient(60% 150% at 0% 55%, color-mix(in srgb, var(--hb, var(--hc)) 30%, transparent), transparent 70%),
+      radial-gradient(60% 150% at 100% 55%, color-mix(in srgb, var(--ab, var(--ac)) 30%, transparent), transparent 70%), #1b1c1f; }
+  .mpanel .band::after { display: none; }
+  .mpanel .band .crumbs, .mpanel .band .crumbs a { color: #9b9da3; font-family: var(--body); letter-spacing: .04em; }
+  .mpanel .mteam b { font: 900 24px/1.1 var(--body); text-transform: uppercase; letter-spacing: .01em; text-shadow: none; color: #fff; }
+  .mpanel .mh-side { font: 400 12px var(--body); letter-spacing: .12em; color: #9b9da3; }
+  .mpanel .mscore .sc { font: 300 76px/1 var(--body); letter-spacing: 0; text-shadow: none; }
+  .mpanel .mscore .sc.sm { font-size: 56px; }
+  .mpanel .mscore .st { font: 400 13px var(--body); letter-spacing: .12em; color: #b9bbc0; }
+  .mpanel .mscore .st.live { color: #ff6b7d; }
+  .mpanel .mh-rec { font-family: var(--body); }
+  .mpanel .mmeta { font-family: var(--body); color: var(--muted); }
+}
+
+@media (min-width: 701px) {
+  /* Small links in card corners ("Hela loggen ›" etc.): quiet, normal case */
+  .more-link, .p-head .more-link, .card-foot { font: 600 13px var(--body); letter-spacing: .01em; text-transform: none; }
+}
+
+@media (min-width: 701px) {
+  /* Team card: the season line is a small label above the name, with room under it */
+  .ref-first.ref-kicker { font: 400 14px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: #a0a2a8; margin-bottom: 12px; }
+  .ref-first { margin-bottom: 4px; }
+}
+
+/* ---------- Desktop text sweep: one scale for big numbers, labels and titles ---------- */
+@media (min-width: 701px) {
+  /* Big numbers: light and thin, like the profile card (186 cm, 17 poäng) */
+  .lfeat-val { font: 300 60px/.95 var(--body); letter-spacing: -.01em; }
+  .tile .v { font: 300 30px/1.1 var(--body); }
+  .wp-team b { font-weight: 300; }
+  .pc-hero .pc-war .big, .pc-war .big { font-family: var(--body); font-weight: 300; }
+
+  /* Small labels: one style everywhere (12 px, semibold, spaced capitals, grey) */
+  .lfeat-lbl, .mini-lbl, .tile .k, .gr-st, .gl-per, .mts-k, .phero-season, .stamp.up,
+  .day h3, .sm-zones h3, .rx-head h3, .rstars h3, .rmoments h3, .rx-win {
+    font: 600 12px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+  }
+  .day h3 { margin-top: 10px; }
+
+  /* Card titles that were bigger or in capitals: the same as every other card title */
+  .alla-title b { font: 700 16px var(--body); text-transform: none; letter-spacing: .01em; }
+
+  /* The full player card (Nexus): Lato instead of the old condensed italic */
+  .pc-num { font-family: var(--body); font-style: normal; font-weight: 900; font-stretch: normal; }
+  .pc-hero .pc-name { font-family: var(--body); font-style: normal; font-stretch: normal; font-weight: 900; letter-spacing: .005em; }
+  .pc-hero .pc-name span { font-weight: 300; text-transform: none; font-size: .55em; }
+
+  /* Nothing smaller than 12 px */
+  .tag, .rm-tag, .s-date b, .kbd { font-size: 12px; }
+}
+
+@media (min-width: 701px) {
+  table.t th, .ref-cell small, .tn-meta { font-size: 12px; }
+  .gr-day, .crumbs, .crumbs a, .controls .field { font-size: 12px; letter-spacing: .08em; }
+}
