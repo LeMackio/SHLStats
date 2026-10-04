@@ -1147,9 +1147,9 @@ async function pageMatch(id, tab = '') {
     }
   }
   const base = `/match/${id}`;
-  // Played and live games: phones also get the line-ups (second, before the players' stats); video is always last
+  // Played and live games: phones show the line-ups at the bottom of Spelarstatistik; video is always last
   const tabList = done || live
-    ? [['', 'Översikt'], ...(isNarrow() ? [['uppstallning', 'Uppställning']] : []), ['spelare', 'Spelarstatistik'], ['skott', isNarrow() ? 'Skott & utv.' : 'Skott & utvisningar'],
+    ? [['', 'Översikt'], ['spelare', 'Spelarstatistik'], ['skott', 'Händelser'],
       ['video', 'Video', d ? d.goals.filter((x) => x.clip).length + (d.hl ? 1 : 0) || '' : '']]
     : [['', 'Preview'], ['uppstallning', 'Uppställningar']];
   if (!tabList.some(([k]) => k === tab)) tab = '';
@@ -1157,7 +1157,7 @@ async function pageMatch(id, tab = '') {
   const head = `<section class="panel mpanel" style="--hc:${pairColors(g.home, g.away)[0]};--ac:${pairColors(g.home, g.away)[1]};--hb:${vivid(teamHue(g.home))};--ab:${vivid(teamHue(g.away))}">
     <div class="band">
     <div class="crumbs" style="padding:16px 22px 0"><a href="#/matcher">Matcher</a> / ${esc(tName(g.home))} – ${esc(tName(g.away))}</div>
-    <div class="mhead">
+    <div class="mhead" style="--n:${Math.max(tName(g.home).length, tName(g.away).length)}">
       <a class="mteam" href="#/lag/${g.home}"><span class="mh-side">Hemma</span>${tb(g.home, 'xl')}<b>${esc(tName(g.home))}</b>${rec(g.home)}</a>
       <div class="mscore">${done || live ? `<div class="sc">${g.hs}–${g.as}</div>` : `<div class="sc sm">${fmtTime(g.start)}</div>`}
         <div class="st ${live ? 'live' : ''}">${done ? statusTxt(g) : live ? `<i class="live-dot"></i>${esc(liveClock(d?.live))}` : fmtDay(g.start)}</div></div>
@@ -1170,7 +1170,7 @@ async function pageMatch(id, tab = '') {
   let body;
   if (done || live) {
     if (!d) body = panel('Matchfakta', '<p class="empty-state">Detaljerad matchdata finns inte för den här matchen ännu. Den hämtas vid nästa uppdatering.</p>');
-    else body = tab === 'video' ? matchVideo(d) : tab === 'spelare' ? matchPlayers(d) : tab === 'uppstallning' ? matchLineup(d) : tab === 'skott' ? matchEvents(d) : matchSummary(d, done);
+    else body = tab === 'video' ? matchVideo(d) : tab === 'spelare' ? matchPlayers(d) : tab === 'skott' ? matchEvents(d) : matchSummary(d, done);
   } else {
     body = tab === 'uppstallning' ? board([lineupPanel(g)]) : matchPreview(g);
   }
@@ -1181,7 +1181,7 @@ async function pageMatch(id, tab = '') {
   if ((done || live) && d && tab === 'spelare') for (const side of ['home', 'away']) boxTable(d, side);
   if (!done && !live && tab === 'uppstallning') applyOfficialLineups(g);
   // A live game without the line-ups in its data yet: the clubs' submitted line-ups from the relay
-  if (live && tab === 'uppstallning' && !(d?.box?.home?.length) && !OFFICIAL_LU[id]) applyOfficialLineups(g);
+  if (live && tab === 'spelare' && isNarrow() && !(d?.box?.home?.length) && !OFFICIAL_LU[id]) applyOfficialLineups(g);
 }
 
 // The goals, period by period. Every row has the same columns (time, scorer, score, video), and the video
@@ -1337,7 +1337,7 @@ document.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key ==
 function matchSummary(d, done = true) {
   const stats = panel('Lagstatistik', teamCompare(d));
   const flow = d.shots?.length || d.live ? panel('Matchbild', momentumChart(d), { cls: 'wide', sub: d.live ? 'Skott på mål minut för minut, uppdateras under matchen.' : 'Skott på mål minut för minut.' }) : '';
-  // Goals and shots per period live in the "Skott & utvisningar" tab
+  // Goals and shots per period live in the "Händelser" tab
   // During a game the goals card appears with the first goal (the clock is in the header above), and the
   // win chance sits at the bottom.
   const feed = d.live ? feedCard(d) : '';
@@ -1589,6 +1589,7 @@ function matchPlayers(d) {
   return board([
     panel('Målvakter', gkHtml, { cls: 'wide' }),
     panel('Spelare', `<div class="tt">${teamToggle(d.home, d.away)}<div data-pane="home"><div class="tscroll"><table class="t stick" id="box-home"></table></div></div><div data-pane="away" hidden><div class="tscroll"><table class="t stick" id="box-away"></table></div></div></div>`, { cls: 'wide' }),
+    isNarrow() ? matchLineup(d) : '', // phones: the line-ups under the players' stats
   ]);
 }
 // Uppställning for a played or live game: the lines each team used (from the game's player list), one team at a time
@@ -1604,7 +1605,7 @@ function matchLineup(d) {
     return { F, D: Dd, G };
   };
   const pane = (side) => `<div data-pane="${side}" data-lineup="${side}" ${side === 'away' ? 'hidden' : ''}>${lineupHtml(d[side], linesOf(side) || OFFICIAL_LU[d.id]?.[side])}</div>`;
-  return board([panel('Uppställning', `<div class="tt">${teamToggle(d.home, d.away)}${pane('home')}${pane('away')}</div>`, { cls: 'wide' })]);
+  return panel('Uppställning', `<div class="tt">${teamToggle(d.home, d.away)}${pane('home')}${pane('away')}</div>`, { cls: 'wide' });
 }
 function boxTable(d, side) {
   const team = d[side];
@@ -2426,16 +2427,18 @@ async function pageEdge() {
 // Desktop top card for player and team pages, laid out like a broadcast profile: a thin first line and a big
 // uppercase name with a badge and a button, two large numbers, a short facts list, a big photo on the right over a
 // blurred copy of it, and a stats band along the bottom. rows: [{ label, cells: [[key, value], …] }]
-function refHero({ bg, photo, photoCls = '', first, firstCls = '', last, badge = '', action = '', big = [], facts = [], rows = [], tabsHtml = '' }) {
+function refHero({ bg, tc = '', photo, photoCls = '', first, firstCls = '', last, badge = '', action = '', big = [], facts = [], rows = [], tabsHtml = '' }) {
   let prevKeys = '';
   const rowHtml = rows.map((r) => {
     const keys = r.cells.map(([k]) => k).join('|'), showKeys = keys !== prevKeys; prevKeys = keys;
     return `<div class="ref-row ${showKeys ? '' : 'nokeys'}" style="--n:${r.cells.length}"><span class="ref-row-l">${esc(r.label)}</span>${r.cells.map(([k, v]) =>
       `<span class="ref-cell">${showKeys ? `<small>${k}</small>` : ''}<b class="num">${v}</b></span>`).join('')}</div>`;
   }).join('');
-  return `<section class="ref">
+  return `<section class="ref"${tc ? ` style="--tc:${tc}"` : ''}>
     ${bg ? `<div class="ref-bg" style="background-image:url('${esc(bg)}')"></div>` : ''}
-    ${photo ? `<img class="ref-photo ${photoCls}" src="${esc(photo)}" alt="" onerror="this.remove()">` : ''}
+    ${photo ? (isNarrow() && !photoCls // phones: the studio background is removed so the player stands on the card
+      ? `<img class="ref-photo" src="${esc(CLEAN.get(photo) || photo)}" data-orig="${esc(photo)}" ${CLEAN.has(photo) ? 'data-done="1"' : ''} crossorigin="anonymous" alt="" onload="cleanPortrait(this)" onerror="this.remove()">`
+      : `<img class="ref-photo ${photoCls}" src="${esc(photo)}" alt="" onerror="this.remove()">`) : ''}
     ${action ? `<div class="ref-action">${action}</div>` : ''}
     <div class="ref-main"><div class="ref-left">
       <div class="ref-first ${firstCls}">${first}</div>
@@ -2447,6 +2450,13 @@ function refHero({ bg, photo, photoCls = '', first, firstCls = '', last, badge =
     ${rows.length ? `<div class="ref-stats">${rowHtml}</div>` : ''}
     ${tabsHtml}</section>`;
 }
+
+// "Visa alla …" under a shortened list: shows the hidden rows of the list just above it
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-showall]'); if (!b) return;
+  b.previousElementSibling.querySelectorAll(':scope > [hidden]').forEach((x) => { x.hidden = false; });
+  b.remove(); layoutBoards();
+});
 
 // Follow a team: a small button in the profile card's top-right corner (a filled star once it is your team)
 const favButton = (code, isFav) => `<button class="ref-btn" data-fav="${code}" aria-pressed="${isFav}"><svg viewBox="0 0 24 24" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.9l-5.3 2.7 1-5.8-4.2-4.1 5.9-.9z"/></svg>${isFav ? 'Mitt lag' : 'Följ laget'}</button>`;
@@ -2467,7 +2477,8 @@ async function pagePlayer(id, tab = '') {
   const clips = P.goalClips?.[id] || [];
   const log = (gk ? P.goalieLogs[id] : P.gamelogs[id]) || [];
   const careerRows = gk ? (P.goalieCareer[id] || []) : (P.career[id] || []);
-  const tabList = [['', 'Översikt'], ['karriar', 'Karriär'], ['matchlogg', 'Matchlogg', log.length || ''], ...(clips.length ? [['mal', 'Målvideor', clips.length]] : [])];
+  // Phones have no Matchlogg tab: the games are rows on Översikt that open the game
+  const tabList = [['', 'Översikt'], ['karriar', 'Karriär'], ...(isNarrow() ? [] : [['matchlogg', 'Matchlogg', log.length || '']]), ...(clips.length ? [['mal', 'Målvideor', clips.length]] : [])];
   if (!tabList.some(([k]) => k === tab)) tab = '';
   const shot = HS[id];
   const [first, ...rest] = String(bio.name).split(' ');
@@ -2527,23 +2538,56 @@ async function pagePlayer(id, tab = '') {
     body = panel(`Målvideor ${CUR}`, `<div class="clips">${[...clips].reverse().map(([gid, cid, thumb, embed, date, opp]) =>
       clipCard({ id: cid, thumb, embed }, `Mot ${esc(tName(opp))}`, fmtDay(date))).join('')}</div>`);
   } else {
+    const narrow = isNarrow(); // phones: this season only (no points chart or videos), and the games as rows that open the game
     let trend = '';
-    if (!gk && log.length >= 2) {
+    if (!narrow && !gk && log.length >= 2) {
       let c = 0; const pts = log.map((r) => (c += r[4] + r[5]));
       trend = panel('Poängutveckling', `<div class="chart">${lineChart([{ pts, color: 'var(--accent)', area: true }], { xLabels: log.map((r) => GAMES_BY_ID[r[0]] ? `${dateParts(GAMES_BY_ID[r[0]].start).d}/${dateParts(GAMES_BY_ID[r[0]].start).m}` : ''), yFmt: (v) => Math.round(v) })}</div>`, { sub: `Ackumulerade poäng ${CUR}.` });
     }
     const card = CARD.get(id) ? panel('Spelarkort', cardHtml(CARD.get(id), { link: false, compact: true }), { sub: gk ? 'Percentiler jämfört med andra SHL-målvakter.' : 'Percentiler jämfört med andra SHL-spelare på samma position.' }) : '';
-    const recent = clips.slice(-3).reverse();
+    const recent = narrow ? [] : clips.slice(-3).reverse();
     const latestClips = recent.length ? panel('Senaste målen', `<div class="clips">${recent.map(([gid, cid, thumb, embed, date, opp]) => clipCard({ id: cid, thumb, embed }, `Mot ${esc(tName(opp))}`, fmtDay(date))).join('')}</div>`,
       { more: clips.length > 3 ? moreLink(`#/spelare/${encodeURIComponent(id)}/mal`, 'Alla mål') : '' }) : '';
     const last5 = [...log].slice(-5).reverse();
-    const recentGames = last5.length ? panel('Senaste matcherna', `<div class="tscroll"><table class="t"><thead><tr><th class="l">Datum</th><th class="l">Motstånd</th>${gk ? '<th>Rädd%</th>' : '<th>M</th><th>A</th><th>+/-</th>'}</tr></thead><tbody>${last5.map((r) =>
+    const recentGames = narrow ? (log.length ? panel('Senaste matcherna', gameRows()) : '') : last5.length ? panel('Senaste matcherna', `<div class="tscroll"><table class="t"><thead><tr><th class="l">Datum</th><th class="l">Motstånd</th>${gk ? '<th>Rädd%</th>' : '<th>M</th><th>A</th><th>+/-</th>'}</tr></thead><tbody>${last5.map((r) =>
       `<tr><td class="l">${gdate(r[0])}</td><td class="l">${teamLink(r[2], { name: true })}</td>${gk ? `<td class="hl">${dec(r[5] ? r[6] / r[5] * 100 : 0, 1)}</td>` : `<td>${r[4]}</td><td>${r[5]}</td><td>${signed(r[6])}</td>`}</tr>`).join('')}</tbody></table></div>`,
       { more: moreLink(`#/spelare/${encodeURIComponent(id)}/matchlogg`, 'Hela loggen') }) : '';
-    body = board([card, trend, latestClips, recentGames]) || '';
+    body = board([narrow ? seasonCard() : '', card, trend, latestClips, recentGames]) || '';
     if (!card && !trend && !latestClips && !recentGames) body = panel('', '<p class="empty-state">Ingen statistik den här säsongen ännu.</p>');
   }
   render(playerRefHero() + body);
+
+  // Phones: this season at a glance, per-game numbers and where the player ranks in the team and in the league
+  function seasonCard() {
+    if (!cur) return '';
+    const pool = gk ? goalies().filter((p) => p.gpi >= Math.min(5, cur.gpi)) : skaters();
+    const mates = pool.filter((p) => p.team === team);
+    const place = (list, val, low) => { const v = val(cur); return ordinal(1 + list.filter((p) => (low ? val(p) < v : val(p) > v)).length); };
+    const stats = gk
+      ? [['Rädd%', (p) => p.svp], ['GAA', (p) => p.gaa, true], ['GSAA', (p) => gsaa(p, CUR)]]
+      : [['Poäng', (p) => p.pts], ['Mål', (p) => p.g], ['Assist', (p) => p.a]];
+    // Numbers the stats band above doesn't already show
+    const tiles = gk
+      ? [['Vinst%', cur.w_ + cur.l ? dec(cur.w_ / (cur.w_ + cur.l) * 100, 0) : '–'], ['Insläppta', cur.ga], ['Minuter', Math.round(cur.mins || 0)]]
+      : [['Skott%', cur.sog ? dec(cur.g / cur.sog * 100, 1) : '–'], ['PP-mål', cur.ppg ?? 0], ['Avgörande', cur.gwg ?? 0]];
+    return panel(`Säsongen ${CUR.replace('-', '/')}`, `<div class="ps-tiles">${tiles.map(([k, v]) => `<div><span>${k}</span><b class="num">${v}</b></div>`).join('')}</div>
+      <div class="ps-ranks"><div class="ps-r ps-rh"><span>Placering</span><span>I laget</span><span>I SHL</span></div>${stats.map(([k, val, low]) =>
+        `<div class="ps-r"><span>${k}</span><b>${place(mates, val, low)}</b><b>${place(pool, val, low)}</b></div>`).join('')}</div>`);
+  }
+  // Phones: this season's games as rows; a tap opens the game. The five latest show, the rest behind a button
+  function gameRows() {
+    const rows = [...log].reverse().map((r, i) => {
+      const g = GAMES_BY_ID[r[0]]; if (!g) return '';
+      const res = resultFor(g, r[1]), win = res === 'v' || res === 'ov';
+      const mine = g.home === r[1] ? g.hs : g.as, th = g.home === r[1] ? g.as : g.hs;
+      const stat = gk ? `<b class="num">${dec(r[5] ? r[6] / r[5] * 100 : 0, 1)}</b><small>Rädd%</small>` : `<b class="num">${r[4]}+${r[5]}</b><small>${signed(r[6])}</small>`;
+      const dp = dateParts(g.start);
+      return `<a class="pg-row" href="#/match/${r[0]}"${i >= 5 ? ' hidden' : ''}><span class="pg-d">${dp.d}/${dp.m}</span>
+        <span class="pg-opp">${tb(r[2])}<span><b>${esc(tName(r[2]))}</b><small>${r[3] ? 'Hemma' : 'Borta'}</small></span></span>
+        <span class="pg-res ${win ? 'w' : 'l'}">${win ? 'V' : 'F'} ${mine}–${th}${g.ot || g.so ? ' <small>ÖT</small>' : ''}</span><span class="pg-st">${stat}</span></a>`;
+    }).join('');
+    return `<div class="pg-list">${rows}</div>${log.length > 5 ? `<button class="pg-more" data-showall>Visa alla ${log.length} matcher</button>` : ''}`;
+  }
 
   // The profile-style top card (this season and last season in the stats band)
   function playerRefHero() {
@@ -2555,15 +2599,16 @@ async function pagePlayer(id, tab = '') {
     const facts = [
       bio.born ? ['Född', fmtDate(bio.born)] : null,
       ['Nation', esc(NAT[bio.nat] || bio.nat || '–')],
-      chrono.length ? ['SHL-debut', `${yr(chrono[0][0])}/${chrono[0][0].slice(-2)}`] : null,
-      earlier.length ? ['Tidigare', earlier.slice(-2).reverse().map((e) => `${esc(e.code)} ${span(e)}`).join(', ')] : null,
+      // Phones: just birth date and nation
+      chrono.length && !isNarrow() ? ['SHL-debut', `${yr(chrono[0][0])}/${chrono[0][0].slice(-2)}`] : null,
+      earlier.length && !isNarrow() ? ['Tidigare', earlier.slice(-2).reverse().map((e) => `${esc(e.code)} ${span(e)}`).join(', ')] : null,
     ].filter(Boolean);
     const cellsOf = (p) => gk
       ? [['SM', p.gpi], ['V', p.w_ ?? '–'], ['Rädd%', dec(p.svp, 2)], ['GAA', dec(p.gaa, 2)], ['Nollor', p.so], ['Räddn.', p.sv], ['GSAA', dec(gsaa(p, CUR))]]
       : [['SM', p.gp], ['M', p.g], ['A', p.a], ['P', p.pts], ['P/M', dec(p.gp ? p.pts / p.gp : 0, 2)], ['+/-', signed(p.pm)], ['Utv', p.pim], ['Skott', p.sog], ['Istid', mmss(p.toi)]];
     const rows = cur ? [{ label: `Grundserien ${CUR.replace('-', '/')}`, cells: cellsOf(cur) }] : []; // this season only
     return refHero({
-      bg: LOGOS[team], photo: shot?.[1], first: esc(first), last: esc(rest.join(' ')), // the team logo behind, like the team page
+      bg: LOGOS[team], tc: vivid(teamHue(team)), photo: shot?.[1], first: esc(first), last: esc(rest.join(' ')), // the team logo behind, like the team page
       badge: `${tb(team, 'md')}<b>#${esc(bio.num ?? '–')}</b><i></i><b>${gk ? 'MV' : POS_SHORT[bio.pos] || 'F'}</b>`,
       big, facts, rows, tabsHtml: tabs(`/spelare/${encodeURIComponent(id)}`, tabList, tab),
     });
@@ -2981,7 +3026,7 @@ function gameCard(g, d) {
   }
   const hl = done && d?.hl && safeEmbed(d.hl.embed) ? d.hl : null;
   const left = hl ? `<button class="gc-btn" data-embed="${esc(hl.embed)}" data-title="${esc(`${g.home}–${g.away} sammandrag`)}">${PLAY_SVG}Sammandrag</button>`
-    : !done && !live && g.arena ? `<span class="gc-arena">${esc(g.arena)}</span>` : '<span></span>';
+    : '<span></span>';
   // Live games: each team's win chance right now, as a bar like the team stats (under the goals, if any)
   let wpBar = '';
   if (live && d?.live && MODEL) {

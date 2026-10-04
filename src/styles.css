@@ -2716,3 +2716,101 @@ a, .vid-dot, .strip-today, .s-date.today b, .s-date.today span, .rm-tag, details
 
 /* Header search button: its icon sits in the exact middle (the field's own icon rule must not move it) */
 .search-toggle svg { position: static; translate: none; }
+
+@media (max-width: 700px) {
+  /* Match header: both team names on one line, at one shared size that fits the longer name (--n: its letters) */
+  .mhead .mteam { container-type: inline-size; }
+  .mpanel .mhead .mteam b { white-space: nowrap; hyphens: none; font-size: min(15px, calc(138cqi / var(--n, 10))); }
+}
+
+/* =====================================================================================================
+   PHONES: player page. The photo stands on the stats band (not floating) over a glow in the club colour;
+   smaller height/weight/age; a season card; this season's games as tappable rows
+   ===================================================================================================== */
+@media (max-width: 700px) {
+  .ref { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .ref > .ref-main, .ref > .ref-photo:not(.ref-logo) { grid-row: 1; grid-column: 1; }
+  .ref > .ref-stats { grid-row: 2; } .ref > .tabs { grid-row: 3; }
+  .ref-photo:not(.ref-logo) { position: relative; top: auto; right: auto; z-index: 0; justify-self: end; align-self: end; height: 226px; max-width: 56%; margin-right: -10px;
+    object-position: bottom right; -webkit-mask-image: none; mask-image: none; filter: drop-shadow(0 8px 22px rgba(0, 0, 0, .45)); }
+  .ref[style*="--tc"]::before { background: radial-gradient(55% 62% at 82% 78%, color-mix(in srgb, var(--tc) 55%, transparent), transparent 72%),
+      linear-gradient(90deg, rgba(22, 23, 26, .94) 0%, rgba(22, 23, 26, .7) 48%, rgba(22, 23, 26, .25) 100%); }
+  .ref[style*="--tc"] .ref-main { padding-bottom: 16px; min-height: 240px; }
+  .ref[style*="--tc"] .ref-namerow { min-height: 0; }
+  .ref-big { gap: 8px 20px; }
+  .ref-big span { font-size: 11px; margin-bottom: 2px; }
+  .ref-big b { font-size: 20px; font-weight: 400; }
+  .ref-big small { font-size: 11.5px; }
+  .ref-facts { font-size: 13px; gap: 6px 14px; }
+  .ref-rule { margin: 12px 0; width: 90px; }
+
+  /* Säsongen: three per-game numbers, then the player's place in the team and in the league */
+  .ps-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .ps-tiles div { display: grid; gap: 4px; padding: 12px 10px; border-radius: var(--r-in, 10px); background: var(--panel-2); text-align: center; }
+  .ps-tiles span { font: 600 11px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .ps-tiles b { font: 300 24px/1 var(--body); }
+  .ps-ranks { display: grid; }
+  .ps-r { display: grid; grid-template-columns: minmax(0, 1fr) 80px 80px; align-items: center; padding: 10px 2px; border-top: 1px solid var(--line); font-size: 15px; }
+  .ps-r b { text-align: center; font: 700 16px var(--body); }
+  .ps-rh { border-top: 0; padding-top: 0; font: 600 11px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .ps-rh span:not(:first-child) { text-align: center; }
+
+  /* Senaste matcherna: each game a row you tap to open the game */
+  .pg-list { display: grid; gap: 6px; }
+  .pg-row { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto 50px; gap: 10px; align-items: center; padding: 11px 12px; border-radius: var(--r-in, 10px);
+    background: var(--panel-2); color: var(--text); text-decoration: none !important; -webkit-tap-highlight-color: transparent; transition: background .15s, transform .1s; }
+  .pg-row:active { background: color-mix(in srgb, var(--text) 12%, var(--panel-2)); transform: scale(.985); }
+  .pg-d { font: 600 12px var(--body); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .pg-opp { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14.5px; }
+  .pg-opp > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pg-opp .tb { width: 22px; height: 22px; flex: none; }
+  .pg-res { padding: 3px 8px; border-radius: 6px; font: 700 14px var(--body); white-space: nowrap; }
+  .pg-res.w { background: color-mix(in srgb, var(--good) 20%, transparent); }
+  .pg-res.l { background: color-mix(in srgb, var(--bad) 20%, transparent); }
+  .pg-res small { font-size: 11px; color: var(--muted); }
+  .pg-st { display: grid; justify-items: end; line-height: 1.15; }
+  .pg-st b { font: 700 15px var(--body); }
+  .pg-st small { font-size: 11.5px; color: var(--muted); }
+  .pg-more { all: unset; display: block; margin-top: 10px; padding: 11px; border-radius: 999px; text-align: center; cursor: pointer; background: var(--panel-2); font: 600 14px var(--body); color: var(--text); }
+}
+@media (max-width: 700px) {
+  /* The photo's shoulders are cut straight at the picture's edges: the left edge fades out, the right one runs off the card */
+  .ref-photo:not(.ref-logo) { margin-right: -28px; max-width: 64%; height: 236px;
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 26%); mask-image: linear-gradient(to right, transparent 0%, #000 26%); }
+}
+@media (max-width: 700px) {
+  .pg-row { grid-template-columns: 38px minmax(0, 1fr) auto 40px; gap: 9px; }
+  .pg-d { font-size: 13px; letter-spacing: 0; }
+  .pg-opp > span { display: grid; line-height: 1.2; }
+  .pg-opp b { font: 700 14.5px var(--body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pg-opp small { font-size: 11.5px; color: var(--muted); }
+}
+
+/* =====================================================================================================
+   PHONES: every page starts at the same height. The header is one height on all pages (Hem's logo and gear
+   no longer make it taller), the tab/toggle bar sits right under it at one size, and the first card starts
+   at the same place below it
+   ===================================================================================================== */
+@media (max-width: 700px) {
+  .top-in > .brand, .top-in > .top-tools { height: 40px; min-height: 0; display: flex; align-items: center; }
+  body.is-home .top-tools .settings-btn { width: 40px; height: 40px; }
+  /* Page bars: 46 px tall, 14 px above the first card */
+  .seg-links { min-height: 46px; padding: 3px; }
+  .seg-links a { display: grid; place-items: center; min-height: 40px; padding: 0 12px; }
+  .media-tabs { margin-bottom: 14px; }
+  .media-tabs + .m-sec { margin-top: 0; }
+  /* Matcher: the date row starts where the other pages' bars do, and the first game where their first card does */
+  .datetabs { margin-top: 0; }
+  .datetabs + .daylist { margin-top: -1px; }
+}
+@media (max-width: 700px) {
+  /* Match header names: normal case (fits more letters on one line than capitals), a little more room beside the score */
+  .mpanel .mhead { gap: 6px; padding-left: 8px; padding-right: 8px; }
+  .mpanel .mscore .sc { font-size: 46px; }
+  .mpanel .mhead .mteam b { text-transform: none; letter-spacing: 0; font-size: min(16px, calc(182cqi / var(--n, 10))); }
+}
+@media (max-width: 700px) {
+  /* Goalies table: 3 px too wide for the card showed a scrollbar; tighter cells so it fits */
+  #gk-table th, #gk-table td { padding-left: 3px; padding-right: 3px; }
+  #gk-table th { letter-spacing: .02em; }
+}
