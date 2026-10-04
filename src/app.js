@@ -824,7 +824,7 @@ function standingsTable({ mode = 'full' } = {}) {
   }[mode];
   const rows = TABLE.map((r, i) => {
     const s = SIM[r.code] || {}, rank = i + 1, pace = r.gp ? Math.round(r.pts / r.gp * 52) : '–';
-    const team = `<td class="l"><a class="teamcell" href="#/lag/${r.code}">${tb(r.code, compact ? '' : 'md')}<div class="nm"><b>${esc(compact ? r.code : tName(r.code))}</b>${compact ? '' : `<span>${esc(r.code)}</span>`}</div></a></td>`;
+    const team = `<td class="l"><a class="teamcell" href="#/lag/${r.code}">${tb(r.code, compact ? '' : 'md')}<div class="nm"><b>${esc(compact ? r.code : tName(r.code))}</b></div></a></td>`;
     const odds = (p, c) => `<td class="odds"><span style="${shade(p, c)}">${oddsTxt(p)}</span></td>`;
     // Gold odds are small numbers, so their shading is stretched 3× to stay visible
     const gold = `<td class="odds"><span style="${shade(Math.min(1, s.gold * 3), 'var(--gold)')}">${oddsTxt(s.gold)}</span></td>`;
@@ -1133,7 +1133,7 @@ async function pageMatch(id, tab = '') {
   if (!g) return notFound('Matchen hittades inte.');
   setTitle(`${g.home}–${g.away}`); mTitle(`${g.home}–${g.away}`);
   const done = isFinal(g), live = isLive(g);
-  const rec = (c) => { const r = TABLE.find((t) => t.code === c); return r ? `<span class="mh-rec"><span class="gc-rank">${TABLE.indexOf(r) + 1}</span>${r.pts} p</span>` : ''; };
+  const rec = (c) => { const r = TABLE.find((t) => t.code === c); return r ? `<span class="mh-rec"><span class="gc-rank" style="--zone:${zoneBad(TABLE.indexOf(r) + 1)}">${TABLE.indexOf(r) + 1}</span>${r.pts} p</span>` : ''; };
   if ((done || live) && !(id in gameCache)) app.innerHTML = skeleton();
   let d = done || live ? await loadGame(id) : null;
   if (live && LIVE_API) {
@@ -2447,6 +2447,8 @@ function refHero({ bg, photo, photoCls = '', first, firstCls = '', last, badge =
 // Follow a team: a small button in the profile card's top-right corner (a filled star once it is your team)
 const favButton = (code, isFav) => `<button class="ref-btn" data-fav="${code}" aria-pressed="${isFav}"><svg viewBox="0 0 24 24" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.9l-5.3 2.7 1-5.8-4.2-4.1 5.9-.9z"/></svg>${isFav ? 'Mitt lag' : 'Följ laget'}</button>`;
 // Swedish ordinals: 1:a, 2:a, 3:e … 21:a, 22:a
+// Rank badges only change colour in the relegation places (13th and 14th)
+const zoneBad = (n) => n >= 13 ? rankZone(n) : 'inherit';
 const ordinal = (n) => `${n}:${[1, 2].includes(n % 10) && ![11, 12].includes(n % 100) ? 'a' : 'e'}`;
 
 async function pagePlayer(id, tab = '') {
@@ -2550,7 +2552,7 @@ async function pagePlayer(id, tab = '') {
       let c = 0; const pts = log.map((r) => (c += r[4] + r[5]));
       trend = panel('Poängutveckling', `<div class="chart">${lineChart([{ pts, color: 'var(--accent)', area: true }], { xLabels: log.map((r) => GAMES_BY_ID[r[0]] ? `${dateParts(GAMES_BY_ID[r[0]].start).d}/${dateParts(GAMES_BY_ID[r[0]].start).m}` : ''), yFmt: (v) => Math.round(v) })}</div>`, { sub: `Ackumulerade poäng ${CUR}.` });
     }
-    const card = CARD.get(id) ? panel('Spelarkort', cardHtml(CARD.get(id), { link: false, compact: !isNarrow() }), { sub: gk ? 'Percentiler jämfört med andra SHL-målvakter.' : 'Percentiler jämfört med andra SHL-spelare på samma position.' }) : '';
+    const card = CARD.get(id) ? panel('Spelarkort', cardHtml(CARD.get(id), { link: false, compact: true }), { sub: gk ? 'Percentiler jämfört med andra SHL-målvakter.' : 'Percentiler jämfört med andra SHL-spelare på samma position.' }) : '';
     const recent = clips.slice(-3).reverse();
     const latestClips = recent.length ? panel('Senaste målen', `<div class="clips">${recent.map(([gid, cid, thumb, embed, date, opp]) => clipCard({ id: cid, thumb, embed }, `Mot ${esc(tName(opp))}`, fmtDay(date))).join('')}</div>`,
       { more: clips.length > 3 ? moreLink(`#/spelare/${encodeURIComponent(id)}/mal`, 'Alla mål') : '' }) : '';
@@ -2615,7 +2617,7 @@ function teamStatsTab(head) {
     { k: 'rank', label: '#', asc: true, h: (r) => {
       const z = rankZone(r.rank);
       return `<span class="rank" style="--zone:${z}">${r.rank}</span>`; } },
-    { k: 'name', label: 'Lag', l: true, asc: true, h: (r) => `<a class="teamcell" href="#/lag/${r.code}">${tb(r.code, 'md')}<div class="nm"><b>${esc(r.name)}</b><span>${esc(r.code)}</span></div></a>` },
+    { k: 'name', label: 'Lag', l: true, asc: true, h: (r) => `<a class="teamcell" href="#/lag/${r.code}">${tb(r.code, 'md')}<div class="nm"><b>${esc(r.name)}</b></div></a>` },
     { k: 'gp', label: 'SM' }, { k: 'w', label: 'V' }, { k: 'otw', label: 'ÖV' }, { k: 'otl', label: 'ÖF' }, { k: 'l', label: 'F', asc: true },
     { k: 'gf', label: 'GM', title: 'Gjorda mål' }, { k: 'ga', label: 'IM', title: 'Insläppta mål', asc: true }, { k: 'diff', label: '+/-', f: signed },
     { k: 'pts', label: 'P' }, { k: 'ppm', label: 'P/M', f: (v) => dec(v, 2) }, { k: 'gfpg', label: 'GM/M', f: (v) => dec(v, 2) },
@@ -2693,10 +2695,10 @@ async function pageTeam(code, tab = '') {
   // (the same layout as the player pages). Below: form and key numbers, then the odds as a ladder from SHL-kval up to SM-guld.
   const hero = `<section class="panel phero thero" style="--tc:${tbg};--tt:${tfg}">
     <div class="phero-top">
-      <button class="favbtn thero-fav" data-fav="${code}" aria-pressed="${isFav}"><span>${isFav ? '★ Mitt lag' : '☆ Följ laget'}</span></button>
+      ${favButton(code, isFav).replace('class="ref-btn"', 'class="favbtn thero-fav"')}
       ${LOGOS[code] ? `<img class="thero-img" src="${esc(LOGOS[code])}" alt="" onerror="this.remove()">` : ''}
       <div class="phero-info">
-        <div class="phero-team"><span class="gc-rank">${rank}</span><span>${r.pts} poäng · ${r.gp} matcher</span></div>
+        <div class="phero-team"><span class="gc-rank" style="--zone:${zoneBad(rank)}">${rank}</span><span>${r.pts} poäng · ${r.gp} matcher</span></div>
         <h1>${esc(tName(code))}</h1>
       </div>
     </div>
@@ -2995,7 +2997,7 @@ function gameCard(g, d) {
     const r = TABLE.find((t) => t.code === c), score = s === 'home' ? g.hs : g.as, other = s === 'home' ? g.as : g.hs;
     const right = done || live ? `<span class="gc-num num">${score ?? 0}</span>` : `<span class="gc-pct num" title="Vinstchans">${pctTxt(s === 'home' ? ph : 1 - ph)}</span>`;
     return `<div class="gc-row ${done && score < other ? 'lose' : ''}">${tb(c, 'md')}
-      <div class="gc-nm"><b>${esc(tName(c))}</b>${r ? `<span class="gc-rank" title="Tabellplats">${TABLE.indexOf(r) + 1}</span>` : ''}</div>${right}</div>`;
+      <div class="gc-nm"><b>${esc(tName(c))}</b>${r ? `<span class="gc-rank" title="Tabellplats" style="--zone:${zoneBad(TABLE.indexOf(r) + 1)}">${TABLE.indexOf(r) + 1}</span>` : ''}</div>${right}</div>`;
   };
   let mid = '';
   if (done || live) {
@@ -3119,7 +3121,7 @@ function myTeamCard(fav, r, s, recent, det) {
   const hot = Object.values(form).sort((a, b) => (b.g + b.a) - (a.g + a.a) || b.g - a.g)[0];
   return `<section class="panel m-card myteam-m" style="--tc:${tColor(fav)}"><div class="p-body">
       <a class="mt-head" href="#/lag/${fav}">${tb(fav, 'xl')}<span class="mt-name"><b>${esc(tName(fav))}</b>
-        <span class="mt-pos"><span class="gc-rank">${rank}</span>${r.pts} poäng · ${r.gp} matcher</span></span></a>
+        <span class="mt-pos"><span class="gc-rank" style="--zone:${zoneBad(rank)}">${rank}</span>${r.pts} poäng · ${r.gp} matcher</span></span></a>
       <div class="mt-row"><span class="mt-lbl">Form</span>${formChips(fav)}</div>
       ${coming ? `<div class="mt-lbl">Kommande matcher</div><div class="mt-games">${coming}</div>` : ''}
       ${hot && hot.g + hot.a > 0 ? `<a class="mt-hot" href="#/spelare/${encodeURIComponent(hot.id)}">${avatar(hot.id, hot.name, fav).replace(' loading="lazy"', '')}<span><small>Formstark</small><b>${esc(hot.name)}</b></span><span class="mt-hot-v"><b class="num">${hot.g + hot.a} p</b><small>${hot.g}+${hot.a} senaste ${recent.length}</small></span></a>` : ''}

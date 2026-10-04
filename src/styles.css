@@ -2562,3 +2562,75 @@ a, .vid-dot, .strip-today, .s-date.today b, .s-date.today span, .rm-tag, details
   @keyframes gs-open { from { width: 38px; } }
 }
 @media (min-width: 701px) and (prefers-reduced-motion: reduce) { body.search-open .gsearch input { animation: none; } }
+
+/* Followed team in the header: only the code text is hidden, never the logo; and the button stays away when no team is chosen */
+@media (min-width: 701px) {
+  .favlink .tb { display: inline-grid; }
+  .favlink[hidden] { display: none; }
+}
+
+/* Spelarstatistik: both teams' tables share one fixed column grid, so nothing shifts when switching team */
+#box-home, #box-away { table-layout: fixed; width: 100%; }
+#box-home th:first-child, #box-away th:first-child { width: 30%; }
+#box-home td:first-child, #box-away td:first-child { overflow: hidden; text-overflow: ellipsis; }
+@media (min-width: 701px) { #box-home, #box-away { min-width: 760px; } }
+@media (max-width: 700px) { #box-home th:first-child, #box-away th:first-child { width: 46%; } }
+
+/* =====================================================================================================
+   PHONES: the desktop redesign carried over. Lato (thin big numbers, bold names), neutral charcoal dark theme
+   (a shade darker than on computers), quiet sentence-case card titles and one small-label style.
+   ===================================================================================================== */
+@media (max-width: 700px) {
+  :root { --body: "Lato", "Segoe UI", system-ui, sans-serif; --display: "Lato", "Segoe UI", system-ui, sans-serif; }
+  :root[data-theme="dark"] { --bg: #111214; --bg-2: #0c0d0f; --panel: #1a1b1e; --panel-2: #232427; --line: #2d2e32; --text: #f2f2f3; --muted: #9b9da3; --faint: #74767c; --accent: #3d7be0; --accent-ink: #fff; }
+  body { letter-spacing: .005em; }
+
+  /* Card titles and the titles between cards: sentence case, not shouting */
+  .p-head h2 { font: 700 18px/1.15 var(--body); text-transform: none; letter-spacing: .005em; }
+  .p-head h2::first-letter { text-transform: uppercase; }
+  .section-title { font: 700 13px var(--body); letter-spacing: .1em; }
+
+  /* Tables: small grey uppercase headers */
+  table.t th { font: 600 11.5px var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  table.t td.hl, table.t th.sorted { color: var(--text); }
+
+  /* Big numbers light and thin, small labels one style */
+  .tile .v { font: 300 26px/1.1 var(--body); }
+  .lfeat-val { font: 300 46px/.95 var(--body); letter-spacing: -.01em; }
+  .wp-team b { font-weight: 300; }
+  .tile .k, .lfeat-lbl, .mini-lbl, .gr-st, .gl-per, .mts-k, .phero-season, .stamp.up, .day h3 { font: 600 12px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .lfeat-name, .mday-teamname b, .mts-name, .phero h1, .mteam b { font-family: var(--body); font-style: normal; font-weight: 900; }
+  .pc-num, .pc-hero .pc-name { font-family: var(--body); font-style: normal; font-stretch: normal; font-weight: 900; }
+
+  /* Tabs: the page you're on in bold with a thin underline */
+  .tabs a, .utabs button { font-weight: 400; color: var(--muted); }
+  .tabs a.on, .utabs button[aria-selected="true"] { color: var(--text); font-weight: 700; }
+  .tabs .sl-line, .utabs .sl-line { height: 2px; }
+
+  /* Team page follow button: the star icon, like on computers */
+  .thero-fav svg { width: 14px; height: 14px; flex: none; }
+}
+@media (max-width: 700px) and (prefers-color-scheme: dark) {
+  :root:not([data-theme]) { --bg: #111214; --bg-2: #0c0d0f; --panel: #1a1b1e; --panel-2: #232427; --line: #2d2e32; --text: #f2f2f3; --muted: #9b9da3; --faint: #74767c; --accent: #3d7be0; --accent-ink: #fff; }
+}
+@media (max-width: 700px) and (prefers-color-scheme: no-preference) {
+  :root:not([data-theme]) { --bg: #111214; --bg-2: #0c0d0f; --panel: #1a1b1e; --panel-2: #232427; --line: #2d2e32; --text: #f2f2f3; --muted: #9b9da3; --faint: #74767c; --accent: #3d7be0; --accent-ink: #fff; }
+}
+
+/* Rank badges: 13th and 14th in red, like the placement numbers in the tables */
+.gc-rank { color: var(--zone, inherit); }
+.thero .phero-team .gc-rank, .mh-rec .gc-rank, .mt-pos .gc-rank { color: var(--zone, #fff); }
+@media (max-width: 700px) {
+  /* Team page: the form tiles (logo and score) take the whole row, the goals and projection go under them */
+  .thero-meta { flex-wrap: wrap; }
+  .thero-stats { width: 100%; justify-content: flex-start; }
+}
+
+/* Goal play buttons: neutral, not blue */
+.playic { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
+.playic:hover { background: color-mix(in srgb, var(--text) 18%, transparent); }
+
+/* Top-10 lists: the chosen row starts in the team tint too, so it never flashes blue before the sliding pill is set up */
+.ltop10 li.on { background: color-mix(in srgb, var(--rc, var(--text)) 12%, var(--panel-2)); color: var(--text); }
+.ltop10 li.on a { color: var(--text); }
+.ltop10 li:not(.on):hover { background: color-mix(in srgb, var(--rc, var(--text)) 10%, var(--panel-2)); }
