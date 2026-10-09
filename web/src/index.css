@@ -7,6 +7,8 @@
    components draw their borders without the reset.) */
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
+/* Arc UI (components/arc) styles itself with CSS modules, so Tailwind doesn't scan it for class names */
+@source not "./components/arc";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
