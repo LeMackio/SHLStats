@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SHLstats</title>
+<meta name="description" content="SHL-statistik: tabell, slutspelsodds, matcher, målvideor, spelar- och lagstatistik.">
+<!-- Saved to the home screen it opens full screen like an app -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#dbe2e9" media="(prefers-color-scheme: light)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SHLstats">
+<!-- Tab icon: the puck, black on light browser themes and white on dark ones (the PNGs are for browsers without SVG icons) -->
+<link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=3">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=3">
+<link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png?v=3">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2">
+<script>
+  // Apply the saved theme before first paint
+  try { var t = localStorage.getItem('shlstats-theme'); if (t === 'dark' || t === 'light' || t === 'paper') document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Archivo:ital,wdth,wght@1,62..125,900&family=Barlow:wght@400;500;600;700&family=Lato:wght@300;400;700;900&display=swap">
+</head>
+<body>
+<div id="root"></div>
+<script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

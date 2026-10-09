@@ -28,6 +28,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # The app (React, in web/) is built first; fetch-data.mjs puts it next to the data in site/
+      - name: Build the app
+        run: |
+          npm ci --prefix web
+          npm --prefix web run build
 
       # Keeps finished seasons, finished games and headshot links between runs,
       # so each is only fetched from shl.se once
