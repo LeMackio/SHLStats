@@ -24,6 +24,11 @@ export default defineConfig({
   // Relative asset URLs, so the site works from a GitHub Pages sub path
   base: './',
   plugins: [react(), tailwindcss(), serveSiteData()],
+  define: {
+    __BUILD__: JSON.stringify(Date.now().toString(36)),
+  },
+  // The shared stylesheet (and its icons) still live in ../src with the original site
+  server: { fs: { allow: ['..'] } },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
