@@ -1,5 +1,5 @@
-site/
-cache/
+/site/
+/cache/
 node_modules/
 
 # Private web push key (paste into Cloudflare as a secret, never commit)
