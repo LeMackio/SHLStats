@@ -1,5 +1,6 @@
 import { useLayoutEffect, useState } from 'react'
 import { HBars, LineChart } from '@/components/charts/Basic'
+import { CountUp } from '@/components/site/CountUp'
 import { GameRow } from '@/components/site/Games'
 import { Board, RouteTabs, UTabs, type TabDef } from '@/components/site/Layout'
 import { Empty, Panel, Skeleton } from '@/components/site/Panel'
@@ -15,7 +16,7 @@ import { teamAccent } from '@/lib/teams'
 import { useTheme } from '@/lib/theme'
 import { isFinal, type Game, type GoalClip, type Skater, type TeamNews } from '@/lib/types'
 import { useChartWidth, useNarrow } from '@/lib/useNarrow'
-import { NotFound } from './NotYetPorted'
+import { NotFound } from './NotFound'
 
 const TABS = ['', 'form', 'trupp', 'schema', 'historik']
 
@@ -102,7 +103,7 @@ function Overview({ code, teamGames, news }: { code: string; teamGames: Game[]; 
   const ppP = (c: string) => ts(c).ppo ? ts(c).ppg / ts(c).ppo : null, pkP = (c: string) => ts(c).pko ? 1 - ts(c).ppga / ts(c).pko : null
   const row = (c: string) => core.standings.find((t) => t.code === c)
   const gfpg = (c: string) => { const x = row(c); return x?.gp ? x.gf / x.gp : null }, gapg = (c: string) => { const x = row(c); return x?.gp ? x.ga / x.gp : null }
-  const tile = (k: string, v: string, rk: string) => <div className="tile" key={k}><span className="k">{k}</span><span className="v">{v}</span><span className="s">{rk}</span></div>
+  const tile = (k: string, v: string, rk: string) => <div className="tile" key={k}><span className="k">{k}</span><span className="v"><CountUp text={v} /></span><span className="s">{rk}</span></div>
   const next = teamGames.filter((g) => !isFinal(g)).slice(0, 3), last = teamGames.filter(isFinal).slice(-3).reverse()
   const clips = (core.recentClips || []).filter((c) => c.team === code).slice(0, 4)
   const qf = Object.entries(s.qf || {})
@@ -239,7 +240,7 @@ function Form({ logs }: { logs: (string | number | null)[][] }) {
   const lastWin = rows[rows.length - 1].pts >= 2
   let streak = 0
   for (let i = rows.length - 1; i >= 0 && (rows[i].pts >= 2) === lastWin; i--) streak++
-  const tile = (k: string, v: string, sub?: string) => <div className="tile" key={k}><span className="k">{k}</span><span className="v">{v}</span>{sub && <span className="s">{sub}</span>}</div>
+  const tile = (k: string, v: string, sub?: string) => <div className="tile" key={k}><span className="k">{k}</span><span className="v"><CountUp text={v} /></span>{sub && <span className="s">{sub}</span>}</div>
 
   const RES_TXT = { V: 'Vinst', ÖV: 'Vinst ÖT', ÖF: 'Förlust ÖT', F: 'Förlust' }, RES_CLS = { V: 'w', ÖV: 'o', ÖF: 'ol', F: 'l' }
   const hasXg = rows.some((r) => r.xgf != null)

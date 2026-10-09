@@ -42,7 +42,7 @@ const GK_METRICS: Metric[] = [
   { k: 'load', label: 'Arbetsbörda', f: (x) => x.gp },
 ]
 const GK_W: Record<string, number> = { svp: .35, gsaa: .30, gaa: .15, so: .08, win: .07, load: .05 }
-const GK_MIN_GP = 5
+export const GK_MIN_GP = 5
 const SHRINK_GP = 15, GK_SHRINK_GP = 8 // how many average games a small sample is blended with
 
 const pctOf = (sorted: number[], v: number) => {

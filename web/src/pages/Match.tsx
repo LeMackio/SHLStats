@@ -19,7 +19,7 @@ import { zoneBad } from '@/lib/stats'
 import { pairColors, teamHue, vivid } from '@/lib/teams'
 import { isFinal, isLive, type Game, type GameDetails } from '@/lib/types'
 import { useNarrow } from '@/lib/useNarrow'
-import { NotFound } from './NotYetPorted'
+import { NotFound } from './NotFound'
 
 export function MatchPage({ id, tab }: { id: string; tab: string }) {
   const { gamesById } = useData()

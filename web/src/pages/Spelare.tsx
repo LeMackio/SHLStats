@@ -15,7 +15,7 @@ import { gsaa } from '@/lib/stats'
 import { teamHue, vivid } from '@/lib/teams'
 import type { Goalie, PlayersData, Skater } from '@/lib/types'
 import { useNarrow } from '@/lib/useNarrow'
-import { NotFound } from './NotYetPorted'
+import { NotFound } from './NotFound'
 
 type Row = (string | number)[]
 const n = (v: unknown) => +(v as number) || 0

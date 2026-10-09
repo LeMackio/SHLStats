@@ -3,7 +3,7 @@ import { useData } from '@/data/context'
 import { dateParts, fmtDay } from '@/lib/format'
 import { safeUrl } from '@/lib/game'
 import { usePageTitle } from '@/lib/pageTitle'
-import { NotFound } from './NotYetPorted'
+import { NotFound } from './NotFound'
 
 // A news item on this site: headline, image and the SHL's own intro, with the full article on shl.se
 export function NyheterPage({ id }: { id: string }) {

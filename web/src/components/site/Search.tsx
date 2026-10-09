@@ -1,26 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useData } from '@/data/context'
-import { isNarrow, normName, POS } from '@/lib/format'
+import { searchHits, useSearchIndex, type Hit } from '@/data/searchIndex'
+import { isNarrow, POS } from '@/lib/format'
 import { go } from '@/lib/router'
 import { Icon } from './Icon'
 import { Avatar, TeamBadge } from './TeamBadge'
-
-interface Hit { type: 'p' | 't'; id: string; name: string; team: string; pos?: string; key: string; gp: number }
-
-// Players from this season and last, plus the current teams; this season's players rank first
-function useSearchIndex() {
-  const { core, cur, prev, codes, tName } = useData()
-  return useMemo(() => {
-    const out: Hit[] = [], seen = new Set<string>()
-    for (const season of [cur, prev]) for (const p of [...core.seasons[season].skaters, ...core.seasons[season].goalies]) {
-      if (seen.has(p.id)) continue
-      seen.add(p.id)
-      out.push({ type: 'p', id: p.id, name: p.name, team: p.team, pos: p.pos, key: normName(p.name), gp: ((p as { gp?: number }).gp || (p as { gpi?: number }).gpi || 0) + (season === cur ? 100 : 0) })
-    }
-    for (const c of codes) out.push({ type: 't', id: c, name: tName(c), team: c, key: normName(tName(c) + ' ' + c), gp: 1000 })
-    return out
-  }, [core, cur, prev, codes, tName])
-}
 
 const hrefOf = (x: Hit) => x.type === 't' ? `#/lag/${x.id}` : `#/spelare/${x.id}`
 
@@ -33,12 +16,7 @@ export function Search({ open, setOpen }: { open: boolean; setOpen: (v: boolean)
   const [sel, setSel] = useState(0)
   const [showResults, setShowResults] = useState(false)
 
-  const hits = useMemo(() => {
-    const k = normName(q.trim())
-    if (!k) return []
-    return index.filter((x) => x.key.includes(k))
-      .sort((a, b) => (Number(b.key.startsWith(k)) - Number(a.key.startsWith(k))) || b.gp - a.gp).slice(0, 8)
-  }, [index, q])
+  const hits = useMemo(() => searchHits(index, q), [index, q])
 
   const close = () => { setOpen(false); setQ(''); setShowResults(false) }
   const pick = (x: Hit) => { close(); input.current?.blur(); go(hrefOf(x)) }

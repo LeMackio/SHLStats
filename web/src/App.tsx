@@ -16,7 +16,8 @@ import { MatcherPage } from '@/pages/Matcher'
 import { MediaPage } from '@/pages/Media'
 import { NyheterPage } from '@/pages/Nyheter'
 import { SpelarePage } from '@/pages/Spelare'
-import { NotFound, NotYetPorted } from '@/pages/NotYetPorted'
+import { NexusPage } from '@/pages/Nexus'
+import { NotFound } from '@/pages/NotFound'
 import { StatistikPage } from '@/pages/Statistik'
 import { TabellPage } from '@/pages/Tabell'
 
@@ -28,7 +29,7 @@ const ROUTES: [RegExp, (m: string[]) => ReactNode][] = [
   [/^\/tabell(?:\/([^/]+))?$/, ([tab]) => <TabellPage tab={tab} />],
   [/^\/statistik$/, () => <StatistikPage />],
   [/^\/spelare\/([^/]+)(?:\/([^/]+))?$/, ([id, tab]) => <SpelarePage id={id} tab={tab} />],
-  [/^\/(?:nexus|avancerat)$/, () => <NotYetPorted name="Nexus" />], // /avancerat is the old address
+  [/^\/(?:nexus|avancerat)$/, () => <NexusPage />], // /avancerat is the old address
   [/^\/nyheter\/([^/]+)$/, ([id]) => <NyheterPage id={id} />],
   [/^\/media(?:\/([^/]+))?$/, ([range]) => <MediaPage range={range} />],
   [/^\/lag$/, () => <TabellPage tab="" />], // old link to the teams page, now the Tabell page

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useData } from '@/data/context'
-import { fmtDay, POS_SHORT } from '@/lib/format'
+import { ageOf, fmtDay, initials, POS_SHORT } from '@/lib/format'
 import { resultFor, safeEmbed, safeUrl } from '@/lib/game'
 import { MIN_GP, METRICS, type Card } from '@/lib/cards'
 import { shortName } from '@/lib/stats'
-import { readable, teamHue } from '@/lib/teams'
+import { readable, TC, tColor, teamHue } from '@/lib/teams'
 import { useTheme } from '@/lib/theme'
 import { isFinal, type Clip, type Lineup, type LineupPlayer, type NewsItem, type TeamNews } from '@/lib/types'
 import { useNarrow } from '@/lib/useNarrow'
@@ -195,6 +195,45 @@ export function PlayerCardCompact({ x }: { x: Card }) {
       </div>
       <p className="pk-note">Percentiler bland SHL-{grpName} med minst {minGp} matcher, viktat {prev.slice(0, 2)}/{prev.slice(3)} och {cur.slice(0, 2)}/{cur.slice(3)}.{x.gp < minGp ? ` Litet underlag (${Math.round(x.gp)} viktade matcher).` : ''}</p>
     </div>
+  )
+}
+
+// The full player card (Nexus): photo on the club colour, impact, role, and every percentile on a red–grey–blue scale
+const LOW = [217, 72, 95], MID = [128, 140, 156], HIGH = [74, 146, 224]
+const pColor = (p: number) => {
+  const [a, b, t] = p < 0.5 ? [LOW, MID, p / 0.5] : [MID, HIGH, (p - 0.5) / 0.5]
+  return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',')})`
+}
+export function PlayerCard({ x, link = true }: { x: Card; link?: boolean }) {
+  const { prev, cur, headshots, tName } = useData()
+  const [broken, setBroken] = useState(false)
+  const grpName = x.grp === 'G' ? 'målvakter' : x.grp === 'D' ? 'backar' : 'forwards', minGp = x.minGp || MIN_GP
+  const [first, ...rest] = String(x.name).split(' ')
+  const name = <><span>{first}</span>{rest.join(' ')}</>
+  const photo = headshots[x.id]?.[1]
+  return (
+    <article className="pcard" style={{ '--tc': tColor(x.team) } as React.CSSProperties}>
+      <div className="pc-top pc-hero" style={{ '--tc': (TC[x.team] || ['#3a4a5e'])[0] } as React.CSSProperties}>
+        <span className="pc-num" aria-hidden="true">{x.num ?? ''}</span>
+        {photo && !broken ? <img className="pc-img" src={photo} alt="" onError={() => setBroken(true)} /> : <span className="pc-ini">{initials(x.name)}</span>}
+        <div className="pc-war"><span className="lbl">Påverkan</span><span className="big num">{Math.round(x.impact * 100)}%</span></div>
+        <div className="pc-info">
+          <div className="pc-team"><TeamBadge code={x.team} size="md" /><span>{tName(x.team)} · #{x.num ?? '–'} · {x.grp === 'G' ? 'MV' : POS_SHORT[x.pos] || 'F'}</span></div>
+          <h3 className="pc-name">{link ? <a href={`#/spelare/${encodeURIComponent(x.id)}`}>{name}</a> : name}</h3>
+          <div className="pc-meta"><span>Ålder <b>{ageOf(x.born)}</b></span><span>Roll <b>{x.role || '–'}</b></span></div>
+        </div>
+      </div>
+      <div className="pc-grid">
+        {(x.metrics || METRICS).map((m) => {
+          const p = x.pct[m.k]
+          return <div key={m.k} className="metric"><span>{m.label}</span><span className="bar"><i style={{ width: `${Math.max(3, p * 100)}%`, background: pColor(p) }} /></span><span className="pct num" style={{ color: pColor(p) }}>{Math.round(p * 100)}%</span></div>
+        })}
+      </div>
+      <div className="pc-foot">
+        <span>Viktat urval {prev} + {cur}, percentil bland SHL-{grpName} (minst {minGp} matcher). {x.gp < minGp && <span className="small-sample">Litet underlag ({Math.round(x.gp)} viktade matcher). Tolka rankningarna försiktigt.</span>}</span>
+        <span className="mark">SHLSTATS</span>
+      </div>
+    </article>
   )
 }
 
