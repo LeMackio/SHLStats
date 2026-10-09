@@ -3,10 +3,11 @@ import { useNarrow } from '@/lib/useNarrow'
 
 // A card on a page: title row (with an optional "see more" link and subtitle), body and optional footer.
 // On phones the "see more" link sits in the card's bottom corner (like the other cards there); on desktop in the header.
-export function Panel({ title, sub, more, foot, className = '', id, children }: {
+export function Panel({ title, sub, more, extra, foot, className = '', id, children }: {
   title?: ReactNode
   sub?: ReactNode
   more?: { href: string; label: ReactNode }
+  extra?: ReactNode // other controls in the title row (a toggle), which stay there on phones
   foot?: ReactNode
   className?: string
   id?: string
@@ -19,6 +20,7 @@ export function Panel({ title, sub, more, foot, className = '', id, children }: 
       {title && (
         <div className="p-head">
           <h2>{title}</h2>
+          {extra}
           {more && !low && <MoreLink href={more.href}>{more.label}</MoreLink>}
           {sub && <p className="p-sub">{sub}</p>}
         </div>

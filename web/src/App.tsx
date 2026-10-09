@@ -7,25 +7,31 @@ import { Strip } from '@/components/site/Strip'
 import { VideoDialog } from '@/components/site/VideoDialog'
 import { useData } from '@/data/context'
 import { useBodyClass, useCompactNav, usePullToRefresh, useReloadWhenStale } from '@/lib/appHooks'
+import { usePageName } from '@/lib/pageTitle'
 import { segOf, SUB_PAGES, TITLES, usePath } from '@/lib/router'
+import { HemPage } from '@/pages/Hem'
+import { LagPage } from '@/pages/Lag'
 import { MatcherPage } from '@/pages/Matcher'
+import { MediaPage } from '@/pages/Media'
+import { NyheterPage } from '@/pages/Nyheter'
+import { SpelarePage } from '@/pages/Spelare'
 import { NotFound, NotYetPorted } from '@/pages/NotYetPorted'
 import { StatistikPage } from '@/pages/Statistik'
 import { TabellPage } from '@/pages/Tabell'
 
 // Every address of the original site, so old links keep working. Each entry gets the path's captured parts.
 const ROUTES: [RegExp, (m: string[]) => ReactNode][] = [
-  [/^\/?$/, () => <NotYetPorted name="Hem" />],
+  [/^\/?$/, () => <HemPage />],
   [/^\/matcher(?:\/([^/]+))?$/, ([view]) => <MatcherPage view={view} />],
   [/^\/match\/([^/]+)(?:\/([^/]+))?$/, () => <NotYetPorted name="Match" />],
   [/^\/tabell(?:\/([^/]+))?$/, ([tab]) => <TabellPage tab={tab} />],
   [/^\/statistik$/, () => <StatistikPage />],
-  [/^\/spelare\/([^/]+)(?:\/([^/]+))?$/, () => <NotYetPorted name="Spelare" />],
+  [/^\/spelare\/([^/]+)(?:\/([^/]+))?$/, ([id, tab]) => <SpelarePage id={id} tab={tab} />],
   [/^\/(?:nexus|avancerat)$/, () => <NotYetPorted name="Nexus" />], // /avancerat is the old address
-  [/^\/nyheter\/([^/]+)$/, () => <NotYetPorted name="Nyheter" />],
-  [/^\/media(?:\/([^/]+))?$/, () => <NotYetPorted name="Media" />],
+  [/^\/nyheter\/([^/]+)$/, ([id]) => <NyheterPage id={id} />],
+  [/^\/media(?:\/([^/]+))?$/, ([range]) => <MediaPage range={range} />],
   [/^\/lag$/, () => <TabellPage tab="" />], // old link to the teams page, now the Tabell page
-  [/^\/lag\/([^/]+)(?:\/([^/]+))?$/, () => <NotYetPorted name="Lag" />],
+  [/^\/lag\/([^/]+)(?:\/([^/]+))?$/, ([code, tab]) => <LagPage code={code} tab={tab} />],
 ]
 
 function renderRoute(path: string) {
@@ -51,7 +57,9 @@ export default function App() {
   useReloadWhenStale(core.updated)
   useScrollOnNavigate(path)
 
-  useEffect(() => { document.title = TITLES[seg] ? `${TITLES[seg]} · SHLstats` : 'SHLstats' }, [seg])
+  // Pages with their own name (a player, a team) set it themselves; the rest are named after their section
+  const pageName = usePageName(path)
+  useEffect(() => { const t = pageName || TITLES[seg]; document.title = t ? `${t} · SHLstats` : 'SHLstats' }, [seg, pageName])
 
   return (
     <>

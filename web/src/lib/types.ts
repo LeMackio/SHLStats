@@ -97,7 +97,10 @@ export interface Sim {
   top10: number
   rel: number // SHL-kval
   gold: number
+  semi: number
+  final: number
   rank: number[] // chance of finishing in each place
+  qf?: Record<string, number> // likely quarter-final opponents
 }
 
 export interface TeamStat {
@@ -127,15 +130,58 @@ export interface Core {
   teamStats: Record<string, TeamStat>
   headshots?: Record<string, [string, string]>
   live: { season: string; series: string; type: string }
+  news?: NewsItem[]
+  highlights?: Highlight[]
+  recentClips?: GoalClip[]
+  lineups: Record<string, Lineup>
+  rosters: Record<string, RosterPlayer[]>
+  history: Record<string, { played: number; t: Record<string, [number, number, number, number]> }> // per day: [top6, top10, gold, proj]
+  seasonOrder: string[]
+  pastStandings: Record<string, (Standing & { rank: number })[]>
+  pastGames: [string, string, string, string, number, number, number][] // season, date, home, away, hs, as, ot
   [k: string]: unknown
 }
 
+export interface NewsItem { id: string; title: string; intro: string; date: string; label?: string; url: string; img?: string }
+
 // A video clip (goal or highlights) on SHL's video host
 export interface Clip {
+  id?: string
   embed: string
   thumb?: string
   dur?: number
 }
+export interface Highlight extends Clip { gid: string; date: string; home: string; away: string; hs: number; as: number }
+export interface GoalClip extends Clip {
+  gid: string; date: string; p: number; t: string; team: string; opp: string; score: [number, number]
+  scorer?: { id: string | null; name: string; num?: number }; str?: string; gwg?: number
+  xg?: number | null; en?: number // media.json only
+}
+
+export interface LineupPlayer { id: string | null; name: string; num?: number | null; pos?: string }
+export interface Lineup { F?: Record<string, LineupPlayer[]>; D?: Record<string, LineupPlayer[]>; G?: LineupPlayer[] }
+export interface RosterPlayer { id: string; name: string; num?: number | null; pos: string; nat?: string }
+
+// players.json
+export interface Bio { name: string; pos: string; team: string; num?: number | null; born?: string; nat?: string; h?: number; w?: number }
+export interface PlayersData {
+  bios: Record<string, Bio>
+  career: Record<string, (string | number)[][]> // [season, team, gp, g, a, pts, pm, pim, sog, toi, ppg]
+  goalieCareer: Record<string, (string | number)[][]> // [season, team, gp, sv, ga, svp, gaa, so, w, l, mins]
+  gamelogs: Record<string, (string | number)[][]> // [gameId, team, opp, home, g, a, pm, toi, sog, pim, hits, blk] (ids and codes as strings)
+  goalieLogs: Record<string, (string | number)[][]> // [gameId, team, opp, home, ga, shots, saves]
+  goalClips: Record<string, [string, string, string, string, string, string][]> // [gid, clipId, thumb, embed, date, opp]
+}
+
+// teams.json
+export interface TeamNews { src: string; date: string; title: string; intro: string; url: string; img?: string }
+export interface TeamsData {
+  logs: Record<string, (string | number | null)[][]> // [gameId, home, gf, ga, xgf, xga, ppg, ppo, ppga, pko]
+  news: Record<string, TeamNews[]>
+}
+
+// media.json
+export interface MediaData { clips: GoalClip[]; highlights: Highlight[] }
 
 export interface PlayerRef { id: string | null; name: string }
 

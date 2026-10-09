@@ -56,6 +56,21 @@ function cleanPortrait(img: HTMLImageElement, url: string): string {
   return cv.toDataURL('image/png')
 }
 
+// A photo with its studio background removed once it has loaded (the phone profile card)
+export function CleanImg({ src, className }: { src: string; className: string }) {
+  const [shown, setShown] = useState(() => CLEAN.get(src) || src)
+  const [broken, setBroken] = useState(false)
+  if (broken) return null
+  const onLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (CLEAN.has(src)) return
+    let out = src
+    try { out = cleanPortrait(e.currentTarget, src) } catch { /* a photo the browser won't let us read: keep it */ }
+    CLEAN.set(src, out)
+    if (out !== src) setShown(out)
+  }
+  return <img className={`${className} in`} src={shown} crossOrigin="anonymous" alt="" onLoad={onLoad} onError={() => setBroken(true)} />
+}
+
 type PortraitProps = { id?: string | null; name: string; team: string; size?: '' | 'sm' | 'lg' | 'feat' }
 
 // Large portrait in a team-tinted frame that fades out at the bottom; the initials show when there is no photo.

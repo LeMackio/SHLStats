@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useData } from '@/data/context'
+import { usePageName } from '@/lib/pageTitle'
 import { navKey, segOf, TITLES } from '@/lib/router'
 import { THEMES, useTheme, type ThemeName } from '@/lib/theme'
 import { Icon } from './Icon'
@@ -27,7 +28,7 @@ export function Header({ path, searchOpen, setSearchOpen, onSettings }: {
   setSearchOpen: (v: boolean) => void
   onSettings: () => void
 }) {
-  const seg = segOf(path), active = navKey(seg)
+  const seg = segOf(path), active = navKey(seg), pageName = usePageName(path, { phone: true })
   return (
     <header className="top">
       <div className="top-in">
@@ -39,7 +40,7 @@ export function Header({ path, searchOpen, setSearchOpen, onSettings }: {
         <button className="m-back" aria-label="Tillbaka" onClick={() => { if (history.length > 1) history.back(); else location.hash = '#/' }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
         </button>
-        <span className="m-title brand-word">{TITLES[seg] || ''}</span>
+        <span className="m-title brand-word">{pageName || TITLES[seg] || ''}</span>
         <nav className="main has-ind" aria-label="Sidor">
           <SlideIndicator kind="pill" active=".on" groupKey="nav.main" dep={active} />
           {MAIN_NAV.map(([key, label, icon]) => (
