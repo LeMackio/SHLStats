@@ -139,6 +139,7 @@ export interface Core {
   seasonOrder: string[]
   pastStandings: Record<string, (Standing & { rank: number })[]>
   pastGames: [string, string, string, string, number, number, number][] // season, date, home, away, hs, as, ot
+  model?: Model
   [k: string]: unknown
 }
 
@@ -199,6 +200,13 @@ export interface GoalEvent {
   clip?: Clip
 }
 
+export interface BoxRow { id: string | null; name: string; num?: number | null; pos: string; line?: number; g: number; a: number; pm: number; toi: number; sog: number; pim: number; ppg?: number; hits: number; blk: number; fow: number; fol: number }
+export interface GkRow { id: string | null; name: string; num?: number | null; line?: number; ga: number; soga: number; svs: number }
+export interface PenaltyEvent { p: number; t: string; team: 'home' | 'away'; player?: PlayerRef | null; desc: string; off?: string }
+export interface PeriodRow { p: number; h: number; a: number; hs?: number; as?: number }
+export interface ShotEvent { p: number; t: string; team: 'home' | 'away'; x?: number; y?: number }
+export type TeamGameStats = Partial<Record<'SOG' | 'PIM' | 'PPG' | 'NumPP' | 'FOW' | 'Hits' | 'BkS' | 'Saves', number>>
+
 // data/games/<id>.json (finished games), or the live relay's data in the same shape
 export interface GameDetails {
   id: string
@@ -206,11 +214,24 @@ export interface GameDetails {
   away: string
   hs?: number
   as?: number
-  goals: GoalEvent[]
+  ot?: boolean
+  so?: boolean
+  arena?: string
+  att?: number
+  goals: (GoalEvent & { x?: number; y?: number })[]
+  pens: PenaltyEvent[]
+  periods: PeriodRow[]
+  shots: ShotEvent[]
+  team: { home: TeamGameStats; away: TeamGameStats }
+  box: { home: BoxRow[]; away: BoxRow[] }
+  gk: { home: GkRow[]; away: GkRow[] }
+  xg?: [number, number, number, number, number, number] | null // xG home, away, dangerous chances home, away, shots home, away
   hl?: Clip | null
-  live?: unknown
-  [k: string]: unknown
+  live?: import('@/data/live').LiveData // only while the game is being played
 }
+
+// The team ratings behind the game odds
+export interface Model { L: number; HOME: number; AWAY: number; rating: Record<string, { att: number; def: number }> }
 
 export const isFinal = (g: Game) => g.state === 'post-game' && typeof g.hs === 'number'
 export const isLive = (g: Game) => g.state !== 'pre-game' && !isFinal(g)

@@ -11,6 +11,7 @@ import { usePageName } from '@/lib/pageTitle'
 import { segOf, SUB_PAGES, TITLES, usePath } from '@/lib/router'
 import { HemPage } from '@/pages/Hem'
 import { LagPage } from '@/pages/Lag'
+import { MatchPage } from '@/pages/Match'
 import { MatcherPage } from '@/pages/Matcher'
 import { MediaPage } from '@/pages/Media'
 import { NyheterPage } from '@/pages/Nyheter'
@@ -23,7 +24,7 @@ import { TabellPage } from '@/pages/Tabell'
 const ROUTES: [RegExp, (m: string[]) => ReactNode][] = [
   [/^\/?$/, () => <HemPage />],
   [/^\/matcher(?:\/([^/]+))?$/, ([view]) => <MatcherPage view={view} />],
-  [/^\/match\/([^/]+)(?:\/([^/]+))?$/, () => <NotYetPorted name="Match" />],
+  [/^\/match\/([^/]+)(?:\/([^/]+))?$/, ([id, tab]) => <MatchPage id={id} tab={tab} />],
   [/^\/tabell(?:\/([^/]+))?$/, ([tab]) => <TabellPage tab={tab} />],
   [/^\/statistik$/, () => <StatistikPage />],
   [/^\/spelare\/([^/]+)(?:\/([^/]+))?$/, ([id, tab]) => <SpelarePage id={id} tab={tab} />],

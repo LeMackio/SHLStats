@@ -2,6 +2,8 @@ import { useData } from '@/data/context'
 import { liveClock, type LiveData } from '@/data/live'
 import { fmtDay, fmtTime, pctTxt } from '@/lib/format'
 import { safeEmbed, statusTxt } from '@/lib/game'
+import { winSeries } from '@/lib/match'
+import { pairColors } from '@/lib/teams'
 import { go } from '@/lib/router'
 import { shortName, strengthTag, zoneBad } from '@/lib/stats'
 import { isFinal, isLive, type Game, type GameDetails, type GoalEvent } from '@/lib/types'
@@ -93,6 +95,18 @@ export function GameCard({ g, d }: { g: Game; d?: GameDetails | null }) {
   }
 
   const hl = done && d?.hl && safeEmbed(d.hl.embed) ? d.hl : null
+  // Live games: each team's win chance right now, as a bar like the team stats (under the goals, if any)
+  let wpBar: React.ReactNode = null
+  if (live && d?.live && core.model) {
+    const p = winSeries(d, core.model).now, [hc, ac] = pairColors(g.home, g.away), pc = (x: number) => `${Math.round(x * 100)} %`
+    wpBar = (
+      <div className="cmp gc-wp" style={{ '--h-color': hc, '--a-color': ac } as React.CSSProperties}>
+        <div className="cmp-row"><span className="v num">{pc(p)}</span>
+          <div className="mid"><span className="lbl">Vinstchans</span><div className="cmp-bar"><i style={{ width: `${p * 100}%` }} /><i style={{ width: `${(1 - p) * 100}%` }} /></div></div>
+          <span className="v num">{pc(1 - p)}</span></div>
+      </div>
+    )
+  }
   const open = () => go(`#/match/${g.id}`)
   return (
     <article className={`gcard ${isFav ? 'fav' : ''} ${live ? 'is-live' : ''}`} tabIndex={0} role="link" aria-label={`${tName(g.home)} mot ${tName(g.away)}`}
@@ -105,7 +119,7 @@ export function GameCard({ g, d }: { g: Game; d?: GameDetails | null }) {
           : <span className="gc-chip">{fmtTime(g.start)}</span>}
         {isFav && <span className="gc-mine" title="Mitt lag" aria-label="Mitt lag">★</span>}
       </div>
-      {row(g.home, 'home')}{row(g.away, 'away')}{mid}
+      {row(g.home, 'home')}{row(g.away, 'away')}{mid}{wpBar}
       {hl && <div className="gc-foot"><button className="gc-btn" data-embed={hl.embed} data-title={`${g.home}–${g.away} sammandrag`}>{PLAY}Sammandrag</button></div>}
     </article>
   )

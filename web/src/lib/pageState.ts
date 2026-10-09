@@ -8,3 +8,8 @@ export function useKeptState<T>(key: string, init: T | (() => T)) {
   const set = useCallback((next: T) => { kept.set(key, next); setV(next) }, [key])
   return [v, set] as const
 }
+
+// The team picked in a two-team toggle, remembered per page, so a live page that redraws keeps showing the same team
+export function useTeamSide() {
+  return useKeptState<'home' | 'away'>(`tt|${location.hash}`, 'home')
+}

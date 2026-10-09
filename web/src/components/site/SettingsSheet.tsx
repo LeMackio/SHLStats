@@ -26,7 +26,7 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
   }
 
   return (
-    <dialog className="sheet" ref={dlg} aria-label="Inställningar" onClose={onClose} onClick={(e) => { if (e.target === dlg.current) onClose() }}>
+    <dialog className="sheet" ref={dlg} aria-label="Inställningar" onClose={onClose} onCancel={(e) => { e.preventDefault(); onClose() }} onClick={(e) => { if (e.target === dlg.current) onClose() }}>
       {open && (
         <div className="sheet-in">
           <div className="sheet-grab" aria-hidden="true" />
