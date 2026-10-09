@@ -14,7 +14,7 @@ const MAIN_NAV: [string, string, string][] = [
   ['nexus', 'Nexus (beta)', 'target'], // desktop only for now: the top menu is hidden on phones
 ]
 
-export const THEME_ICON: Record<ThemeName, ReactNode> = {
+const THEME_ICON: Record<ThemeName, ReactNode> = {
   dark: <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" /></svg>,
   light: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4.2" /><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" /></svg>,
   paper: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M6 3h8l4 4v14H6Z" /><path d="M14 3v4h4M9 12h6M9 16h6" /></svg>,

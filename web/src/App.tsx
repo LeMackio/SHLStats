@@ -8,20 +8,23 @@ import { VideoDialog } from '@/components/site/VideoDialog'
 import { useData } from '@/data/context'
 import { useBodyClass, useCompactNav, usePullToRefresh, useReloadWhenStale } from '@/lib/appHooks'
 import { segOf, SUB_PAGES, TITLES, usePath } from '@/lib/router'
+import { MatcherPage } from '@/pages/Matcher'
 import { NotFound, NotYetPorted } from '@/pages/NotYetPorted'
+import { StatistikPage } from '@/pages/Statistik'
+import { TabellPage } from '@/pages/Tabell'
 
 // Every address of the original site, so old links keep working. Each entry gets the path's captured parts.
 const ROUTES: [RegExp, (m: string[]) => ReactNode][] = [
   [/^\/?$/, () => <NotYetPorted name="Hem" />],
-  [/^\/matcher(?:\/([^/]+))?$/, () => <NotYetPorted name="Matcher" />],
+  [/^\/matcher(?:\/([^/]+))?$/, ([view]) => <MatcherPage view={view} />],
   [/^\/match\/([^/]+)(?:\/([^/]+))?$/, () => <NotYetPorted name="Match" />],
-  [/^\/tabell(?:\/([^/]+))?$/, () => <NotYetPorted name="Tabell" />],
-  [/^\/statistik$/, () => <NotYetPorted name="Statistik" />],
+  [/^\/tabell(?:\/([^/]+))?$/, ([tab]) => <TabellPage tab={tab} />],
+  [/^\/statistik$/, () => <StatistikPage />],
   [/^\/spelare\/([^/]+)(?:\/([^/]+))?$/, () => <NotYetPorted name="Spelare" />],
   [/^\/(?:nexus|avancerat)$/, () => <NotYetPorted name="Nexus" />], // /avancerat is the old address
   [/^\/nyheter\/([^/]+)$/, () => <NotYetPorted name="Nyheter" />],
   [/^\/media(?:\/([^/]+))?$/, () => <NotYetPorted name="Media" />],
-  [/^\/lag$/, () => <NotYetPorted name="Tabell" />], // old link to the teams page, now the Tabell page
+  [/^\/lag$/, () => <TabellPage tab="" />], // old link to the teams page, now the Tabell page
   [/^\/lag\/([^/]+)(?:\/([^/]+))?$/, () => <NotYetPorted name="Lag" />],
 ]
 

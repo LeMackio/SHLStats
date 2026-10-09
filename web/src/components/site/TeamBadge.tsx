@@ -27,8 +27,11 @@ export function TeamLink({ code, name = false, size = '' }: { code: string; name
   )
 }
 
+export const PlayerLink = ({ id, name }: { id?: string | null; name: string }) =>
+  id ? <a href={`#/spelare/${encodeURIComponent(id)}`}>{name}</a> : <>{name}</>
+
 // Small round headshot on a team-tinted disc; the initials show when there is no photo or it fails to load
-export function Avatar({ id, name, team, size = '' }: { id?: string | null; name: string; team: string; size?: '' | 'md' }) {
+export function Avatar({ id, name, team, size = '', eager = false }: { id?: string | null; name: string; team: string; size?: '' | 'md'; eager?: boolean }) {
   const { headshots } = useData()
   const [state, setState] = useState<'loading' | 'in' | 'broken'>('loading')
   const h = id ? headshots[id] : undefined
@@ -36,7 +39,7 @@ export function Avatar({ id, name, team, size = '' }: { id?: string | null; name
   return (
     <span className={`av ${size}`} style={{ '--tc': tColor(team) } as React.CSSProperties} data-ini={ini}>
       {h && state !== 'broken'
-        ? <img src={h[0]} alt="" loading="lazy" className={state === 'in' ? 'in' : undefined} onLoad={() => setState('in')} onError={() => setState('broken')} />
+        ? <img src={h[0]} alt="" loading={eager ? undefined : 'lazy'} className={state === 'in' ? 'in' : undefined} onLoad={() => setState('in')} onError={() => setState('broken')} />
         : ini}
     </span>
   )

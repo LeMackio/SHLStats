@@ -1,11 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useData } from '@/data/context'
-import { dateParts, DAYS, fmtTime, MONTHS, todayStr } from '@/lib/format'
+import { dateParts, DAYS, MONTHS, todayStr } from '@/lib/format'
+import { statusTxt } from '@/lib/game'
 import { pillStyle } from '@/lib/teams'
 import { isFinal, isLive, type Game } from '@/lib/types'
 import { TeamBadge } from './TeamBadge'
-
-export const statusTxt = (g: Game) => isFinal(g) ? (g.so ? 'Slut/str' : g.ot ? 'Slut/ÖT' : 'Slut') : isLive(g) ? 'Live' : fmtTime(g.start)
 
 // The score strip above the header: every game of the season in one row, opened at today's games
 export function Strip() {

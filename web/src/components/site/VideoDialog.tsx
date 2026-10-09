@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-
-// Only SHL's video host is ever embedded
-export const safeEmbed = (url?: string | null) => {
-  try { const u = new URL(url || ''); return u.protocol === 'https:' && /(^|\.)staylive\.tv$/.test(u.hostname) ? u.href : null } catch { return null }
-}
+import { safeEmbed } from '@/lib/game'
 
 // The video player. Any element with data-embed (and data-title) opens it, so clip cards anywhere on the site
 // just carry those attributes.
