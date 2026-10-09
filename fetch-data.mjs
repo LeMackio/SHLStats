@@ -1,15 +1,19 @@
 // Pulls SHL data from shl.se's public API, runs the projection model and builds the site into ./site.
-// Run: node fetch-data.mjs
+// Run: npm --prefix web run build (the app, once per change to web/), then node fetch-data.mjs
 //
 // Caching (the cache/ folder is kept between GitHub Actions runs):
 //   cache/seasons/<year>.json   finished seasons, fetched once
 //   cache/games/<id>.json       finished games, fetched once
 //   cache/headshots.json        resolved headshot links for players not on a current roster
 // history/odds.json is committed to the repository so odds history survives cache loss.
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { assembleSite } from './assemble-site.mjs';
 import { buildRatings, simulate, winProb } from './model.mjs';
 import { processShots, trainXG, zoneOf } from './edge.mjs';
+
+// Fail fast rather than after the whole data refresh: the app has to be built first
+if (!existsSync('web/dist/index.html')) throw new Error('The app is not built yet: run npm --prefix web run build first');
 
 const API = 'https://www.shl.se/api';
 const N_SEASONS = 5;      // current + 4 previous: past standings, head-to-head and team history
@@ -670,15 +674,8 @@ for (const d of Object.values(gameDetails)) {
     hl: slimClip(v?.hl) || null,
   });
 }
-for (const f of readdirSync('src')) cpSync(`src/${f}`, `site/${f}`, { recursive: true });
-// Stamp every build with a version so browsers never mix a new page with an old cached stylesheet,
-// script or data file after an update
-const BUILD = Date.now().toString(36);
-writeFileSync('site/index.html', readFileSync('site/index.html', 'utf8')
-  .replace('href="styles.css"', `href="styles.css?v=${BUILD}"`)
-  .replace('<script src="app.js"></script>', `<script>window.SHL_BUILD = '${BUILD}';</script>\n<script src="app.js?v=${BUILD}"></script>`));
-writeFileSync('site/sw.js', readFileSync('site/sw.js', 'utf8').replaceAll('__BUILD__', BUILD));
-writeFileSync('site/.nojekyll', '');
+// The app itself (built from web/) next to the data, stamped with this build's version
+assembleSite();
 
 const rosterIds = new Set(Object.values(rosters).flat().map((p) => p.id));
 const matched = cur.skaters.filter((p) => rosterIds.has(p.id)).length;

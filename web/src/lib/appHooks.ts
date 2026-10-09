@@ -88,15 +88,30 @@ export function usePullToRefresh() {
   }, [])
 }
 
-// Web app: new data after a while away reloads the page to show it
-export function useReloadWhenStale(updated: string) {
-  const loadedAt = useRef(0)
+// Web app: works offline with the latest data (the service worker, on the published site only), and refreshes
+// when reopened after a while: a new version of the site reloads at once, so a home-screen app never keeps an
+// old design, and new data reloads after five minutes away
+export function useAppMode(updated: string) {
+  const loadedAt = useRef(0), checkedAt = useRef(0)
   useEffect(() => {
-    loadedAt.current = Date.now()
+    if (import.meta.env.PROD && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      navigator.serviceWorker.register('sw.js').catch(() => {})
+    }
+  }, [])
+  useEffect(() => {
+    loadedAt.current = checkedAt.current = Date.now()
     const onVisible = async () => {
-      if (document.visibilityState !== 'visible' || Date.now() - loadedAt.current < 5 * 60 * 1000) return
-      loadedAt.current = Date.now()
+      if (document.visibilityState !== 'visible') return
       try {
+        const published = (window as { SHL_BUILD?: string }).SHL_BUILD
+        if (published && Date.now() - checkedAt.current > 60 * 1000) {
+          checkedAt.current = Date.now()
+          const html = await (await fetch(`./?check=${Date.now()}`, { cache: 'no-store' })).text()
+          const build = html.match(/SHL_BUILD = '([^']+)'/)?.[1]
+          if (build && build !== published) { location.reload(); return }
+        }
+        if (Date.now() - loadedAt.current < 5 * 60 * 1000) return
+        loadedAt.current = Date.now()
         const fresh = await (await fetch(`${dataUrl('core.json')}&check=${Date.now()}`, { cache: 'no-store' })).json()
         if (fresh.updated !== updated) location.reload()
       } catch { /* offline: keep showing what we have */ }

@@ -1,8 +1,10 @@
 import { createContext, useContext } from 'react'
 import type { Core, Game, Team } from '@/lib/types'
 
-// Data URLs carry the build version so an update is never mixed with old cached data
-export const dataUrl = (path: string) => `data/${path}?v=${__BUILD__}`
+// Data URLs carry the build version so an update is never mixed with old cached data. The published page has
+// its version stamped in by ../assemble-site.mjs; in development the app's own build time stands in.
+export const BUILD: string = (window as { SHL_BUILD?: string }).SHL_BUILD || __BUILD__
+export const dataUrl = (path: string) => `data/${path}?v=${BUILD}`
 
 export interface Data {
   core: Core

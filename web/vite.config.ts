@@ -25,10 +25,18 @@ export default defineConfig({
   base: './',
   plugins: [react(), tailwindcss(), serveSiteData()],
   define: {
+    // Fallback version for data URLs; the published site gets its own stamp from ../assemble-site.mjs
     __BUILD__: JSON.stringify(Date.now().toString(36)),
   },
-  // The shared stylesheet (and its icons) still live in ../src with the original site
-  server: { fs: { allow: ['..'] } },
+  build: {
+    rollupOptions: {
+      output: {
+        // React in its own file, which rarely changes, so browsers keep it cached across updates (the shadcn/Base UI
+        // components stay with the pages that use them)
+        manualChunks: (id) => (/node_modules\/(react|react-dom|scheduler)\//.test(id) ? 'vendor' : undefined),
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),

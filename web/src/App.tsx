@@ -1,25 +1,40 @@
-import { Component, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Component, lazy, Suspense, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { BottomNav, Footer } from '@/components/site/BottomNav'
 import { Header } from '@/components/site/Header'
-import { Panel } from '@/components/site/Panel'
+import { Panel, Skeleton } from '@/components/site/Panel'
 import { SettingsSheet } from '@/components/site/SettingsSheet'
 import { Strip } from '@/components/site/Strip'
 import { VideoDialog } from '@/components/site/VideoDialog'
 import { useData } from '@/data/context'
-import { useBodyClass, useCompactNav, usePullToRefresh, useReloadWhenStale } from '@/lib/appHooks'
+import { useAppMode, useBodyClass, useCompactNav, usePullToRefresh } from '@/lib/appHooks'
 import { usePageName } from '@/lib/pageTitle'
 import { segOf, SUB_PAGES, TITLES, usePath } from '@/lib/router'
-import { HemPage } from '@/pages/Hem'
-import { LagPage } from '@/pages/Lag'
-import { MatchPage } from '@/pages/Match'
-import { MatcherPage } from '@/pages/Matcher'
-import { MediaPage } from '@/pages/Media'
-import { NyheterPage } from '@/pages/Nyheter'
-import { SpelarePage } from '@/pages/Spelare'
-import { NexusPage } from '@/pages/Nexus'
 import { NotFound } from '@/pages/NotFound'
-import { StatistikPage } from '@/pages/Statistik'
-import { TabellPage } from '@/pages/Tabell'
+
+// Each page is its own file, loaded the first time it is opened, so the first visit only downloads what it shows.
+// After a new version is published, files of the old one are gone: a page that fails to load then reloads the
+// site once, which brings the new version.
+const reloaded = {
+  get: () => { try { return !!sessionStorage.getItem('shlstats-reloaded') } catch { return true } }, // no storage: never loop
+  set: (on: boolean) => { try { if (on) sessionStorage.setItem('shlstats-reloaded', '1'); else sessionStorage.removeItem('shlstats-reloaded') } catch { /* private mode */ } },
+}
+const page = <P extends object>(load: () => Promise<ComponentType<P>>) => lazy(() => load().then(
+  (C) => { reloaded.set(false); return { default: C } },
+  (e) => {
+    if (!reloaded.get()) { reloaded.set(true); location.reload() }
+    throw e
+  },
+))
+const HemPage = page(() => import('@/pages/Hem').then((m) => m.HemPage))
+const LagPage = page(() => import('@/pages/Lag').then((m) => m.LagPage))
+const MatchPage = page(() => import('@/pages/Match').then((m) => m.MatchPage))
+const MatcherPage = page(() => import('@/pages/Matcher').then((m) => m.MatcherPage))
+const MediaPage = page(() => import('@/pages/Media').then((m) => m.MediaPage))
+const NexusPage = page(() => import('@/pages/Nexus').then((m) => m.NexusPage))
+const NyheterPage = page(() => import('@/pages/Nyheter').then((m) => m.NyheterPage))
+const SpelarePage = page(() => import('@/pages/Spelare').then((m) => m.SpelarePage))
+const StatistikPage = page(() => import('@/pages/Statistik').then((m) => m.StatistikPage))
+const TabellPage = page(() => import('@/pages/Tabell').then((m) => m.TabellPage))
 
 // Every address of the original site, so old links keep working. Each entry gets the path's captured parts.
 const ROUTES: [RegExp, (m: string[]) => ReactNode][] = [
@@ -56,7 +71,7 @@ export default function App() {
   useBodyClass('search-open', searchOpen)
   useCompactNav()
   usePullToRefresh()
-  useReloadWhenStale(core.updated)
+  useAppMode(core.updated)
   useScrollOnNavigate(path)
 
   // Pages with their own name (a player, a team) set it themselves; the rest are named after their section
@@ -68,7 +83,7 @@ export default function App() {
       <Strip />
       <Header path={path} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onSettings={() => setSettingsOpen(true)} />
       <main id="app">
-        <PageErrorBoundary key={path}>{renderRoute(path)}</PageErrorBoundary>
+        <PageErrorBoundary key={path}><Suspense fallback={<Skeleton />}>{renderRoute(path)}</Suspense></PageErrorBoundary>
       </main>
       <Footer stamp={stamp} />
       <BottomNav path={path} />

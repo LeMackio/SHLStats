@@ -7,9 +7,8 @@ const PUSH_KEY = 'BARCN0YCm1MnhdNyXAnQDogwCnZn4YZdo7THDN66637H3iPSF3REMImTKFqB35
 
 export type PushPrefs = { start?: boolean; goals?: boolean; final?: boolean }
 
-// Notifications need the service worker, which only runs on the built site (not in `npm run dev`)
-export const pushOk = () => !!LIVE_API && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
-  && !!navigator.serviceWorker.controller
+// Notifications need the service worker, which is only registered on the built site (not in `npm run dev`)
+export const pushOk = () => import.meta.env.PROD && !!LIVE_API && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
 export const pushPrefs = (): PushPrefs | null => { try { return JSON.parse(store.get('shlstats-push') || 'null') } catch { return null } }
 
 const urlB64 = (s: string) => {

@@ -10,8 +10,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* The site's look: one stylesheet shared with the original site in ../src until the move is finished */
-@import "../../src/styles.css" layer(legacy);
+/* The site's look: the original hand-written stylesheet, kept as it was */
+@import "./styles.css" layer(legacy);
 
 /* Dark mode for dark: utilities follows the site's themes: the dark theme, or no choice on a dark device */
 @custom-variant dark {
