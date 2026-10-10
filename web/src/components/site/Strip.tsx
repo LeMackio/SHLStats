@@ -45,7 +45,7 @@ export function Strip() {
           const p = dateParts(d)
           return [
             <div key={d} className={`s-date ${d === today ? 'today' : ''}`} ref={d === anchorDate ? anchor : undefined}>
-              <b>{d === today ? 'idag' : DAYS[p.wd]}</b><span>{p.d}</span><b>{MONTHS[p.m - 1]}</b>
+              <b>{d === today ? 'Idag' : DAYS[p.wd][0].toUpperCase() + DAYS[p.wd].slice(1)}</b><span>{p.d}</span><b>{MONTHS[p.m - 1]}</b>
             </div>,
             ...byDate.get(d)!.map((g) => {
               const done = isFinal(g), live = isLive(g), isFav = fav && (g.home === fav || g.away === fav)

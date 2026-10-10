@@ -132,7 +132,7 @@ export function RefHero({ bg, tc, photo, photoCls = '', first, firstCls = '', la
     </section>
   )
 }
-const FactRow = ({ k, v }: { k: string; v: ReactNode }) => <><dt>{k} :</dt><dd>{v}</dd></>
+const FactRow = ({ k, v }: { k: string; v: ReactNode }) => <><dt>{k}</dt><dd>{v}</dd></>
 
 // The hero's photo; on phones a player photo gets its studio background removed (shared with the leader cards)
 function RefPhoto({ src, cls, clean }: { src: string; cls: string; clean: boolean }) {
