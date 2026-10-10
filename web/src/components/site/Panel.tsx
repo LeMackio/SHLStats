@@ -1,4 +1,6 @@
+import { Clock, CloudOff } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { EmptyState } from '@/components/arc/empty-state/empty-state'
 import { useNarrow } from '@/lib/useNarrow'
 
 // A card on a page: title row (with an optional "see more" link and subtitle), body and optional footer.
@@ -44,3 +46,9 @@ export function Skeleton() {
 }
 
 export const Empty = ({ children }: { children: ReactNode }) => <p className="empty-state">{children}</p>
+
+// A whole page or tab with nothing to show (it failed to load, or the data isn't there yet): Arc's empty state in a card
+export function PageState({ title, description, icon = 'offline' }: { title: string; description: string; icon?: 'offline' | 'later' }) {
+  const glyph = icon === 'later' ? <Clock width={24} height={24} strokeWidth={1.5} /> : <CloudOff width={24} height={24} strokeWidth={1.5} />
+  return <section className="panel"><EmptyState title={title} description={description} icon={glyph} /></section>
+}

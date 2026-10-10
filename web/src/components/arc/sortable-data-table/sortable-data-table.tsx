@@ -14,11 +14,38 @@ export type DataColumn<T> = {
   key: string;
   label: string;
   sortable?: boolean;
-  render?: (value: unknown, row: T) => ReactNode;
+  /** SHLstats addition: the third argument is the row's place in the shown order. */
+  render?: (value: unknown, row: T, index: number) => ReactNode;
   /** Right-aligns the column with tabular numerals. Detected when every value is a number. */
   numeric?: boolean;
   /** Fixed width such as 120 or "20%". Other columns are measured once and held, so sorting never reflows them. */
   width?: number | string;
+  /** SHLstats addition: the direction of the first click on this column (default "asc"). */
+  firstDirection?: SortDirection;
+  /** SHLstats addition: a tooltip on the header, such as the full name of an abbreviation. */
+  title?: string;
+};
+
+/** SHLstats addition: every visible and announced text, so the table can speak another language. */
+export type SortableDataTableStrings = {
+  sortBy?: string;
+  currently?: string;
+  sortedBy?: string;
+  ascending?: string;
+  descending?: string;
+  selectAll?: string;
+  select?: string;
+  selected?: string;
+  of?: string;
+  selectionCleared?: string;
+  clearSelection?: string;
+  showAll?: (count: number) => string;
+  showFewer?: string;
+};
+const englishStrings: Required<SortableDataTableStrings> = {
+  sortBy: "Sort by", currently: "currently", sortedBy: "Sorted by", ascending: "ascending", descending: "descending",
+  selectAll: "Select all rows", select: "Select", selected: "selected", of: "of", selectionCleared: "Selection cleared",
+  clearSelection: "Clear selection", showAll: count => `Show all ${count}`, showFewer: "Show fewer",
 };
 
 export type SortableDataTableProps<T extends Record<string, unknown>> = {
@@ -37,9 +64,19 @@ export type SortableDataTableProps<T extends Record<string, unknown>> = {
   onSelectionChange?: (keys: string[]) => void;
   /** Noun for the count line, as in "6 projects". */
   itemName?: { one: string; other: string };
+  /** SHLstats addition: texts in another language, and the locale that orders text columns. */
+  strings?: SortableDataTableStrings;
+  locale?: string;
+  /** SHLstats addition: rows to tint with the accent, such as your own team's. */
+  rowHighlight?: (row: T) => boolean;
+  /** SHLstats addition: show the first rows only, with a button for the rest. */
+  limit?: number;
+  /** SHLstats addition: the narrowest the table gets before it scrolls sideways (default 560). */
+  minWidth?: number;
+  /** SHLstats addition: false keeps a sideways scrolling table on phones, with the first column pinned, instead of
+   * folding rows into two lines. For tables with many number columns, which lose their headers when folded. */
+  fold?: boolean;
 };
-
-const collator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
 const isEmpty = (value: unknown) => value == null || value === "";
 const comparable = (value: unknown) => value instanceof Date ? value.getTime() : value;
 const blur = (px: number) => `blur(${px}px)`;
@@ -123,7 +160,10 @@ function SelectBox({ checked, mixed = false, label, nav, reduced, onToggle, inpu
   </label>;
 }
 
-export function SortableDataTable<T extends Record<string, unknown>>({ rows, columns, rowKey, caption = "Data table", emptyMessage = "No rows to show", defaultSort, onSortChange, selectable = false, selectedKeys, defaultSelectedKeys, onSelectionChange, itemName = { one: "row", other: "rows" } }: SortableDataTableProps<T>) {
+export function SortableDataTable<T extends Record<string, unknown>>({ rows, columns, rowKey, caption = "Data table", emptyMessage = "No rows to show", defaultSort, onSortChange, selectable = false, selectedKeys, defaultSelectedKeys, onSelectionChange, itemName = { one: "row", other: "rows" }, strings, locale = "en", rowHighlight, limit = 0, minWidth, fold = true }: SortableDataTableProps<T>) {
+  const t = { ...englishStrings, ...strings };
+  const collator = useMemo(() => new Intl.Collator(locale, { numeric: true, sensitivity: "base" }), [locale]);
+  const [showAll, setShowAll] = useState(false);
   const reduced = useReducedMotion() ?? false;
   const tableRef = useRef<HTMLTableElement>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
@@ -143,7 +183,8 @@ export function SortableDataTable<T extends Record<string, unknown>>({ rows, col
       const result = typeof left === "number" && typeof right === "number" ? left - right : collator.compare(String(left), String(right));
       return (sort.direction === "asc" ? result : -result) || a.index - b.index;
     }).map(entry => entry.row);
-  }, [rows, sort]);
+  }, [collator, rows, sort]);
+  const shownRows = limit && !showAll ? sortedRows.slice(0, limit) : sortedRows;
 
   const numeric = useMemo(() => new Set(columns.filter(column => column.numeric ?? (rows.some(row => typeof row[column.key] === "number") && rows.every(row => typeof row[column.key] === "number" || isEmpty(row[column.key])))).map(column => column.key)), [columns, rows]);
   const getRowKey = (row: T) => String(typeof rowKey === "function" ? rowKey(row) : row[rowKey]);
@@ -158,7 +199,9 @@ export function SortableDataTable<T extends Record<string, unknown>>({ rows, col
   const widths = locked?.signature === signature ? locked.widths : null;
   useLayoutEffect(() => {
     const table = tableRef.current;
-    if (!table || widths) return;
+    // SHLstats addition: one-line cells keep their widths while sorting, so a scrolling table needs no lock (and a
+    // lock taken before the web fonts load would clip the text)
+    if (!table || widths || !fold) return;
     const measure = () => {
       const total = table.getBoundingClientRect().width;
       if (!total || getComputedStyle(table).display !== "table") return false;
@@ -171,7 +214,7 @@ export function SortableDataTable<T extends Record<string, unknown>>({ rows, col
     const observer = new ResizeObserver(() => { if (measure()) observer.disconnect(); });
     observer.observe(table);
     return () => observer.disconnect();
-  }, [signature, widths]);
+  }, [fold, signature, widths]);
 
   // A still tint under the sorted column fills the gaps that open while rows pass each other.
   const [band, setBand] = useState<{ left: number; width: number } | null>(null);
@@ -201,23 +244,25 @@ export function SortableDataTable<T extends Record<string, unknown>>({ rows, col
   }, [reduced, sort?.key, widths]);
 
   const shownCount = selectedCount || keys.length;
-  const noun = selectedCount ? "selected" : keys.length === 1 ? itemName.one : itemName.other;
+  const noun = selectedCount ? t.selected : keys.length === 1 ? itemName.one : itemName.other;
   const [lastCount, setLastCount] = useState(shownCount);
   const [countDirection, setCountDirection] = useState(1);
   if (shownCount !== lastCount) { setLastCount(shownCount); setCountDirection(shownCount > lastCount ? 1 : -1); }
 
   function sortBy(column: DataColumn<T>) {
-    const next: SortState = { key: column.key, direction: sort?.key === column.key && sort.direction === "asc" ? "desc" : "asc" };
+    // SHLstats addition: a new column starts in its own first direction
+    const direction: SortDirection = sort?.key === column.key ? (sort.direction === "asc" ? "desc" : "asc") : column.firstDirection ?? "asc";
+    const next: SortState = { key: column.key, direction };
     setSort(next);
     onSortChange?.(next);
-    setAnnouncement(`Sorted by ${column.label}, ${next.direction === "asc" ? "ascending" : "descending"}`);
+    setAnnouncement(`${t.sortedBy} ${column.label}, ${direction === "asc" ? t.ascending : t.descending}`);
   }
 
   function commit(next: Set<string>) {
     const list = keys.filter(key => next.has(key));
     if (selectedKeys === undefined) setInternalSelection(list);
     onSelectionChange?.(list);
-    setAnnouncement(list.length ? `${list.length} of ${keys.length} selected` : "Selection cleared");
+    setAnnouncement(list.length ? `${list.length} ${t.of} ${keys.length} ${t.selected}` : t.selectionCleared);
   }
 
   function toggleRow(key: string, extend: boolean) {
@@ -266,44 +311,45 @@ export function SortableDataTable<T extends Record<string, unknown>>({ rows, col
     next.focus();
   }
 
-  return <div className={styles.wrapper} onKeyDown={onKeyDown}>
+  return <div className={styles.wrapper} onKeyDown={onKeyDown} data-scroll={!fold || undefined}>
     <div className={styles.scroller}>
       {band ? <span className={styles.band} style={{ left: band.left, width: band.width }} aria-hidden="true" /> : null}
-      <table ref={tableRef} role="table" className={styles.table} data-fixed={widths ? "" : undefined} data-selectable={selectable || undefined}>
+      <table ref={tableRef} role="table" className={styles.table} data-fixed={widths ? "" : undefined} data-selectable={selectable || undefined} style={minWidth ? { minWidth } : undefined}>
         <caption>{caption}</caption>
         <colgroup>
           {selectable ? <col className={styles.selectCol} /> : null}
           {columns.map((column, index) => <col key={column.key} style={{ width: column.width !== undefined ? (typeof column.width === "number" ? `${column.width}px` : column.width) : widths && index > 0 ? `${widths[column.key]}%` : undefined }} />)}
         </colgroup>
         <thead role="rowgroup"><tr role="row">
-          {selectable ? <th scope="col" role="columnheader" className={styles.selectCell}><SelectBox inputRef={selectAllRef} checked={allSelected} mixed={selectedCount > 0 && !allSelected} label="Select all rows" nav="head" reduced={reduced} onToggle={() => commit(allSelected ? new Set() : new Set(keys))} /></th> : null}
+          {selectable ? <th scope="col" role="columnheader" className={styles.selectCell}><SelectBox inputRef={selectAllRef} checked={allSelected} mixed={selectedCount > 0 && !allSelected} label={t.selectAll} nav="head" reduced={reduced} onToggle={() => commit(allSelected ? new Set() : new Set(keys))} /></th> : null}
           {columns.map((column, index) => {
             const active = sort?.key === column.key;
             const sortable = column.sortable !== false;
-            return <th key={column.key} scope="col" role="columnheader" data-key={column.key} data-primary={index === 0 || undefined} data-sorted={active || undefined} data-numeric={numeric.has(column.key) || undefined} data-sortable={sortable || undefined} aria-sort={!sortable ? undefined : active ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}>
-              {sortable ? <button className={styles.sortButton} type="button" data-nav="head" onClick={() => sortBy(column)} aria-label={`Sort by ${column.label}${active ? `, currently ${sort.direction === "asc" ? "ascending" : "descending"}` : ""}`}>
+            return <th key={column.key} scope="col" role="columnheader" data-key={column.key} data-primary={index === 0 || undefined} data-sorted={active || undefined} data-numeric={numeric.has(column.key) || undefined} data-sortable={sortable || undefined} aria-sort={!sortable ? undefined : active ? (sort.direction === "asc" ? "ascending" : "descending") : "none"} title={column.title}>
+              {sortable ? <button className={styles.sortButton} type="button" data-nav="head" onClick={() => sortBy(column)} aria-label={`${t.sortBy} ${column.title ?? column.label}${active ? `, ${t.currently} ${sort.direction === "asc" ? t.ascending : t.descending}` : ""}`}>
                 <span className={styles.sortInner}><span>{column.label}</span><SortGlyph active={active} descending={active && sort.direction === "desc"} reduced={reduced} /></span>
               </button> : column.label}
             </th>;
           })}
         </tr></thead>
-        <tbody role="rowgroup">{sortedRows.length ? sortedRows.map((row, index) => {
+        <tbody role="rowgroup">{shownRows.length ? shownRows.map((row, index) => {
           const key = keys[index]!;
           const selected = selectable && selection.has(key);
-          return <motion.tr key={key} role="row" layout={reduced ? false : "position"} layoutDependency={order} transition={motionTokens.spring.smooth} data-selected={selected || undefined} onClick={event => onRowClick(event, key)} onMouseDown={event => { if (selectable && event.shiftKey) event.preventDefault(); }}>
-            {selectable ? <td role="cell" className={styles.selectCell}><SelectBox checked={selected} label={`Select ${String(row[columns[0]?.key as string] ?? key)}`} nav="row" reduced={reduced} onToggle={extend => toggleRow(key, extend)} /></td> : null}
-            {columns.map((column, columnIndex) => <td key={column.key} role="cell" data-label={column.label} data-primary={columnIndex === 0 || undefined} data-sorted={sort?.key === column.key || undefined} data-numeric={numeric.has(column.key) || undefined}>{column.render ? column.render(row[column.key], row) : String(row[column.key] ?? "–")}</td>)}
+          return <motion.tr key={key} role="row" layout={reduced ? false : "position"} layoutDependency={order} transition={motionTokens.spring.smooth} data-selected={selected || undefined} data-highlight={rowHighlight?.(row) || undefined} onClick={event => onRowClick(event, key)} onMouseDown={event => { if (selectable && event.shiftKey) event.preventDefault(); }}>
+            {selectable ? <td role="cell" className={styles.selectCell}><SelectBox checked={selected} label={`${t.select} ${String(row[columns[0]?.key as string] ?? key)}`} nav="row" reduced={reduced} onToggle={extend => toggleRow(key, extend)} /></td> : null}
+            {columns.map((column, columnIndex) => <td key={column.key} role="cell" data-label={column.label} data-primary={columnIndex === 0 || undefined} data-sorted={sort?.key === column.key || undefined} data-numeric={numeric.has(column.key) || undefined}>{column.render ? column.render(row[column.key], row, index) : String(row[column.key] ?? "–")}</td>)}
           </motion.tr>;
         }) : <tr role="row"><td role="cell" className={styles.empty} colSpan={columns.length + (selectable ? 1 : 0)}>{emptyMessage}</td></tr>}</tbody>
       </table>
     </div>
+    {limit > 0 && sortedRows.length > limit ? <button type="button" className={styles.more} onClick={() => setShowAll(!showAll)} aria-expanded={showAll}>{showAll ? t.showFewer : t.showAll(sortedRows.length)}</button> : null}
     {selectable ? <div className={styles.footer}>
       <span className={styles.srOnly}>{shownCount} {noun}</span>
       <span className={styles.count} data-active={selectedCount > 0 || undefined} aria-hidden="true">
         <Swap className={styles.number} value={String(shownCount)} direction={countDirection} reduced={reduced} />
         <Swap value={noun} direction={selectedCount ? 1 : -1} reduced={reduced} />
       </span>
-      <AnimatePresence initial={false}>{selectedCount ? <motion.button key="clear" type="button" className={styles.clear} data-clear="" onClick={clearSelection} initial={reduced ? { opacity: 0 } : { opacity: 0, scale: .96, filter: blur(motionTokens.blur.soft) }} animate={{ opacity: 1, scale: 1, filter: blur(0) }} exit={reduced ? { opacity: 0, transition: instant } : { opacity: 0, scale: .98, filter: blur(motionTokens.blur.subtle), transition: leave }} transition={reduced ? instant : enter} whileTap={reduced ? undefined : { scale: .97, transition: { duration: motionTokens.duration.instant } }}>Clear selection</motion.button> : null}</AnimatePresence>
+      <AnimatePresence initial={false}>{selectedCount ? <motion.button key="clear" type="button" className={styles.clear} data-clear="" onClick={clearSelection} initial={reduced ? { opacity: 0 } : { opacity: 0, scale: .96, filter: blur(motionTokens.blur.soft) }} animate={{ opacity: 1, scale: 1, filter: blur(0) }} exit={reduced ? { opacity: 0, transition: instant } : { opacity: 0, scale: .98, filter: blur(motionTokens.blur.subtle), transition: leave }} transition={reduced ? instant : enter} whileTap={reduced ? undefined : { scale: .97, transition: { duration: motionTokens.duration.instant } }}>{t.clearSelection}</motion.button> : null}</AnimatePresence>
     </div> : null}
     <p className={styles.srOnly} role="status">{announcement}</p>
   </div>;

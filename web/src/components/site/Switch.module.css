@@ -1,0 +1,6 @@
+/* Arc's segmented control on phones: the full width, split evenly (unlayered, like Arc's own styles) */
+@media (max-width: 700px) {
+  .fill { width: 100%; }
+  .fill > * { flex: 1 1 auto; }
+  .fill button { flex: 1 1 0; }
+}

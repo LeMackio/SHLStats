@@ -16,7 +16,7 @@
 /* Plot, right-hand value axis, and the date axis beneath. */
 .chart { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 48px; grid-template-rows: auto 26px; min-width: 0; }
 .plot { position: relative; grid-area: 1 / 1; min-width: 0; outline: none; touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
-.svg { display: block; overflow: visible; }
+.svg { display: block; overflow: visible; height: 100%; } /* SHLstats addition: the plot's height, whatever a page's own svg rules say */
 .grid { stroke: var(--border); stroke-width: 1; shape-rendering: crispEdges; }
 .baseline { stroke: var(--border-strong); stroke-width: 1; shape-rendering: crispEdges; }
 .crosshair { stroke: var(--border-strong); stroke-width: 1; shape-rendering: crispEdges; opacity: 0; transition: opacity var(--duration-instant) var(--ease-standard); }

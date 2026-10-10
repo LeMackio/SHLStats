@@ -47,7 +47,7 @@ export function usePullToRefresh() {
     let y0: number | null = null, x0 = 0, pull = 0, active = false
     const reset = () => { y0 = null; active = false; pull = 0; ind.classList.remove('armed'); ind.style.transform = ''; ind.style.opacity = ''; ind.style.removeProperty('--p') }
     const start = (e: TouchEvent) => {
-      if (!isNarrow() || scrollY > 0 || e.touches.length !== 1 || document.querySelector('dialog[open]') || document.body.classList.contains('search-open')) return
+      if (!isNarrow() || scrollY > 0 || e.touches.length !== 1 || document.querySelector('dialog[open], [role="dialog"]')) return // no pull with a sheet, dialog or the search open
       if ((e.target as Element).closest('.gc-goals, .datetabs, .strip, .tscroll, .chips, input, textarea, select, .smap-stage')) return
       y0 = e.touches[0].clientY; x0 = e.touches[0].clientX
     }

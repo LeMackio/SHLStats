@@ -1,24 +1,22 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
+import { BottomSheet } from '@/components/arc/bottom-sheet/bottom-sheet'
+import { Button } from '@/components/arc/button/button'
+import SegmentedControl from '@/components/arc/segmented-control/segmented-control'
+import { Switch } from '@/components/arc/switch/switch'
 import { useData } from '@/data/context'
 import { pushOff, pushOk, pushPrefs, pushSave, type PushPrefs } from '@/lib/push'
 import { useTheme, type ThemeChoice } from '@/lib/theme'
-import { SlideIndicator } from './SlideIndicator'
+import styles from './SettingsSheet.module.css'
 import { TeamBadge } from './TeamBadge'
 
-const THEME_OPTIONS: [ThemeChoice, string][] = [['dark', 'Mörkt'], ['light', 'Ljust'], ['paper', 'Papper'], ['auto', 'Auto']]
+const THEME_OPTIONS: { value: ThemeChoice; label: string }[] = [
+  { value: 'dark', label: 'Mörkt' }, { value: 'light', label: 'Ljust' }, { value: 'paper', label: 'Papper' }, { value: 'auto', label: 'Auto' },
+]
 
-// Phones: the settings sheet (theme, your team, notifications), opened from the gear on Hem
+// Phones: the settings (theme, your team, notifications) in Arc's bottom sheet, opened from the gear on Hem
 export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const dlg = useRef<HTMLDialogElement>(null)
   const { codes, tName, fav, setFav, stamp } = useData()
   const { choice, setTheme } = useTheme()
-
-  useEffect(() => {
-    const d = dlg.current
-    if (!d) return
-    if (open && !d.open) d.showModal()
-    else if (!open && d.open) d.close()
-  }, [open])
 
   const pickTeam = (code: string | null) => {
     setFav(code)
@@ -26,71 +24,68 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
   }
 
   return (
-    <dialog className="sheet" ref={dlg} aria-label="Inställningar" onClose={onClose} onCancel={(e) => { e.preventDefault(); onClose() }} onClick={(e) => { if (e.target === dlg.current) onClose() }}>
-      {open && (
-        <div className="sheet-in">
-          <div className="sheet-grab" aria-hidden="true" />
-          <div className="sheet-head"><h2>Inställningar</h2><button className="sheet-close" onClick={onClose}>Klar</button></div>
-          <h3>Tema</h3>
-          <div className="seg sheet-seg has-ind">
-            <SlideIndicator kind="pill" active='[aria-pressed="true"]' groupKey="set-theme" dep={choice} />
-            {THEME_OPTIONS.map(([v, l]) => <button key={v} aria-pressed={choice === v} onClick={() => setTheme(v)}>{l}</button>)}
-          </div>
-          <h3>Mitt lag</h3>
-          <div className="set-teams">
-            {[...codes].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => (
-              <button key={c} aria-pressed={fav === c} onClick={() => pickTeam(c)}><TeamBadge code={c} size="md" /><span>{tName(c)}</span></button>
-            ))}
-            <button aria-pressed={!fav} onClick={() => pickTeam(null)}><span className="set-none">–</span><span>Inget lag</span></button>
-          </div>
-          <h3>Notiser</h3>
-          <PushSection team={fav} teamName={fav ? tName(fav) : ''} />
-          <h3>Om SHLstats</h3>
-          <div className="set-about">
-            <p>Uppdaterad {stamp}.</p>
-            <button className="sheet-btn" onClick={() => location.reload()}>Hämta senaste</button>
-            <p>SHLstats är ett fristående fanprojekt utan koppling till SHL. Resultat, statistik, bilder och videor från shl.se. Prognoserna bygger på en egen modell och är inga garantier.</p>
-          </div>
+    <BottomSheet open={open} onOpenChange={(v) => { if (!v) onClose() }} title="Inställningar" closeLabel="Stäng" detents={[0.62, 0.94]}>
+      <section className={styles.group}>
+        <h3 className={styles.heading}>Tema</h3>
+        <SegmentedControl label="Tema" options={THEME_OPTIONS} value={choice} onValueChange={(v) => setTheme(v as ThemeChoice)} />
+      </section>
+      <section className={styles.group}>
+        <h3 className={styles.heading} id="set-team">Mitt lag</h3>
+        <div className={styles.teams} role="radiogroup" aria-labelledby="set-team">
+          {[...codes].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => (
+            <button key={c} className={styles.team} role="radio" aria-checked={fav === c} onClick={() => pickTeam(c)}>
+              <TeamBadge code={c} size="md" /><span>{tName(c)}</span>
+            </button>
+          ))}
+          <button className={styles.team} role="radio" aria-checked={!fav} onClick={() => pickTeam(null)}>
+            <span className={styles.none} aria-hidden="true">–</span><span>Inget lag</span>
+          </button>
         </div>
-      )}
-    </dialog>
+      </section>
+      <section className={styles.group}>
+        <h3 className={styles.heading}>Notiser</h3>
+        <PushSection team={fav} teamName={fav ? tName(fav) : ''} />
+      </section>
+      <section className={styles.group}>
+        <h3 className={styles.heading}>Om SHLstats</h3>
+        <p className={styles.note}>Uppdaterad {stamp}.</p>
+        <Button variant="secondary" onClick={() => location.reload()}>Hämta senaste</Button>
+        <p className={styles.note}>SHLstats är ett fristående fanprojekt utan koppling till SHL. Resultat, statistik, bilder och videor från shl.se. Prognoserna bygger på en egen modell och är inga garantier.</p>
+      </section>
+    </BottomSheet>
   )
 }
 
 function PushSection({ team, teamName }: { team: string | null; teamName: string }) {
   const [prefs, setPrefs] = useState<PushPrefs | null>(pushPrefs)
-  const [note, setNote] = useState('')
+  const [state, setState] = useState<'idle' | 'busy' | 'failed'>('idle')
 
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent)
   const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone
-  let body: React.ReactNode
-  if (note) body = <p className="set-note">{note}</p>
-  else if (ios && !standalone) body = <p className="set-note">På iPhone fungerar notiser när SHLstats ligger på hemskärmen: tryck på Dela, välj Lägg till på hemskärmen, öppna appen därifrån och slå på notiserna här.</p>
-  else if (!pushOk()) body = <p className="set-note">Den här webbläsaren stöder inte notiser.</p>
-  else if (!team) body = <p className="set-note">Välj ett lag ovan så kan du få notiser om lagets matcher.</p>
-  else if (Notification.permission === 'denied') body = <p className="set-note">Notiser är blockerade för SHLstats i telefonens inställningar.</p>
-  else if (!prefs) body = <>
-    <button className="sheet-btn" onClick={() => {
+  if (ios && !standalone) return <p className={styles.note}>På iPhone fungerar notiser när SHLstats ligger på hemskärmen: tryck på Dela, välj Lägg till på hemskärmen, öppna appen därifrån och slå på notiserna här.</p>
+  if (!pushOk()) return <p className={styles.note}>Den här webbläsaren stöder inte notiser.</p>
+  if (!team) return <p className={styles.note}>Välj ett lag ovan så kan du få notiser om lagets matcher.</p>
+  if (Notification.permission === 'denied') return <p className={styles.note}>Notiser är blockerade för SHLstats i telefonens inställningar.</p>
+  if (!prefs) return <>
+    {/* The button confirms in place: it shows its own pending state while the phone asks for permission */}
+    <Button loading={state === 'busy'} onClick={() => {
       const p = { start: true, goals: true, final: true }
-      setNote('Slår på…')
-      pushSave(team, p).then(() => { setPrefs(p); setNote('') }, () => setNote('Det gick inte att slå på notiser. Försök igen om en stund.'))
-    }}>Slå på notiser för {teamName}</button>
-    <p className="set-note">Mål, en påminnelse en timme före nedsläpp och slutresultatet.</p>
+      setState('busy')
+      pushSave(team, p).then(() => { setPrefs(p); setState('idle') }, () => setState('failed'))
+    }}>Slå på notiser för {teamName}</Button>
+    <p className={styles.note}>{state === 'failed' ? 'Det gick inte att slå på notiser. Försök igen om en stund.' : 'Mål, en påminnelse en timme före nedsläpp och slutresultatet.'}</p>
   </>
-  else {
-    const tog = (k: keyof PushPrefs, label: string) => (
-      <label className="set-tog"><span>{label}</span>
-        <input type="checkbox" checked={prefs[k] !== false} onChange={(e) => {
-          const next = { ...prefs, [k]: e.target.checked }
-          setPrefs(next)
-          pushSave(team, next).catch(() => setPrefs(prefs))
-        }} /><i aria-hidden="true" />
-      </label>
-    )
-    body = <>
-      <div className="set-togs">{tog('start', 'Påminnelse före matchen')}{tog('goals', 'Mål')}{tog('final', 'Slutresultat')}</div>
-      <button className="sheet-btn" onClick={() => pushOff().then(() => setPrefs(null))}>Stäng av notiser</button>
-    </>
-  }
-  return <div id="set-push">{body}</div>
+  const toggle = (k: keyof PushPrefs, label: string) => (
+    <div className={styles.toggle}>
+      <Switch label={label} checked={prefs[k] !== false} onCheckedChange={(on) => {
+        const next = { ...prefs, [k]: on }
+        setPrefs(next)
+        pushSave(team, next).catch(() => setPrefs(prefs))
+      }} />
+    </div>
+  )
+  return <>
+    <div className={styles.toggles}>{toggle('start', 'Påminnelse före matchen')}{toggle('goals', 'Mål')}{toggle('final', 'Slutresultat')}</div>
+    <Button variant="secondary" onClick={() => pushOff().then(() => setPrefs(null))}>Stäng av notiser</Button>
+  </>
 }

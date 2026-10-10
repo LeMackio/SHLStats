@@ -1,6 +1,8 @@
 import { FinalPlacing, PointsRange, SpecialTeams, TeamScatter } from '@/components/charts/TeamCharts'
-import { Board, PageHead, RouteTabs, SegLinks, UTabs, type TabDef } from '@/components/site/Layout'
+import SegmentedControl from '@/components/arc/segmented-control/segmented-control'
+import { Board, PageHead, PageSwitch } from '@/components/site/Layout'
 import { Panel } from '@/components/site/Panel'
+import switchStyles from '@/components/site/Switch.module.css'
 import { SortableTable, type Col } from '@/components/site/SortableTable'
 import { Legend, StandingsTable } from '@/components/site/Standings'
 import { TeamBadge } from '@/components/site/TeamBadge'
@@ -10,20 +12,16 @@ import { useKeptState } from '@/lib/pageState'
 import { rankZone } from '@/lib/stats'
 import { useNarrow } from '@/lib/useNarrow'
 
-const TABS: TabDef[] = [{ key: '', label: 'Tabell', icon: 'table' }, { key: 'odds', label: 'Odds', icon: 'trophy' }]
+const TABS = [{ key: '', label: 'Tabell' }, { key: 'odds', label: 'Odds' }]
 
 // Tabell: the table with team stats, and the odds
 export function TabellPage({ tab }: { tab: string }) {
   const { cur } = useData()
-  const narrow = useNarrow()
   const active = tab === 'odds' ? 'odds' : '' // old addresses (#/tabell/lagstatistik …) open the table tab
   return (
     <>
       <PageHead title="Tabell">SHL {cur.replace('-', '/')}. Tryck på ett lag för trupp, schema och odds.</PageHead>
-      {/* Phones: the page's two tabs as a pill toggle (the toggle inside the card is an underlined tab row instead) */}
-      {narrow
-        ? <SegLinks base="/tabell" tabs={TABS} active={active} />
-        : <section className="panel tabs-only"><RouteTabs base="/tabell" tabs={TABS} active={active} /></section>}
+      <PageSwitch base="/tabell" tabs={TABS} active={active} />
       {active === 'odds' ? <OddsTab /> : <TableTab />}
     </>
   )
@@ -71,7 +69,8 @@ function TableTab() {
         // Phones: the compact table first, the wide stats table behind a toggle
         ? <Panel title="Tabell" className="wide">
             <div className="tt">
-              <UTabs id="tabell-tt" className="tt-tabs" pressed value={pane} onChange={setPane} options={[['std', 'Tabell'], ['adv', 'Avancerat']]} />
+              <SegmentedControl className={`tt-switch ${switchStyles.fill}`} label="Visa" value={pane} onValueChange={(v) => setPane(v as 'std' | 'adv')}
+                options={[{ value: 'std', label: 'Tabell' }, { value: 'adv', label: 'Avancerat' }]} />
               <div hidden={pane !== 'std'}><StandingsTable mode="stats" /><Legend /></div>
               <div hidden={pane !== 'adv'}>
                 <SortableTable cols={cols} rows={rows} sortKey="pts" fav={fav} minWidth={860} />

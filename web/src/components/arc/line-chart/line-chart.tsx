@@ -61,7 +61,25 @@ export interface LineChartProps {
   curve?: "smooth" | "linear";
   ref?: Ref<HTMLElement>;
   className?: string;
+  /** SHLstats addition: false lets the value axis start near the lowest value instead of at zero. */
+  fromZero?: boolean;
+  /** SHLstats addition: the locale for the default number formats, and the chart's own texts in that language. */
+  locale?: string;
+  strings?: LineChartStrings;
 }
+
+/** SHLstats addition: the chart's own texts, for another language. */
+export interface LineChartStrings {
+  series?: string;
+  exploreBy?: string;
+  chooseSeries?: string;
+  of?: string;
+  shown?: string;
+  to?: string;
+  latest?: string;
+  loading?: string;
+}
+const englishStrings: Required<LineChartStrings> = { series: "series", exploreBy: "explore by", chooseSeries: "Choose a series to show", of: "of", shown: "series shown", to: "to", latest: "latest", loading: "Loading" };
 
 type Point = [x: number, value: number];
 type Track = { shape: Point[]; presence: number; fade: { stop: () => void } | null };
@@ -78,15 +96,14 @@ const fadeFast = { duration: duration.instant, ease: [...ease.standard] } as con
 /** Room above the top gridline, and the gap between the crosshair and its tooltip. */
 const TOP = 12, GAP = 14;
 const PALETTE = ["var(--accent)", "color-mix(in oklab, var(--foreground) 46%, var(--surface))", "color-mix(in oklab, var(--foreground) 26%, var(--surface))"];
-const grouped = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
-const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
 const colorOf = (series: LineChartSeries, index: number) => series.color ?? PALETTE[Math.min(index, PALETTE.length - 1)];
 const clean = (value: number) => Number(value.toPrecision(12));
 
 /** Clean gridlines: the smallest step of 1, 2, 2.5, or 5 that covers the data in four rows or fewer, from zero unless the data dips below it. */
-function niceScale(low: number, high: number) {
-  const lo = Math.min(0, low), hi = Math.max(high, lo + 1);
+function niceScale(low: number, high: number, fromZero = true) {
+  // SHLstats addition: fromZero false starts the scale near the data (save percentages live between 85 and 95)
+  const lo = fromZero ? Math.min(0, low) : low, hi = Math.max(high, lo + 1);
   const span = hi - lo, magnitude = 10 ** Math.floor(Math.log10(span / 4));
   for (const factor of [1, 2, 2.5, 5, 10]) {
     const step = factor * magnitude, bottom = Math.floor(lo / step) * step, top = Math.ceil(hi / step) * step;
@@ -173,7 +190,10 @@ function axisPicks(data: LineChartDatum[], width: number) {
   return labeled.reverse().filter((_, rank) => rank % stride === 0).reverse();
 }
 
-export function LineChart({ data, series, label, unit = "", height = 220, formatValue, formatTick = value => compact.format(value), hiddenSeries, defaultHiddenSeries, onHiddenSeriesChange, onActiveChange, loading = false, emptyLabel = "No data for this range", legend, categoryLabel = "Date", curve = "smooth", ref, className }: LineChartProps) {
+export function LineChart({ data, series, label, unit = "", height = 220, formatValue, formatTick, hiddenSeries, defaultHiddenSeries, onHiddenSeriesChange, onActiveChange, loading = false, emptyLabel = "No data for this range", legend, categoryLabel = "Date", curve = "smooth", ref, className, fromZero = true, locale = "en-US", strings }: LineChartProps) {
+  const t = { ...englishStrings, ...strings };
+  const numbers = useMemo(() => ({ grouped: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), compact: new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }) }), [locale]);
+  formatTick ??= value => numbers.compact.format(value);
   const reduced = useReducedMotionSafe();
   const figure = useRef<HTMLElement>(null);
   const plot = useRef<HTMLDivElement>(null);
@@ -206,7 +226,7 @@ export function LineChart({ data, series, label, unit = "", height = 220, format
   const targets = useMemo(() => new Map(series.map(line => [line.key, curveFor(data.map(item => item.values[line.key] ?? 0), curve === "smooth")])), [signature]); // eslint-disable-line react-hooks/exhaustive-deps
   let low = Infinity, high = -Infinity;
   for (const line of visible) for (const item of data) { const value = item.values[line.key] ?? 0; low = Math.min(low, value); high = Math.max(high, value); }
-  const range = Number.isFinite(low) ? niceScale(low, high) : null;
+  const range = Number.isFinite(low) ? niceScale(low, high, fromZero) : null;
   const [steady, setSteady] = useState(() => range ?? niceScale(0, 100));
   if (range && (range.min !== steady.min || range.max !== steady.max)) setSteady(range);
   const scale = { min: useMotionValue(steady.min), max: useMotionValue(steady.max) };
@@ -367,23 +387,23 @@ export function LineChart({ data, series, label, unit = "", height = 220, format
   };
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => { if (!empty && (event.pointerType === "mouse" || event.buttons)) setActive(pointAt(event.clientX)); };
 
-  const format = (value: number, line: LineChartSeries) => `${formatValue ? formatValue(value, line) : grouped.format(value)}${unit ? ` ${unit}` : ""}`;
+  const format = (value: number, line: LineChartSeries) => `${formatValue ? formatValue(value, line) : numbers.grouped.format(value)}${unit ? ` ${unit}` : ""}`;
   const reading = index === null ? null : data[index];
-  const valueText = reading ? `${reading.label}: ${visible.map(line => `${line.label} ${format(reading.values[line.key] ?? 0, line)}`).join(", ")}` : empty ? emptyLabel : `${visible.length} of ${series.length} series shown`;
-  const summary = empty ? `${label}. ${emptyLabel}.` : `${label}, ${data[0]!.label} to ${data[last]!.label}. ${visible.map(line => `${line.label}, latest ${format(data[last]!.values[line.key] ?? 0, line)}`).join(". ")}.`;
+  const valueText = reading ? `${reading.label}: ${visible.map(line => `${line.label} ${format(reading.values[line.key] ?? 0, line)}`).join(", ")}` : empty ? emptyLabel : `${visible.length} ${t.of} ${series.length} ${t.shown}`;
+  const summary = empty ? `${label}. ${emptyLabel}.` : `${label}, ${data[0]!.label} ${t.to} ${data[last]!.label}. ${visible.map(line => `${line.label}, ${t.latest} ${format(data[last]!.values[line.key] ?? 0, line)}`).join(". ")}.`;
   const picks = axisPicks(data, plotWidth);
   const allHidden = !empty && visible.length === 0;
   const tipX = reduced ? tipTargetX : tipSpringX, tipY = reduced ? tipTargetY : tipSpringY;
 
   return <figure ref={figure} className={[styles.figure, className].filter(Boolean).join(" ")} aria-label={label} aria-busy={loading || undefined}>
-    {showLegend && <div className={styles.legend} role="group" aria-label={`${label} series`}>
+    {showLegend && <div className={styles.legend} role="group" aria-label={`${label} ${t.series}`}>
       {series.map((line, at) => <button key={line.key} type="button" className={styles.toggle} aria-pressed={!hidden.includes(line.key)} onClick={() => toggle(line.key)} style={{ "--series": colorOf(line, at) } as CSSProperties}>
         <span className={styles.swatch} data-dashed={line.dashed || undefined} aria-hidden="true" />
         <span className={styles.toggleLabel}>{line.label}</span>
       </button>)}
     </div>}
     <div className={styles.chart} data-scrubbing={scrubbing || undefined} data-loading={loading || undefined}>
-      <div ref={plot} className={styles.plot} style={{ height }} role="slider" tabIndex={empty ? -1 : 0} aria-label={`${label}, explore by ${categoryLabel.toLowerCase()}`} aria-orientation="horizontal" aria-valuemin={1} aria-valuemax={Math.max(1, data.length)} aria-valuenow={(index ?? last) + 1} aria-valuetext={valueText}
+      <div ref={plot} className={styles.plot} style={{ height }} role="slider" tabIndex={empty ? -1 : 0} aria-label={`${label}, ${t.exploreBy} ${categoryLabel.toLowerCase()}`} aria-orientation="horizontal" aria-valuemin={1} aria-valuemax={Math.max(1, data.length)} aria-valuenow={(index ?? last) + 1} aria-valuetext={valueText}
         onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={event => { if (event.pointerType !== "mouse") setActive(null); }} onPointerCancel={() => setActive(null)} onPointerLeave={event => { if (event.pointerType === "mouse") setActive(null); }} onKeyDown={onKeyDown} onBlur={() => setActive(null)}
         onFocus={event => { if (event.currentTarget.matches(":focus-visible") && !empty) setActive(current => current ?? last); }}>
         <svg className={styles.svg} width="100%" height={height} aria-hidden="true" focusable="false">
@@ -408,7 +428,7 @@ export function LineChart({ data, series, label, unit = "", height = 220, format
           </p>)}
         </motion.div>
         <AnimatePresence initial={false}>
-          {(empty || allHidden) && !loading && <motion.p key={empty ? "empty" : "hidden"} className={styles.message} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: fadeFast }}>{empty ? emptyLabel : "Choose a series to show"}</motion.p>}
+          {(empty || allHidden) && !loading && <motion.p key={empty ? "empty" : "hidden"} className={styles.message} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: fadeFast }}>{empty ? emptyLabel : t.chooseSeries}</motion.p>}
           {loading && empty && <motion.span key="skeleton" className={styles.skeleton} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: fadeFast }} aria-hidden="true" />}
         </AnimatePresence>
       </div>
@@ -427,7 +447,7 @@ export function LineChart({ data, series, label, unit = "", height = 220, format
       <thead><tr><th scope="col">{categoryLabel}</th>{series.map(line => <th key={line.key} scope="col">{line.label}</th>)}</tr></thead>
       <tbody>{data.map(item => <tr key={item.key}><th scope="row">{item.label}</th>{series.map(line => <td key={line.key}>{format(item.values[line.key] ?? 0, line)}</td>)}</tr>)}</tbody>
     </table>}
-    <p className={styles.srOnly} aria-live="polite" aria-atomic="true">{loading ? "Loading" : ""}</p>
+    <p className={styles.srOnly} aria-live="polite" aria-atomic="true">{loading ? t.loading : ""}</p>
   </figure>;
 }
 

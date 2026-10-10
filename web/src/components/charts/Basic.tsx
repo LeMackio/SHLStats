@@ -1,3 +1,4 @@
+import { LineChart as ArcLineChart, type LineChartStrings } from '@/components/arc/line-chart/line-chart'
 import { useData } from '@/data/context'
 import { oddsTxt } from '@/lib/format'
 import { useChartWidth, useNarrow } from '@/lib/useNarrow'
@@ -40,49 +41,25 @@ export function HBars({ items, max, fmt = (v) => oddsTxt(v), color = () => 'var(
   )
 }
 
-export interface Series { pts: number[]; color: string; area?: boolean }
+export interface Series { pts: number[]; color: string; label: string; area?: boolean }
 
-// Lines over time with a grid, y labels on the left and a few x labels along the bottom
-export function LineChart({ series, W = 640, H = 220, yMax, yMin = 0, yFmt = (v) => v, xLabels = [], pad = { l: 44, r: 16, t: 12, b: 26 } }: {
+const CHART_STRINGS: LineChartStrings = { series: 'serier', exploreBy: 'utforska per', chooseSeries: 'Välj en serie att visa', of: 'av', shown: 'serier visas', to: 'till', latest: 'senast', loading: 'Laddar' }
+
+// Lines over time: Arc's line chart, with a crosshair readout of every series and toggles when there are several.
+// fromZero false lets the axis start near the data (save percentages).
+export function LineChart({ series, label, xLabels, yFmt = (v) => String(v), fromZero = true, category = 'Datum', height = 220 }: {
   series: Series[]
-  W?: number
-  H?: number
-  yMax?: number
-  yMin?: number
-  yFmt?: (v: number) => string | number
-  xLabels?: string[]
-  pad?: { l: number; r: number; t: number; b: number }
+  label: string
+  xLabels: string[]
+  yFmt?: (v: number) => string
+  fromZero?: boolean
+  category?: string
+  height?: number
 }) {
-  const narrow = useNarrow()
-  const w = useChartWidth(W)
-  if (narrow) { H = Math.round(H * Math.max(0.8, w / W)); W = w }
-  const n = Math.max(...series.map((s) => s.pts.length))
-  const top = yMax ?? Math.max(1, ...series.flatMap((s) => s.pts)) * 1.05
-  const x = (i: number) => pad.l + (n <= 1 ? 0 : i / (n - 1)) * (W - pad.l - pad.r)
-  const y = (v: number) => pad.t + (1 - (v - yMin) / (top - yMin || 1)) * (H - pad.t - pad.b)
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((t) => yMin + t * (top - yMin))
-  const step = Math.max(1, Math.ceil(xLabels.length / 7))
+  const data = xLabels.map((x, i) => ({ key: String(i), label: x, axisLabel: x, values: Object.fromEntries(series.map((s, k) => [`s${k}`, s.pts[i]])) }))
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img">
-      {ticks.map((t, i) => (
-        <g key={i}>
-          <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} style={{ stroke: 'var(--line)' }} />
-          <text x={pad.l - 6} y={y(t) + 4} textAnchor="end" fontSize="11" style={{ fill: 'var(--faint)' }}>{yFmt(t)}</text>
-        </g>
-      ))}
-      {xLabels.map((lab, i) => (i % step === 0 || i === xLabels.length - 1)
-        ? <text key={i} x={x(i)} y={H - 6} textAnchor="middle" fontSize="11" style={{ fill: 'var(--faint)' }}>{lab}</text> : null)}
-      {series.map((s, k) => {
-        const d = s.pts.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('')
-        const li = s.pts.length - 1
-        return (
-          <g key={k}>
-            {s.area && <path d={`${d}L${x(li)},${y(yMin)}L${x(0)},${y(yMin)}Z`} style={{ fill: s.color, opacity: 0.12 }} />}
-            <path d={d} style={{ fill: 'none', stroke: s.color }} strokeWidth="2.4" strokeLinejoin="round" />
-            <circle cx={x(li)} cy={y(s.pts[li])} r="4" style={{ fill: s.color }} />
-          </g>
-        )
-      })}
-    </svg>
+    <ArcLineChart data={data} series={series.map((s, k) => ({ key: `s${k}`, label: s.label, color: s.color, area: !!s.area }))}
+      label={label} categoryLabel={category} height={height} fromZero={fromZero} locale="sv-SE" strings={CHART_STRINGS}
+      formatTick={yFmt} formatValue={(v) => yFmt(v)} emptyLabel="Inga värden ännu" />
   )
 }

@@ -1,5 +1,8 @@
 import { Children, useLayoutEffect, useRef, type ReactNode } from 'react'
+import SegmentedControl from '@/components/arc/segmented-control/segmented-control'
+import { go } from '@/lib/router'
 import { Icon } from './Icon'
+import switchStyles from './Switch.module.css'
 import { SlideIndicator } from './SlideIndicator'
 
 export function PageHead({ title, children }: { title: ReactNode; children?: ReactNode }) {
@@ -53,6 +56,16 @@ export function RouteTabs({ base, tabs, active }: { base: string; tabs: TabDef[]
   )
 }
 
+// A page's views (#/tabell, #/tabell/odds …) as Arc's segmented control: full width on phones
+export function PageSwitch({ base, tabs, active, label = 'Visa' }: { base: string; tabs: { key: string; label: string }[]; active: string; label?: string }) {
+  return (
+    <div className="page-switch">
+      <SegmentedControl className={switchStyles.fill} label={label} value={active} onValueChange={(k) => go(`#${base}${k ? '/' + k : ''}`)}
+        options={tabs.map((t) => ({ value: t.key, label: t.label }))} />
+    </div>
+  )
+}
+
 // The same link tabs drawn as a pill toggle (phones)
 export function SegLinks({ base, tabs, active }: { base: string; tabs: TabDef[]; active: string }) {
   return (
@@ -65,38 +78,20 @@ export function SegLinks({ base, tabs, active }: { base: string; tabs: TabDef[];
   )
 }
 
-// A pill toggle of buttons
-export function Seg<T extends string>({ options, value, onChange, className = '', id }: {
+// A pill toggle of buttons: Arc's segmented control (a label that isn't plain text, such as a badge, goes after it)
+export function Seg<T extends string>({ options, value, onChange, className = '', id, label, fill = false }: {
   options: [T, ReactNode][]
   value: T
   onChange: (v: T) => void
   className?: string
   id?: string
+  label?: string
+  fill?: boolean // phones: the full width, split evenly
 }) {
   return (
-    <div className={`seg has-ind ${className}`} id={id}>
-      <SlideIndicator kind="pill" active='[aria-pressed="true"]' groupKey={`seg-${id || className || options.map(([v]) => v).join('|')}`} dep={value} />
-      {options.map(([v, label]) => <button key={v} aria-pressed={v === value} onClick={() => onChange(v)}>{label}</button>)}
-    </div>
-  )
-}
-
-// Underlined tab buttons inside a card (switching what the card shows, not the address)
-export function UTabs<T extends string>({ options, value, onChange, id, className = '', pressed = false }: {
-  options: [T, ReactNode][]
-  value: T
-  onChange: (v: T) => void
-  id: string
-  className?: string
-  pressed?: boolean // aria-pressed toggles drawn as a tab row instead of tabs
-}) {
-  const sel = pressed ? '[aria-pressed="true"]' : '[aria-selected="true"]'
-  return (
-    <div className={`utabs has-ind ${className}`} role={pressed ? undefined : 'tablist'} id={id}>
-      <SlideIndicator kind="line" active={sel} groupKey={id} dep={value} />
-      {options.map(([v, label]) => (
-        <button key={v} role={pressed ? undefined : 'tab'} aria-selected={pressed ? undefined : v === value} aria-pressed={pressed ? v === value : undefined} onClick={() => onChange(v)}>{label}</button>
-      ))}
+    <div className={`seg-wrap ${className}`} id={id}>
+      <SegmentedControl className={fill ? switchStyles.fill : undefined} label={label} value={value} onValueChange={(v) => onChange(v as T)}
+        options={options.map(([v, l]) => (typeof l === 'string' ? { value: v, label: l } : { value: v, label: '', accessory: l }))} />
     </div>
   )
 }

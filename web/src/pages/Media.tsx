@@ -1,5 +1,5 @@
 import { Seg } from '@/components/site/Layout'
-import { Empty, Panel, Skeleton } from '@/components/site/Panel'
+import { Empty, PageState, Skeleton } from '@/components/site/Panel'
 import { ClipCard } from '@/components/site/Pieces'
 import { TeamBadge } from '@/components/site/TeamBadge'
 import { useData } from '@/data/context'
@@ -12,7 +12,7 @@ import type { GoalClip, MediaData } from '@/lib/types'
 export function MediaPage({ range }: { range: string }) {
   const M = useFile(mediaFile)
   if (M.state === 'loading') return <Skeleton />
-  if (M.state === 'error') return <Panel title="Media"><Empty>Videorna kunde inte laddas. Försök igen om en stund.</Empty></Panel>
+  if (M.state === 'error') return <PageState title="Videorna kunde inte laddas" description="Försök igen om en stund." />
   return <Media M={M.data} want={range} />
 }
 
@@ -46,7 +46,7 @@ function Media({ M, want }: { M: MediaData; want: string }) {
 
   return (
     <>
-      <Seg className="media-tabs" id="media-range" value={range} onChange={(r) => go(r === 'vecka' ? '#/media' : `#/media/${r}`)}
+      <Seg className="media-tabs" id="media-range" fill label="Visa" value={range} onChange={(r) => go(r === 'vecka' ? '#/media' : `#/media/${r}`)}
         options={[['dag', 'Matchdagen'], ['vecka', 'Veckan'], ...(fav ? [['lag', <><TeamBadge code={fav} />{fav}</>] as ['lag', React.ReactNode]] : [])]} />
       {best.length > 0 && <>
         <div className="m-sec"><h2>{bestTitle}</h2><p>Svåra lägen och stora ögonblick, högst två mål per match.</p></div>

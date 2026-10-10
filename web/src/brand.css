@@ -1,0 +1,126 @@
+/* SHLstats on Arc. Arc's foundation (components/arc/foundation.css) brings the spacing, radii, type scale, motion
+   and keyboard focus ring; this layer, which comes after the site's own stylesheet, points Arc's semantic colours at
+   the site's theme tokens. Those already change with every theme (dark, light, paper, or the device's own setting)
+   and screen size, so Arc components match the page in all of them, with the SHLstats blue as the accent. */
+
+:root {
+  /* Arc's type: Inter for body and labels, Geist for large figures in Arc components */
+  --font-inter: "Inter";
+  --font-geist: "Geist";
+
+  /* Surfaces, text and lines */
+  --background: var(--bg);
+  --surface: var(--panel);
+  --surface-raised: var(--panel);
+  --surface-muted: var(--panel-2);
+  --foreground: var(--text);
+  --text-secondary: var(--muted);
+  --text-muted: var(--faint);
+  --border: var(--line);
+  --border-subtle: color-mix(in oklab, var(--line) 60%, transparent);
+  --border-strong: color-mix(in oklab, var(--text) 28%, var(--line));
+
+  /* The accent: the site's blue, with Arc's stronger and tinted variants derived from it */
+  --accent-strong: color-mix(in oklab, var(--accent) 72%, var(--text));
+  --accent-subtle: color-mix(in oklab, var(--accent) 16%, transparent);
+  --accent-foreground: var(--accent-ink);
+
+  /* Selection controls: the accent when on, a track drawn from the text colour so it reads on every theme */
+  --control-on: var(--accent);
+  --control-glyph: var(--accent-ink);
+  --control-fill: var(--accent);
+  --control-track: color-mix(in oklab, var(--text) 18%, var(--panel));
+  --control-track-hover: color-mix(in oklab, var(--text) 24%, var(--panel));
+  --control-thumb: #fff;
+  --control-thumb-on: #fff;
+
+  /* Status keeps the site's own meanings */
+  --success: var(--good);
+  --warning: var(--gold);
+  --danger: var(--bad);
+
+  /* The site's own font and corner tokens, used by its existing stylesheet: Inter for text, and Arc's softer
+     corners (the condensed italic "Archivo" for the logo, names and scores is set where it's used, so it stays) */
+  --body: var(--font-body);
+  --display: var(--font-body);
+  --radius: var(--radius-control);
+  --r-in: .75rem;
+  --r-sm: .5rem;
+}
+
+/* Arc's dark values for shadows and controls, for the device-chosen dark theme too (Arc only knows data-theme="dark") */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --shadow-resting: 0 1px 2px oklch(0% 0 0 / .18);
+    --shadow-raised: 0 8px 22px oklch(0% 0 0 / .22);
+    --shadow-floating: 0 22px 55px oklch(0% 0 0 / .34);
+    --control-thumb-shadow: 0 0 0 .5px oklch(0% 0 0 / .3), 0 1px 2px oklch(0% 0 0 / .35), 0 2px 6px oklch(0% 0 0 / .2);
+  }
+}
+
+body {
+  font-family: var(--font-body);
+  letter-spacing: var(--tracking-body);
+  font-feature-settings: "cv11", "ss01"; /* Inter's single-storey a and open digits read better in dense tables */
+}
+
+/* Cards rest on a hairline border, no shadow (Arc: shadows only on layers that float) */
+:root { --card-shadow: none; --shadow: none; }
+.panel { border: 1px solid var(--border); box-shadow: none; }
+
+/* Numbers that change or line up in columns */
+table.t, .num, .score, .tile .v, .lfeat-val { font-variant-numeric: tabular-nums; }
+
+/* A page's views (Arc's segmented control; its phone width is in Switch.module.css) */
+.page-switch { display: flex; }
+.tt-switch { margin-bottom: var(--space-3); }
+/* A switch straight inside a card lines up with the card's heading and body */
+.panel > .seg-wrap { padding: 0 var(--panel-x, 22px); }
+@media (max-width: 700px) { .panel > .seg-wrap { --panel-x: 16px; } }
+/* Toggles that once laid out their own buttons as a grid now hold one Arc control */
+@media (max-width: 700px) { .seg-wrap.stat-tabs, .seg-wrap.media-tabs { display: block; } }
+
+/* Plain tables (fixed order: standings, odds, squads, careers) drawn like Arc's sortable table: sentence-case muted
+   headers, roomy rows on hairlines, a soft hover, and your team tinted with an accent edge */
+table.t th {
+  height: 44px; padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); vertical-align: middle;
+  font: 500 var(--text-sm)/1.2 var(--font-body); letter-spacing: var(--tracking-body); text-transform: none; color: var(--text-muted);
+}
+table.t th small { font: 400 var(--text-xs)/1.2 var(--font-body); letter-spacing: var(--tracking-body); color: var(--text-muted); opacity: .8; }
+table.t td { height: 52px; padding: 0 var(--space-2); border-top: 1px solid var(--border-subtle); font-size: var(--text-sm); color: var(--foreground); }
+table.t tbody tr:first-child td { border-top: 0; }
+table.t td b { font-weight: 500; }
+table.t tr.cut td { border-top: 1px solid var(--border-strong); }
+table.t tbody tr:hover td { background: color-mix(in oklab, var(--foreground) 3%, transparent); }
+table.t tr.fav td { background: color-mix(in oklab, var(--accent) 12%, var(--surface)); }
+table.t tr.fav td:first-child { box-shadow: inset 3px 0 var(--accent); }
+table.t .rank { font: 500 var(--text-sm) var(--font-body); }
+table.t .odds span { min-width: 48px; padding: 3px 8px; border-radius: 999px; font-weight: 500; font-size: var(--text-xs); }
+@media (max-width: 700px) {
+  table.t td { height: 44px; font-size: var(--text-sm); padding: 0 6px; }
+  table.t th { padding: var(--space-1) 6px; }
+}
+
+/* Small labels, buttons and links in sentence case (Arc: no small capitals or tracked-out labels). Names, team names,
+   scores and the big headings keep the condensed uppercase identity. */
+.up, .s-date b, .s-status, .crumbs, .field, .chip, .tile .k, .leader .lbl, .more, .ltile h3, .pc-war .lbl, .day h3,
+.gr-day, .gr-st, .mscore .st, .timeline h4, .cmp-row .lbl, .line .lab, .playbtn, .favlink, .mini-lbl, .strip-today,
+details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .btn, .mday-stats span, .lfeat-lbl,
+.nslide-meta, .live-badge, .live-nums .k, .recap h3, .rx-win, .rm-tag, .tn-meta, .rk-lbl, .sm-zones h3, .smd-k, .gc-top,
+.gc-foot span:last-child, .sheet-in h3, .card-foot, .list-foot, .gc-mine, .gc-lbl, .mt-lbl, .mt-g-d, .mh-side,
+.phero-team, .phero-season, .ol-k, .wc-mid span, .lu-lab, .pc-team, .mts-lbl, .mts-k, .mts-odds span, .mts-d, .gl-per,
+.fd-sides, .fd-stats span, .wp-team small, .ref-first.ref-kicker, .pk-k, .tf-date, .beta-note span, .ps-tiles span,
+.ps-rh, .pg-d, .p-head .more-link, .tabs a, nav.main a, .datetabs a b, .stamp.up {
+  text-transform: none; letter-spacing: var(--tracking-body); font-weight: 500;
+}
+
+/* Short "nothing here yet" notes inside cards (whole-page states use Arc's EmptyState) */
+.empty-state { padding: var(--space-6) var(--space-4); color: var(--text-muted); font-size: var(--text-sm); text-wrap: balance; }
+
+/* Schedule day headings: "Tor 8 okt 2026" */
+.day h3 { margin: var(--space-2) 0 var(--space-1); font-size: var(--text-sm); color: var(--text-secondary); }
+.day h3::first-letter { text-transform: uppercase; }
+
+/* Team and player names in tables are text, not headings: Arc's medium weight at a reading size */
+.teamcell .nm b { font: 500 15px/1.2 var(--font-body); letter-spacing: var(--tracking-body); }
+.pcell a { font-weight: 500; }

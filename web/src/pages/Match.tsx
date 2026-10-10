@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { FeedCard } from '@/components/match/Feed'
 import { Cmp, CmpRow, GoalList, MatchEvents, MatchPlayers, MatchVideo, Momentum, Recap, TeamCompare, WinChart } from '@/components/match/MatchParts'
 import { Board, RouteTabs, type TabDef } from '@/components/site/Layout'
-import { Empty, Panel, Skeleton } from '@/components/site/Panel'
+import { Empty, PageState, Panel, Skeleton } from '@/components/site/Panel'
 import { FormChips, LineupGrid } from '@/components/site/Pieces'
 import { Avatar, PlayerLink, TeamBadge, TeamLink } from '@/components/site/TeamBadge'
 import { TeamToggle } from '@/components/site/TeamToggle'
@@ -84,7 +84,7 @@ function Match({ g, want }: { g: Game; want: string }) {
 
   let body: ReactNode
   if (done || live) {
-    if (!d) body = <Panel title="Matchfakta"><Empty>Detaljerad matchdata finns inte för den här matchen ännu. Den hämtas vid nästa uppdatering.</Empty></Panel>
+    if (!d) body = <PageState icon="later" title="Ingen matchdata ännu" description="Detaljerad matchdata hämtas vid nästa uppdatering." />
     else body = tab === 'video' ? <MatchVideo d={d} /> : tab === 'spelare' ? <MatchPlayers d={d} official={official} /> : tab === 'skott' ? <MatchEvents d={d} /> : <Summary d={d} done={done} />
   } else body = tab === 'uppstallning' ? <LineupTab g={g} official={official} /> : <Preview g={g} />
 

@@ -9,7 +9,14 @@ import { motionTokens } from "../lib/motion-tokens";
 import styles from "./command-palette.module.css";
 
 export interface CommandItem { id: string; label: string; description?: string; group?: string; keywords?: string[]; icon?: ReactNode; shortcut?: string; }
-export interface CommandPaletteProps { items: CommandItem[]; placeholder?: string; onSelect?: (item: CommandItem) => void; onClose?: () => void; label?: string; /** Focus the search field on mount, for a palette that opens on demand. */ autoFocus?: boolean; }
+export interface CommandPaletteStrings { results?: string; clear?: string; close?: string; shortcut?: string; emptyTitle?: string; emptyHint?: string; }
+export interface CommandPaletteProps {
+  items: CommandItem[]; placeholder?: string; onSelect?: (item: CommandItem) => void; onClose?: () => void; label?: string; /** Focus the search field on mount, for a palette that opens on demand. */ autoFocus?: boolean;
+  /** SHLstats addition: your own search over the items (for example ranked and capped), instead of the built-in substring filter. */
+  search?: (items: CommandItem[], query: string) => CommandItem[];
+  /** SHLstats addition: the palette's own words, for a site in another language. */
+  strings?: CommandPaletteStrings;
+}
 
 const enter: Transition = { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] };
 const leave: Transition = { duration: motionTokens.duration.instant, ease: [...motionTokens.ease.standard] };
@@ -17,7 +24,7 @@ const GLIDE_ROWS = 6;
 /** Rows fade out while the rest glide into their place; when the list snaps they leave at once so nothing overlaps the new rows. */
 const rowExit: Variants = { exit: (glide: boolean) => ({ opacity: 0, transition: glide ? leave : { duration: 0 } }) };
 
-export function CommandPalette({ items, placeholder = "Search commands", onSelect, onClose, label = "Command palette", autoFocus = false }: CommandPaletteProps) {
+export function CommandPalette({ items, placeholder = "Search commands", onSelect, onClose, label = "Command palette", autoFocus = false, search, strings = {} }: CommandPaletteProps) {
   const inputId = useId();
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -32,10 +39,11 @@ export function CommandPalette({ items, placeholder = "Search commands", onSelec
   const highlightHeight = useMotionValue(0);
   const highlightOpacity = useMotionValue(0);
   const filtered = useMemo(() => {
+    if (search) return search(items, query);
     const normalized = query.trim().toLowerCase();
     if (!normalized) return items;
     return items.filter(item => [item.label, item.description, item.group, ...(item.keywords ?? [])].filter(Boolean).join(" ").toLowerCase().includes(normalized));
-  }, [items, query]);
+  }, [items, query, search]);
   const groupedItems = useMemo(() => {
     const grouped = new Map<string, Array<{ item: CommandItem; index: number }>>();
     filtered.forEach((item, index) => {
@@ -133,13 +141,13 @@ export function CommandPalette({ items, placeholder = "Search commands", onSelec
       <label className={styles.visuallyHidden} htmlFor={inputId}>{label}</label>
       <input ref={inputRef} id={inputId} role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls={`${inputId}-results`} aria-activedescendant={activeId ? `${inputId}-${activeId}` : undefined} value={query} onChange={event => { setQuery(event.target.value); setActiveIndex(null); }} onKeyDown={handleKeyDown} placeholder={placeholder} autoComplete="off"/>
       <AnimatePresence mode="popLayout" initial={false}>
-        {query ? <motion.button key="clear" className={styles.clearButton} type="button" aria-label="Clear search" onClick={() => { setQuery(""); setActiveIndex(null); inputRef.current?.focus(); }} initial={reduced ? false : { opacity: 0, scale: .6, filter: `blur(${motionTokens.blur.subtle}px)` }} animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }} exit={reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, scale: .6, filter: `blur(${motionTokens.blur.subtle}px)`, transition: leave }} transition={reduced ? { duration: 0 } : { default: motionTokens.spring.snappy, opacity: { duration: motionTokens.duration.instant } }}><X width={15} height={15} aria-hidden="true"/></motion.button> : null}
+        {query ? <motion.button key="clear" className={styles.clearButton} type="button" aria-label={strings.clear ?? "Clear search"} onClick={() => { setQuery(""); setActiveIndex(null); inputRef.current?.focus(); }} initial={reduced ? false : { opacity: 0, scale: .6, filter: `blur(${motionTokens.blur.subtle}px)` }} animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }} exit={reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, scale: .6, filter: `blur(${motionTokens.blur.subtle}px)`, transition: leave }} transition={reduced ? { duration: 0 } : { default: motionTokens.spring.snappy, opacity: { duration: motionTokens.duration.instant } }}><X width={15} height={15} aria-hidden="true"/></motion.button> : null}
       </AnimatePresence>
-      {onClose ? <button className={styles.closeButton} type="button" aria-label="Close command palette" onClick={onClose}>Esc</button> : null}
-      <kbd className={styles.commandKey}>⌘ K</kbd>
+      {onClose ? <button className={styles.closeButton} type="button" aria-label={strings.close ?? "Close command palette"} onClick={onClose}>Esc</button> : null}
+      <kbd className={styles.commandKey}>{strings.shortcut ?? "⌘ K"}</kbd>
     </div>
     <motion.div className={styles.resultsFrame} initial={false} animate={{ height: listHeight }} transition={reduced ? { duration: 0 } : motionTokens.spring.smooth}>
-      <motion.div ref={listRef} layoutScroll id={`${inputId}-results`} className={styles.results} role="listbox" aria-label="Command results">
+      <motion.div ref={listRef} layoutScroll id={`${inputId}-results`} className={styles.results} role="listbox" aria-label={strings.results ?? "Command results"}>
         <motion.span className={styles.highlight} style={{ y: highlightY, height: highlightHeight, opacity: highlightOpacity }} aria-hidden="true"/>
         {/* Results leave before the empty state arrives, so the frame makes one height change instead of two. */}
         <AnimatePresence mode="wait" initial={false}>
@@ -156,7 +164,7 @@ export function CommandPalette({ items, placeholder = "Search commands", onSelec
                 }} variants={rowExit} initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit="exit" transition={reduced ? { duration: 0 } : { default: enter, layout: motionTokens.spring.smooth }}><span className={styles.itemIcon} aria-hidden="true">{item.icon ?? <CommandIcon width={16} height={16}/>}</span><span className={styles.resultCopy}><strong>{item.label}</strong>{item.description && <small>{item.description}</small>}</span>{item.shortcut && <kbd className={styles.shortcut}>{item.shortcut}</kbd>}</motion.button>)}</AnimatePresence>
               </motion.div>)}
             </AnimatePresence>
-          </motion.div> : <motion.div key="empty" className={styles.empty} initial={reduced ? false : { opacity: 0, y: 6, filter: `blur(${motionTokens.blur.subtle}px)` }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} exit={reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: -4, transition: leave }} transition={enter}><span><Search width={20} height={20} aria-hidden="true"/></span><strong>No matching actions</strong><small>Try a different word or clear the search.</small></motion.div>}
+          </motion.div> : <motion.div key="empty" className={styles.empty} initial={reduced ? false : { opacity: 0, y: 6, filter: `blur(${motionTokens.blur.subtle}px)` }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} exit={reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: -4, transition: leave }} transition={enter}><span><Search width={20} height={20} aria-hidden="true"/></span><strong>{strings.emptyTitle ?? "No matching actions"}</strong><small>{strings.emptyHint ?? "Try a different word or clear the search."}</small></motion.div>}
         </AnimatePresence>
       </motion.div>
     </motion.div>

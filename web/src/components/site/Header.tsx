@@ -4,7 +4,8 @@ import { usePageName } from '@/lib/pageTitle'
 import { navKey, segOf, TITLES } from '@/lib/router'
 import { THEMES, useTheme, type ThemeName } from '@/lib/theme'
 import { Icon } from './Icon'
-import { Search } from './Search'
+import { Search as SearchIcon } from 'lucide-react'
+import searchStyles from './SearchPalette.module.css'
 import { SlideIndicator } from './SlideIndicator'
 import { TeamBadge } from './TeamBadge'
 
@@ -22,10 +23,9 @@ const THEME_ICON: Record<ThemeName, ReactNode> = {
 }
 const THEME_LABEL: Record<ThemeName, [string, string]> = { dark: ['Mörkt', 'Mörkt tema'], light: ['Ljust', 'Ljust tema'], paper: ['Papper', 'Papperstema'] }
 
-export function Header({ path, searchOpen, setSearchOpen, onSettings }: {
+export function Header({ path, onSearch, onSettings }: {
   path: string
-  searchOpen: boolean
-  setSearchOpen: (v: boolean) => void
+  onSearch: () => void
   onSettings: () => void
 }) {
   const seg = segOf(path), active = navKey(seg), pageName = usePageName(path, { phone: true })
@@ -54,7 +54,10 @@ export function Header({ path, searchOpen, setSearchOpen, onSettings }: {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3.2" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.54 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9c.26.6.85 1 1.51 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03z" /></svg>
           </button>
           <FavLink />
-          <Search open={searchOpen} setOpen={setSearchOpen} />
+          {/* Opens the search palette (also ⌘K, Ctrl K or "/") */}
+          <button className={searchStyles.trigger} onClick={onSearch} aria-label="Sök spelare, lag eller sida" aria-keyshortcuts="Control+K Meta+K /">
+            <SearchIcon size={16} strokeWidth={1.75} aria-hidden="true" /><span className={searchStyles.triggerLabel}>Sök</span><kbd className={searchStyles.triggerKey}>⌘K</kbd>
+          </button>
           <ThemeMenu />
         </div>
       </div>
