@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Field, FieldSelect } from '@/components/site/Field'
+import { Select } from '@/components/arc/select/select'
+import filters from '@/components/site/Filters.module.css'
 import { GameCard, GameRow } from '@/components/site/Games'
-import { PageHead, RouteTabs } from '@/components/site/Layout'
+import { PageHead, PageSwitch } from '@/components/site/Layout'
 import { Empty, Panel, Skeleton } from '@/components/site/Panel'
 import { useData } from '@/data/context'
 import { detailsFor, hasGame, loadGame } from '@/data/games'
@@ -31,15 +32,15 @@ function GamesList({ view }: { view: string }) {
     return [...m]
   }, [games, team, view])
 
-  const teamOptions: [string, string][] = [['ALL', 'Alla lag'], ...[...codes].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => [c, `${tName(c)}${c === fav ? ' (mitt lag)' : ''}`] as [string, string])]
+  const teamOptions = [{ value: 'ALL', label: 'Alla lag' }, ...[...codes].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => ({ value: c, label: `${tName(c)}${c === fav ? ' (mitt lag)' : ''}` }))]
   return (
     <>
       <PageHead title="Matcher & resultat">Hela grundseriens spelschema {cur.replace('-', '/')} med resultat, målvideor och vinstchanser.</PageHead>
+      <PageSwitch base="/matcher" active={view === 'kommande' ? '' : view}
+        tabs={[{ key: '', label: 'Kommande' }, { key: 'spelade', label: 'Spelade' }, { key: 'alla', label: 'Alla' }]} />
       <section className="panel">
-        <RouteTabs base="/matcher" active={view === 'kommande' ? '' : view}
-          tabs={[{ key: '', label: 'Kommande', icon: 'clock' }, { key: 'spelade', label: 'Spelade' }, { key: 'alla', label: 'Alla' }]} />
-        <div className="p-body" style={{ paddingTop: 16 }}>
-          <div className="controls"><Field label="Lag"><FieldSelect label="Lag" value={team} onChange={setTeam} options={teamOptions} /></Field></div>
+        <div className="p-body" style={{ paddingTop: 20 }}>
+          <div className={filters.filters}><Select label="Lag" value={team} onValueChange={setTeam} options={teamOptions} /></div>
           <div id="glist" style={{ display: 'grid', gap: 16 }}>
             {byDate.length ? byDate.map(([d, gs]) => (
               <div className="day" key={d}><h3>{fmtDay(d)} {dateParts(d).y}</h3>{gs.map((g) => <GameRow key={g.id} g={g} />)}</div>
@@ -108,7 +109,7 @@ function DayPage({ want }: { want: string }) {
           const p = dateParts(dd), l = dayLabel(dd)
           return (
             <a key={dd} href={`#/matcher/${dd}`} className={[dd === day && 'on', l === 'Idag' && 'today'].filter(Boolean).join(' ') || undefined} aria-current={dd === day ? 'page' : undefined}>
-              <b>{DAYS[p.wd]}</b><span>{p.d} {MONTHS[p.m - 1]}</span>
+              <b>{DAYS[p.wd][0].toUpperCase() + DAYS[p.wd].slice(1)}</b><span>{p.d} {MONTHS[p.m - 1]}</span>
             </a>
           )
         })}

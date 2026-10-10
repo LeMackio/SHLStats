@@ -114,6 +114,10 @@ details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .b
   text-transform: none; letter-spacing: var(--tracking-body); font-weight: 500;
 }
 
+/* Schedule day headings: "Tor 8 okt 2026" */
+.day h3 { margin: var(--space-2) 0 var(--space-1); font-size: var(--text-sm); color: var(--text-secondary); }
+.day h3::first-letter { text-transform: uppercase; }
+
 /* Team and player names in tables are text, not headings: Arc's medium weight at a reading size */
 .teamcell .nm b { font: 500 15px/1.2 var(--font-body); letter-spacing: var(--tracking-body); }
 .pcell a { font-weight: 500; }
