@@ -119,7 +119,7 @@ function Player({ P, id, want }: { P: PlayersData; id: string; want: string }) {
       const pts = log.reduce<number[]>((acc, r) => [...acc, (acc[acc.length - 1] ?? 0) + n(r[4]) + n(r[5])], [])
       trend = (
         <Panel title="Poängutveckling" sub={`Ackumulerade poäng ${cur}.`}>
-          <div className="chart"><LineChart series={[{ pts, color: 'var(--accent)', area: true }]} yFmt={(v) => Math.round(v)}
+          <div className="chart"><LineChart label="Poängutveckling" category="Match" series={[{ pts, color: 'var(--accent)', area: true, label: 'Poäng' }]} yFmt={(v) => String(Math.round(v))}
             xLabels={log.map((r) => { const g = gamesById[r[0] as string]; return g ? `${dateParts(g.start).d}/${dateParts(g.start).m}` : '' })} /></div>
         </Panel>
       )
@@ -302,8 +302,8 @@ function Career({ rows, gk }: { rows: Row[]; gk: boolean }) {
         <Panel title={gk ? 'Räddningsprocent per säsong' : 'Poäng per säsong'} sub={gk ? 'Säsonger med färre än 10 matcher säger mindre.' : 'Grundserien, äldst överst.'}>
           <div className="chart">
             {gk
-              ? <LineChart series={[{ pts: chrono.map((r) => Math.max(80, n(r[5]))), color: 'var(--accent)' }]} xLabels={chrono.map((r) => r[0] as string)} yFmt={(v) => dec(v, 1)}
-                  yMin={Math.max(80, Math.floor(Math.min(...chrono.map((r) => n(r[5]) || 100)) - 1))} yMax={Math.min(100, Math.ceil(Math.max(...chrono.map((r) => n(r[5]))) + 1))} />
+              ? <LineChart label="Räddningsprocent per säsong" category="Säsong" fromZero={false} yFmt={(v) => dec(v, 1)} xLabels={chrono.map((r) => r[0] as string)}
+                  series={[{ pts: chrono.map((r) => Math.max(80, n(r[5]))), color: 'var(--accent)', label: 'Rädd%' }]} />
               : <HBars items={chrono.map((r) => ({ label: `${r[0]} ${r[1]}`, v: n(r[5]) }))} fmt={(v) => v} labelW={110} />}
           </div>
         </Panel>
