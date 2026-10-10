@@ -1,5 +1,8 @@
 import { Children, useLayoutEffect, useRef, type ReactNode } from 'react'
+import SegmentedControl from '@/components/arc/segmented-control/segmented-control'
+import { go } from '@/lib/router'
 import { Icon } from './Icon'
+import switchStyles from './Switch.module.css'
 import { SlideIndicator } from './SlideIndicator'
 
 export function PageHead({ title, children }: { title: ReactNode; children?: ReactNode }) {
@@ -50,6 +53,16 @@ export function RouteTabs({ base, tabs, active }: { base: string; tabs: TabDef[]
         </a>
       ))}
     </nav>
+  )
+}
+
+// A page's views (#/tabell, #/tabell/odds …) as Arc's segmented control: full width on phones
+export function PageSwitch({ base, tabs, active, label = 'Visa' }: { base: string; tabs: { key: string; label: string }[]; active: string; label?: string }) {
+  return (
+    <div className="page-switch">
+      <SegmentedControl className={switchStyles.fill} label={label} value={active} onValueChange={(k) => go(`#${base}${k ? '/' + k : ''}`)}
+        options={tabs.map((t) => ({ value: t.key, label: t.label }))} />
+    </div>
   )
 }
 

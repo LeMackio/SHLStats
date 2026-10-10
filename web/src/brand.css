@@ -70,3 +70,11 @@ body {
 
 /* Numbers that change or line up in columns */
 table.t, .num, .score, .tile .v, .lfeat-val { font-variant-numeric: tabular-nums; }
+
+/* A page's views (Arc's segmented control; its phone width is in Switch.module.css) */
+.page-switch { display: flex; }
+.tt-switch { margin-bottom: var(--space-3); }
+
+/* Team and player names in tables are text, not headings: Arc's medium weight at a reading size */
+.teamcell .nm b { font: 500 15px/1.2 var(--font-body); letter-spacing: var(--tracking-body); }
+.pcell a { font-weight: 500; }
