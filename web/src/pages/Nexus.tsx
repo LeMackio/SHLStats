@@ -4,7 +4,7 @@ import { CountUp } from '@/components/site/CountUp'
 import { Icon } from '@/components/site/Icon'
 import { PageHead, Seg } from '@/components/site/Layout'
 import { LeaderSection, type LeaderSectionDef } from '@/components/site/Leaders'
-import { Empty, Panel, Skeleton } from '@/components/site/Panel'
+import { Empty, PageState, Panel, Skeleton } from '@/components/site/Panel'
 import { PickSearch } from '@/components/site/PickSearch'
 import { PlayerCard } from '@/components/site/Pieces'
 import { Portrait } from '@/components/site/Portrait'
@@ -47,7 +47,7 @@ const pp = (x: number) => (x > 0 ? '+' : '') + dec(x, 1)
 
 export function NexusPage() {
   const { e, failed } = useEdge()
-  if (failed) return <Panel title="Nexus"><Empty>Datan kunde inte laddas. Försök igen om en stund.</Empty></Panel>
+  if (failed) return <PageState title="Nexus kunde inte laddas" description="Försök igen om en stund." />
   if (!e) return <Skeleton />
   return <Nexus E={e} />
 }

@@ -114,6 +114,9 @@ details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .b
   text-transform: none; letter-spacing: var(--tracking-body); font-weight: 500;
 }
 
+/* Short "nothing here yet" notes inside cards (whole-page states use Arc's EmptyState) */
+.empty-state { padding: var(--space-6) var(--space-4); color: var(--text-muted); font-size: var(--text-sm); text-wrap: balance; }
+
 /* Schedule day headings: "Tor 8 okt 2026" */
 .day h3 { margin: var(--space-2) 0 var(--space-1); font-size: var(--text-sm); color: var(--text-secondary); }
 .day h3::first-letter { text-transform: uppercase; }

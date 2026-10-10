@@ -1,5 +1,5 @@
 import { Seg } from '@/components/site/Layout'
-import { Empty, Panel, Skeleton } from '@/components/site/Panel'
+import { Empty, PageState, Skeleton } from '@/components/site/Panel'
 import { ClipCard } from '@/components/site/Pieces'
 import { TeamBadge } from '@/components/site/TeamBadge'
 import { useData } from '@/data/context'
@@ -12,7 +12,7 @@ import type { GoalClip, MediaData } from '@/lib/types'
 export function MediaPage({ range }: { range: string }) {
   const M = useFile(mediaFile)
   if (M.state === 'loading') return <Skeleton />
-  if (M.state === 'error') return <Panel title="Media"><Empty>Videorna kunde inte laddas. Försök igen om en stund.</Empty></Panel>
+  if (M.state === 'error') return <PageState title="Videorna kunde inte laddas" description="Försök igen om en stund." />
   return <Media M={M.data} want={range} />
 }
 
