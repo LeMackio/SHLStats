@@ -335,7 +335,7 @@ function Roster({ code }: { code: string }) {
   }
   return (
     <Board>
-      <Panel title="Projicerad uppställning" className="wide"><LineupGrid L={core.lineups[code]} code={code} /></Panel>
+      <Panel title="Projicerad uppställning" className="wide"><LineupGrid L={core.lineups[code]} code={code} absent /></Panel>
       {group('F', 'Forwards')}{group('D', 'Backar')}{group('GK', 'Målvakter')}
     </Board>
   )

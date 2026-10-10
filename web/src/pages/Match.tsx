@@ -72,7 +72,8 @@ function Match({ g, want }: { g: Game; want: string }) {
       { key: 'video', label: 'Video', count: d ? d.goals.filter((x) => x.clip).length + (d.hl ? 1 : 0) || '' : '' }]
     : [{ key: '', label: 'Preview' }, { key: 'uppstallning', label: 'Uppställningar' }]
   const tab = tabs.some((t) => t.key === want) ? want : ''
-  const meta = [`${fmtDay(g.start)} ${dateParts(g.start).y}, ${fmtTime(g.start)}`, d?.arena || g.arena, d?.att ? `Publik ${d.att.toLocaleString('sv-SE')}` : ''].filter(Boolean) as string[]
+  // A coming game shows its day and time in the header already, so the line below only has the arena
+  const meta = [done || live ? `${fmtDay(g.start)} ${dateParts(g.start).y}, ${fmtTime(g.start)}` : '', d?.arena || g.arena, d?.att ? `Publik ${d.att.toLocaleString('sv-SE')}` : ''].filter(Boolean) as string[]
   const [hc, ac] = pairColors(g.home, g.away)
   const rec = (c: string) => {
     const i = core.standings.findIndex((t) => t.code === c)
@@ -138,8 +139,8 @@ function LineupTab({ g, official }: { g: Game; official: { home: import('@/lib/t
     <Board>
       <Panel title={<>Uppställning <span className={`lu-status ${official ? 'ok' : ''}`}>{official ? 'Officiell' : 'Trolig'}</span></>} className="wide">
         <TeamToggle home={g.home} away={g.away} side={side} setSide={setSide} panes={{
-          home: <div data-lineup="home"><LineupGrid L={official?.home || core.lineups[g.home]} code={g.home} /></div>,
-          away: <div data-lineup="away"><LineupGrid L={official?.away || core.lineups[g.away]} code={g.away} /></div>,
+          home: <div data-lineup="home"><LineupGrid L={official?.home || core.lineups[g.home]} code={g.home} absent /></div>,
+          away: <div data-lineup="away"><LineupGrid L={official?.away || core.lineups[g.away]} code={g.away} absent /></div>,
         }} />
       </Panel>
     </Board>
@@ -206,6 +207,7 @@ function Preview({ g }: { g: Game }) {
 // Head to head this season and in earlier seasons
 function H2H({ g }: { g: Game }) {
   const { core, games, cur } = useData()
+  const [all, setAll] = useState(false) // the 5 latest meetings, the rest behind a button
   const both = (a: string, b: string) => [a, b].includes(g.home) && [a, b].includes(g.away)
   const meet = [
     ...games.filter((x) => isFinal(x) && both(x.home, x.away)).map((x) => ({ s: cur, d: x.start.slice(0, 10), home: x.home, away: x.away, hs: x.hs!, as: x.as!, ex: x.ot || x.so, id: x.id as string | undefined })),
@@ -223,12 +225,12 @@ function H2H({ g }: { g: Game }) {
           <div className="tile"><span className="k">Möten</span><span className="v">{meet.length}</span><span className="s">sedan {meet[meet.length - 1].s}</span></div>
         </div>
       </Panel>
-      <Panel title="Alla möten" className="wide">
+      <Panel title={all || meet.length <= 5 ? 'Alla möten' : 'Senaste mötena'} className="wide">
         <div className="tscroll">
           <table className="t">
             <thead><tr><th className="l">Säsong</th><th className="l">Datum</th><th className="l">Hemma</th><th>Resultat</th><th className="l">Borta</th></tr></thead>
             <tbody>
-              {meet.map((m, i) => (
+              {(all ? meet : meet.slice(0, 5)).map((m, i) => (
                 <tr key={i}>
                   <td className="l">{m.s}</td><td className="l">{fmtDate(m.d)}</td><td className="l"><TeamLink code={m.home} name /></td>
                   <td className="hl">{m.id ? <a href={`#/match/${m.id}`}>{m.hs}–{m.as}</a> : `${m.hs}–${m.as}`}{m.ex && <> <span className="faint">ÖT</span></>}</td>
@@ -238,6 +240,7 @@ function H2H({ g }: { g: Game }) {
             </tbody>
           </table>
         </div>
+        {meet.length > 5 && <button className="more" onClick={() => setAll(!all)} aria-expanded={all}>{all ? 'Visa färre' : `Visa alla ${meet.length} möten`}</button>}
       </Panel>
     </>
   )

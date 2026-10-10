@@ -626,16 +626,21 @@ const highlights = detailsByDate.filter((d) => videos[d.id]?.hl).reverse().slice
 
 // ---------- write site ----------
 const strip = (rows) => rows.map(({ ms, ...r }) => r);
-// Rookies: no SHL games in the earlier loaded seasons, and at most 25 when the season starts
-// (i = the season's place in ALL_SEASONS, 0 = current)
-const markRookies = (rows, i = 0) => {
-  const seenBefore = new Set(ALL_SEASONS.slice(i + 1).flatMap((s) => [...s.skaters, ...s.goalies].map(pidOf)).filter(Boolean));
-  const startYear = Number(ALL_SEASONS[i].code);
-  return rows.map((p) => {
-    const age = p.born ? startYear - Number(p.born.slice(0, 4)) : 99;
-    return !seenBefore.has(p.id) && age <= 25 ? { ...p, rk: 1 } : p;
-  });
+// Juniors as shl.se counts them: its stats pages' "Junior" age group (the API's status=Junior), so the site lists the
+// same players. If that request fails, the same rule by birth year: at most 20 in the year the season ends.
+const juniorsOf = async (s) => {
+  const ids = new Set();
+  for (const mod of ['players_summary', 'goalkeepers_summary']) {
+    try {
+      const [r] = await get(`/statistics-v2/stats-info/${mod}?count=1000&ssgtUuid=${s.ssgt}&provider=statnet&state=${s.state}&moduleType=summary&status=Junior`);
+      for (const x of r?.stats ?? []) if (x.info?.uuid) ids.add(x.info.uuid);
+    } catch (e) { console.warn('juniors failed', s.label, mod, e.message); }
+  }
+  if (!ids.size) for (const p of [...s.skaters, ...s.goalies]) if (p.born && Number(p.born.slice(0, 4)) >= Number(s.code) + 1 - 20) ids.add(p.id);
+  return ids;
 };
+const [curJr, prevJr] = [await juniorsOf(cur), await juniorsOf(prev)];
+const markJuniors = (rows, ids) => rows.map((p) => (ids.has(p.id) ? { ...p, jr: 1 } : p));
 const core = {
   updated: new Date().toISOString(),
   seasonOrder: SEASONS.map((s) => s.label),
@@ -644,7 +649,7 @@ const core = {
   currentTeams: codes,
   games, standings: cur.standings, sim, model,
   history: history.days,
-  seasons: { [cur.label]: { skaters: markRookies(strip(cur.skaters)), goalies: markRookies(strip(cur.goalies)) }, [prev.label]: { skaters: markRookies(strip(prev.skaters), 1), goalies: markRookies(strip(prev.goalies), 1) } },
+  seasons: { [cur.label]: { skaters: markJuniors(strip(cur.skaters), curJr), goalies: markJuniors(strip(cur.goalies), curJr) }, [prev.label]: { skaters: markJuniors(strip(prev.skaters), prevJr), goalies: markJuniors(strip(prev.goalies), prevJr) } },
   teamStats, lineups, rosters, headshots,
   pastStandings: Object.fromEntries(SEASONS.map((s) => [s.label, s.standings])),
   pastGames: SEASONS.slice(1).flatMap((s) => s.games.filter(isFinal).map((g) => [s.label, g.start.slice(0, 10), g.home, g.away, g.hs, g.as, g.ot || g.so ? 1 : 0])),

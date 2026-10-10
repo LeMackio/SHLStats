@@ -95,7 +95,7 @@ table.t tbody tr:hover td { background: color-mix(in oklab, var(--foreground) 3%
 table.t tr.fav td { background: color-mix(in oklab, var(--accent) 12%, var(--surface)); }
 table.t tr.fav td:first-child { box-shadow: inset 3px 0 var(--accent); }
 table.t .rank { font: 500 var(--text-sm) var(--font-body); }
-table.t .odds span { min-width: 48px; padding: 3px 8px; border-radius: 999px; font-weight: 500; font-size: var(--text-xs); }
+table.t .odds span, .odds-pill { display: inline-block; text-align: center; min-width: 48px; padding: 3px 8px; border-radius: 999px; font-weight: 500; font-size: var(--text-xs); }
 @media (max-width: 700px) {
   table.t td { height: 44px; font-size: var(--text-sm); padding: 0 6px; }
   table.t th { padding: var(--space-1) 6px; }
@@ -113,6 +113,22 @@ details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .b
 .ps-rh, .pg-d, .p-head .more-link, .tabs a, nav.main a, .datetabs a b, .stamp.up {
   text-transform: none; letter-spacing: var(--tracking-body); font-weight: 500;
 }
+
+/* The live table: a dot for teams playing now, their added points and how many places they moved */
+.live-table .teamcell { gap: 8px; }
+.live-table .live-dot { flex: none; }
+.lt-move { font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.lt-move.up { color: var(--good); }
+.lt-move.down { color: var(--bad); }
+.lt-plus { margin-left: 4px; font-size: 11px; font-weight: 500; color: var(--accent); }
+.live-table tr.playing td { background: color-mix(in oklab, var(--accent) 6%, transparent); }
+
+/* Line-ups: the regulars missing from the team sheet (most often injured) */
+.lu-out { padding-top: var(--space-3); border-top: 1px solid var(--border-subtle); }
+.lu-out .lu-lab { color: var(--bad); }
+.lu-p.out { opacity: .8; }
+.lu-p.out img, .lu-p.out .av { filter: grayscale(.7); }
+.lu-note { margin: var(--space-2) 0 0; color: var(--text-muted); font-size: var(--text-xs); }
 
 /* Short "nothing here yet" notes inside cards (whole-page states use Arc's EmptyState) */
 .empty-state { padding: var(--space-6) var(--space-4); color: var(--text-muted); font-size: var(--text-sm); text-wrap: balance; }

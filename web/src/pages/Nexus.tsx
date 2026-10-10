@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { TeamScatter } from '@/components/charts/TeamCharts'
 import { CountUp } from '@/components/site/CountUp'
 import { Icon } from '@/components/site/Icon'
-import { PageHead, Seg } from '@/components/site/Layout'
+import { PageHead, PageSwitch, Seg } from '@/components/site/Layout'
 import { LeaderSection, type LeaderSectionDef } from '@/components/site/Leaders'
 import { Empty, PageState, Panel, Skeleton } from '@/components/site/Panel'
 import { PickSearch } from '@/components/site/PickSearch'
@@ -45,17 +45,17 @@ function useEdge() {
 
 const pp = (x: number) => (x > 0 ? '+' : '') + dec(x, 1)
 
-export function NexusPage() {
+export function NexusPage({ tab = '' }: { tab?: string }) {
   const { e, failed } = useEdge()
   if (failed) return <PageState title="Nexus kunde inte laddas" description="Försök igen om en stund." />
   if (!e) return <Skeleton />
-  return <Nexus E={e} />
+  return <Nexus E={e} tab={tab === 'lag' ? 'lag' : ''} />
 }
 
 type SkE = Skater & { e: { sog: number; g: number; xg: number; hd: number; hdg: number; dist: number; long: number; att: number } }
 type GkE = Goalie & { e: { sa: number; ga: number; xga: number; hd: [number, number]; md: [number, number]; ld: [number, number] } }
 
-function Nexus({ E }: { E: Edge }) {
+function Nexus({ E, tab }: { E: Edge; tab: '' | 'lag' }) {
   const { core, cur, tName } = useData()
   const standings = core.standings
   const season = core.seasons[cur]
@@ -128,16 +128,19 @@ function Nexus({ E }: { E: Edge }) {
     <>
       <p className="beta-note"><span>Beta</span>Nexus är i beta: siffrorna, modellerna och vyerna kan ändras medan vi bygger vidare.</p>
       <PageHead title="Nexus">Skottkvalitet och förväntade mål (xG) för SHL {E.season.replace('-', '/')}. Varje skott på mål värderas efter var det kom ifrån och i vilket läge.</PageHead>
-      <div className="lsec-row">{sections.map((s) => <LeaderSection key={s.id} sec={s} />)}</div>
-
-      <ShotMap E={E} skRows={skRows} gkRows={gkRows} gkAll={gkAll} lgSv={lgSv} />
-
+      {/* Two tabs: players (leaders, the shot map, player cards) and teams (the fair table, team xG and shot attempts) */}
+      <PageSwitch base="/nexus" tabs={[{ key: '', label: 'Spelare' }, { key: 'lag', label: 'Lag' }]} active={tab} />
+      {tab === '' && <>
+        <div className="lsec-row">{sections.map((s) => <LeaderSection key={s.id} sec={s} />)}</div>
+        <ShotMap E={E} skRows={skRows} gkRows={gkRows} gkAll={gkAll} lgSv={lgSv} />
+        <div className="ov-row r-two">
+          <CardPanel />
+          <SimilarCard />
+        </div>
+      </>}
+      {tab === 'lag' && <>
       <div className="ov-row r-two">
         <Panel title="Rättvis tabell" sub="Tabellen som den borde se ut om varje match slutat som chanserna (xG) sa."><FairTable E={E} /></Panel>
-        <SimilarCard />
-      </div>
-      <div className="ov-row r-two">
-        <CardPanel />
         <Panel title="Lag: xG för och mot" sub="Förväntade mål per match. Bäst är uppe till höger: många chanser framåt, få bakåt.">
           <div className="chart"><TeamScatter rows={teamRows.map((r) => ({ code: r.code, name: r.name, x: r.xgfpg, y: r.xgapg }))} xLabel="xG för per match" what={['xG för', 'xG mot']} /></div>
         </Panel>
@@ -172,6 +175,7 @@ function Nexus({ E }: { E: Edge }) {
           </div>
         </Panel>
       </div>
+      </>}
     </>
   )
 }

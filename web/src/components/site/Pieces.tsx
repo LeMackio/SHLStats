@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useData } from '@/data/context'
-import { ageOf, fmtDay, initials, POS_SHORT } from '@/lib/format'
+import { ageOf, fmtDay, initials, normName, POS_SHORT } from '@/lib/format'
 import { resultFor, safeEmbed, safeUrl } from '@/lib/game'
 import { MIN_GP, METRICS, type Card } from '@/lib/cards'
 import { shortName } from '@/lib/stats'
@@ -154,8 +154,30 @@ export function FavButton({ code }: { code: string }) {
   )
 }
 
-// A team's lines: goalies, forward lines and defence pairs as rows of player chips
-export function LineupGrid({ L, code }: { L: Lineup | null | undefined; code: string }) {
+// Regular players who are not in a line-up: at least 40 % of the team's games this season, still in the squad, but not
+// on the team sheet. SHL publishes no injury list, so this is the closest sign of who is injured (or out for another reason).
+function useAbsent(L: Lineup | null | undefined, code: string, on: boolean) {
+  const { core, cur } = useData()
+  if (!on || !L) return []
+  const listed = new Set<string>()
+  for (const p of [...Object.values(L.F || {}).flat(), ...Object.values(L.D || {}).flat(), ...(L.G || [])]) {
+    if (p.id) listed.add(p.id)
+    listed.add(normName(p.name))
+  }
+  const teamGp = core.standings.find((t) => t.code === code)?.gp || 0
+  const min = Math.max(2, Math.ceil(teamGp * 0.4))
+  const squad = new Set((core.rosters?.[code] || []).map((p) => p.id))
+  const s = core.seasons[cur]
+  return [
+    ...s.skaters.filter((p) => p.team === code && p.gp >= min).map((p) => ({ id: p.id, name: p.name, num: p.num, pos: p.pos, gp: p.gp })),
+    ...s.goalies.filter((p) => p.team === code && p.gpi >= min).map((p) => ({ id: p.id, name: p.name, num: p.num, pos: 'GK', gp: p.gpi })),
+  ].filter((p) => (!squad.size || squad.has(p.id)) && !listed.has(p.id) && !listed.has(normName(p.name))).sort((a, b) => b.gp - a.gp)
+}
+
+// A team's lines: goalies, forward lines and defence pairs as rows of player chips.
+// absent: also list the regulars missing from it (coming and live games, the team page)
+export function LineupGrid({ L, code, absent: showAbsent = false }: { L: Lineup | null | undefined; code: string; absent?: boolean }) {
+  const absent = useAbsent(L, code, showAbsent)
   if (!L) return <Empty>Ingen uppställning ännu. Den visas efter lagets första match.</Empty>
   const chip = (r: LineupPlayer | undefined, i: number) => {
     if (!r) return <span key={i} className="lu-p empty" />
@@ -171,6 +193,19 @@ export function LineupGrid({ L, code }: { L: Lineup | null | undefined; code: st
       {L.G?.length ? row('Målvakter', L.G.slice(0, 2), 2) : null}
       {keys(L.F).map((k) => row(`Kedja ${k}`, L.F![k], 3))}
       {keys(L.D).map((k) => row(`Backpar ${k}`, L.D![k], 2))}
+      {absent.length > 0 && <>
+        <div className="lu-row lu-out">
+          <span className="lu-lab">Saknas</span>
+          <div className="lu-chips n3">
+            {absent.map((p) => (
+              <a key={p.id} className="lu-p out" href={`#/spelare/${encodeURIComponent(p.id)}`} title={`${p.name}: ${p.gp} matcher i år, inte med i uppställningen`}>
+                <Avatar id={p.id} name={p.name} team={code} eager /><b>{shortName(p.name)}</b><small>#{p.num ?? '–'}{POS_SHORT[p.pos || ''] ? ` · ${POS_SHORT[p.pos || '']}` : ''} · {p.gp} M</small>
+              </a>
+            ))}
+          </div>
+        </div>
+        <p className="lu-note">Ordinarie spelare som inte finns med i uppställningen, oftast på grund av skada. SHL publicerar ingen skadelista.</p>
+      </>}
     </div>
   )
 }

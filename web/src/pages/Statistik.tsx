@@ -21,7 +21,7 @@ type P = Skater | Goalie
 type Stat = LeaderStat
 type Section = LeaderSectionDef
 
-const SECTION_ORDER_PHONE = ['sk', 'df', 'gk', 'rk']
+const SECTION_ORDER_PHONE = ['sk', 'df', 'gk', 'jr']
 
 function useSections(): Section[] {
   const { core, cur } = useData()
@@ -45,7 +45,8 @@ function useSections(): Section[] {
         ],
       },
       { id: 'df', title: 'Backar', rows: sk.filter((p) => posGroup(p.pos) === 'D'), stats: skStats },
-      { id: 'rk', title: 'Rookies', note: 'Första SHL-säsongen', rows: sk.filter((p) => p.rk), stats: skStats },
+      // Juniors as shl.se counts them: at most 20 in the year the season ends
+      { id: 'jr', title: 'Juniorer', note: `Födda ${2000 + Number(cur.slice(3)) - 20} eller senare`, rows: sk.filter((p) => p.jr), stats: skStats },
     ]
   }, [core, cur])
 }
@@ -88,7 +89,7 @@ function AllPlayers() {
   const { core, cur, prev, tName, fav } = useData()
   const narrow = useNarrow()
   const [open, setOpen] = useKeptState('stats-all-open', false)
-  const [f, setF] = useKeptState('stats-filters', { kind: 'skaters' as 'skaters' | 'goalies', season: cur, team: 'ALL', pos: 'ALL', rk: false, minGp: 0, q: '' })
+  const [f, setF] = useKeptState('stats-filters', { kind: 'skaters' as 'skaters' | 'goalies', season: cur, team: 'ALL', pos: 'ALL', jr: false, minGp: 0, q: '' })
   const set = (patch: Partial<typeof f>) => setF({ ...f, ...patch })
   const isSk = f.kind === 'skaters'
   const list: P[] = core.seasons[f.season][f.kind]
@@ -97,7 +98,7 @@ function AllPlayers() {
   const team = teams.includes(f.team) ? f.team : 'ALL'
   const q = normName(f.q)
   const rows = list.filter((p) => ((isSk ? (p as Skater).gp : (p as Goalie).gpi) >= f.minGp) && (team === 'ALL' || p.team === team)
-    && (!isSk || f.pos === 'ALL' || (posGroup(p.pos) === 'D') === (f.pos === 'D')) && (!f.rk || p.rk) && (!q || normName(p.name).includes(q)))
+    && (!isSk || f.pos === 'ALL' || (posGroup(p.pos) === 'D') === (f.pos === 'D')) && (!f.jr || p.jr) && (!q || normName(p.name).includes(q)))
     .map((p) => isSk
       ? { ...p, ppgp: (p as Skater).gp ? (p as Skater).pts / (p as Skater).gp : 0, shp: (p as Skater).sog ? (p as Skater).g / (p as Skater).sog : null }
       : { ...p, gsaa: gsaa(p as Goalie, core.seasons[f.season]) })
@@ -128,7 +129,7 @@ function AllPlayers() {
   return (
     <Collapsible open={open} onOpenChange={setOpen} render={<section className={`panel alla-card ${open ? 'open' : ''}`} id="alla" />}>
       <CollapsibleTrigger className="alla-toggle" id="alla-toggle">
-        <span className="alla-title"><b>Alla spelare</b><small>Hela tabellen med filter för lag, position, säsong och rookies</small></span>
+        <span className="alla-title"><b>Alla spelare</b><small>Hela tabellen med filter för lag, position, säsong och juniorer</small></span>
         <svg className="alla-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
       </CollapsibleTrigger>
       <CollapsibleContent className="p-body" id="alla-body">
@@ -137,7 +138,7 @@ function AllPlayers() {
           <Select label="Säsong" value={f.season} onValueChange={(season) => set({ season })} options={[{ value: cur, label: cur }, { value: prev, label: prev }]} />
           <Select label="Lag" value={team} onValueChange={(t) => set({ team: t })} options={[{ value: 'ALL', label: 'Alla lag' }, ...teams.map((t) => ({ value: t, label: tName(t) }))]} />
           {isSk && <Select label="Position" value={f.pos} onValueChange={(pos) => set({ pos })} options={[{ value: 'ALL', label: 'Alla' }, { value: 'F', label: 'Forwards' }, { value: 'D', label: 'Backar' }]} />}
-          <Select label="Spelare" value={f.rk ? 'rk' : 'all'} onValueChange={(v) => set({ rk: v === 'rk' })} options={[{ value: 'all', label: 'Alla spelare' }, { value: 'rk', label: 'Endast rookies' }]} />
+          <Select label="Spelare" value={f.jr ? 'jr' : 'all'} onValueChange={(v) => set({ jr: v === 'jr' })} options={[{ value: 'all', label: 'Alla spelare' }, { value: 'jr', label: 'Endast juniorer' }]} />
           <Input label="Minst matcher" type="number" inputMode="numeric" min={0} value={f.minGp} onChange={(e) => set({ minGp: +e.target.value || 0 })} />
           <SearchField label="Sök" placeholder="Namn" clearLabel="Rensa sökningen" value={f.q} onValueChange={(q) => set({ q })} />
         </div>

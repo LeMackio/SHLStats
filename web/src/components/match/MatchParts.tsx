@@ -334,7 +334,7 @@ export function MatchPlayers({ d, official }: { d: GameDetails; official?: { hom
       {narrow && (
         <Panel title="Uppställning" className="wide">
           <TeamToggle home={d.home} away={d.away} side={side} setSide={setSide}
-            panes={{ home: <LineupGrid L={linesOf(d, 'home') || official?.home} code={d.home} />, away: <LineupGrid L={linesOf(d, 'away') || official?.away} code={d.away} /> }} />
+            panes={{ home: <LineupGrid L={linesOf(d, 'home') || official?.home} code={d.home} absent={!!d.live} />, away: <LineupGrid L={linesOf(d, 'away') || official?.away} code={d.away} absent={!!d.live} /> }} />
         </Panel>
       )}
     </Board>

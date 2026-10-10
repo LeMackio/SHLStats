@@ -34,7 +34,7 @@ export interface Skater {
   num?: number | null
   born?: string
   nat?: string
-  rk?: boolean // first SHL season
+  jr?: boolean // a junior as shl.se counts them (its stats pages' Junior age group)
   gp: number
   g: number
   a: number
@@ -58,7 +58,7 @@ export interface Goalie {
   num?: number | null
   born?: string
   nat?: string
-  rk?: boolean
+  jr?: boolean
   gpi: number
   w_?: number
   l?: number

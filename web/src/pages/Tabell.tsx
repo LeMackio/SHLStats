@@ -4,7 +4,7 @@ import { Board, PageHead, PageSwitch } from '@/components/site/Layout'
 import { Panel } from '@/components/site/Panel'
 import switchStyles from '@/components/site/Switch.module.css'
 import { SortableTable, type Col } from '@/components/site/SortableTable'
-import { Legend, StandingsTable } from '@/components/site/Standings'
+import { Legend, OddsPill, StandingsTable } from '@/components/site/Standings'
 import { TeamBadge } from '@/components/site/TeamBadge'
 import { useData } from '@/data/context'
 import { dec, signed } from '@/lib/format'
@@ -25,6 +25,16 @@ export function TabellPage({ tab }: { tab: string }) {
       {active === 'odds' ? <OddsTab /> : <TableTab />}
     </>
   )
+}
+
+// The table's first columns, shared by Tabell and Odds: the rank in its zone colour and the team.
+// Phones: just the team code, so the numbers keep their room.
+function teamCols<R extends { rank: number; code: string; name: string }>(narrow: boolean): Col<R>[] {
+  if (narrow) return [{ k: 'name', label: 'Lag', l: true, asc: true, h: (r) => <a className="teamcell" href={`#/lag/${r.code}`}><TeamBadge code={r.code} /><div className="nm"><b>{r.code}</b></div></a> }]
+  return [
+    { k: 'rank', label: '#', asc: true, h: (r) => <span className="rank" style={{ '--zone': rankZone(r.rank) } as React.CSSProperties}>{r.rank}</span> },
+    { k: 'name', label: 'Lag', l: true, asc: true, h: (r) => <a className="teamcell" href={`#/lag/${r.code}`}><TeamBadge code={r.code} size="md" /><div className="nm"><b>{r.name}</b></div></a> },
+  ]
 }
 
 interface TeamRow {
@@ -51,8 +61,7 @@ function TableTab() {
 
   const d2 = (v: number) => dec(v, 2), d1 = (v: number) => dec(v, 1), pc = (v: number) => dec(v * 100, 1)
   const cols: Col<TeamRow>[] = [
-    { k: 'rank', label: '#', asc: true, h: (r) => <span className="rank" style={{ '--zone': rankZone(r.rank) } as React.CSSProperties}>{r.rank}</span> },
-    { k: 'name', label: 'Lag', l: true, asc: true, h: (r) => <a className="teamcell" href={`#/lag/${r.code}`}><TeamBadge code={r.code} size="md" /><div className="nm"><b>{r.name}</b></div></a> },
+    ...teamCols<TeamRow>(narrow),
     { k: 'gp', label: 'SM' }, { k: 'w', label: 'V' }, { k: 'otw', label: 'ÖV' }, { k: 'otl', label: 'ÖF' }, { k: 'l', label: 'F', asc: true },
     { k: 'gf', label: 'GM', title: 'Gjorda mål' }, { k: 'ga', label: 'IM', title: 'Insläppta mål', asc: true }, { k: 'diff', label: '+/-', f: signed },
     { k: 'pts', label: 'P' }, { k: 'ppm', label: 'P/M', f: d2 }, { k: 'gfpg', label: 'GM/M', f: d2 },
@@ -60,8 +69,6 @@ function TableTab() {
     { k: 'pp', label: 'PP%', f: pc }, { k: 'pk', label: 'BP%', f: pc }, { k: 'fo', label: 'Tekn%', f: pc },
     { k: 'hits', label: 'Tackl/M', f: d1 }, { k: 'pim', label: 'Utv/M', asc: true, f: d1 }, { k: 'proj', label: 'Proj. P', f: (v: number) => dec(v, 0) },
   ]
-  // Phones: the team code instead of rank and full name
-  if (narrow) cols.splice(0, 2, { k: 'name', label: 'Lag', l: true, asc: true, h: (r) => <a className="teamcell" href={`#/lag/${r.code}`}><TeamBadge code={r.code} /><div className="nm"><b>{r.code}</b></div></a> })
 
   return (
     <Board>
@@ -93,14 +100,30 @@ function TableTab() {
   )
 }
 
+interface OddsRow { rank: number; code: string; team: string; name: string; gp: number; pts: number; proj: number; top6: number; top10: number; semi: number; final: number; gold: number; rel: number }
+
 function OddsTab() {
-  const { core, stamp } = useData()
+  const { core, stamp, tName, fav } = useData()
+  const narrow = useNarrow()
   // Poängprognos and Slutplacering share one layout: the same rows (ordered by projected points)
   const rows = [...core.standings].sort((a, b) => core.sim[b.code].proj - core.sim[a.code].proj)
+  // The odds table is built like the Tabell tab's table: same columns first, then the odds as shaded pills
+  const odds: OddsRow[] = core.standings.map((r, i) => {
+    const s = core.sim[r.code]
+    return { rank: i + 1, code: r.code, team: r.code, name: tName(r.code), gp: r.gp, pts: r.pts, proj: s.proj, top6: s.top6, top10: s.top10, semi: s.semi, final: s.final, gold: s.gold, rel: s.rel }
+  })
+  const pill = (k: 'top6' | 'top10' | 'semi' | 'final' | 'gold' | 'rel', color?: string, stretch?: number) => (r: OddsRow) => <OddsPill p={r[k]} color={color} stretch={stretch} />
+  const cols: Col<OddsRow>[] = [
+    ...teamCols<OddsRow>(narrow),
+    { k: 'gp', label: 'SM' }, { k: 'pts', label: 'P' }, { k: 'proj', label: 'Proj. P', title: 'Projicerade poäng efter 52 omgångar', f: (v: number) => dec(v, 0) },
+    { k: 'top6', label: 'Topp 6', title: 'Direkt till kvartsfinal', h: pill('top6') }, { k: 'top10', label: 'Slutspel', title: 'Topp 10', h: pill('top10') },
+    { k: 'semi', label: 'Semifinal', h: pill('semi') }, { k: 'final', label: 'Final', h: pill('final') },
+    { k: 'gold', label: 'SM-guld', h: pill('gold', 'var(--gold)', 3) }, { k: 'rel', label: 'SHL-kval', title: 'Plats 13–14', asc: true, h: pill('rel', 'var(--bad)') },
+  ]
   return (
     <Board>
-      <Panel title="Odds" className="wide" sub="10 000 simuleringar av resten av grundserien och slutspelet." foot={<span className="stamp">Uppdaterad {stamp}</span>}>
-        <StandingsTable mode="proj" />
+      <Panel title="Odds" className="wide" sub="10 000 simuleringar av resten av grundserien och slutspelet. Tryck på en kolumnrubrik för att sortera." foot={<span className="stamp">Uppdaterad {stamp}</span>}>
+        <SortableTable cols={cols} rows={odds} sortKey={narrow ? 'pts' : 'rank'} desc={narrow} fav={fav} minWidth={narrow ? 640 : 960} caption="Odds" />
         <Legend />
         <details className="explain">
           <summary>Hur räknas oddsen?</summary>

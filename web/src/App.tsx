@@ -45,7 +45,7 @@ const ROUTES: [RegExp, (m: string[]) => ReactNode][] = [
   [/^\/tabell(?:\/([^/]+))?$/, ([tab]) => <TabellPage tab={tab} />],
   [/^\/statistik$/, () => <StatistikPage />],
   [/^\/spelare\/([^/]+)(?:\/([^/]+))?$/, ([id, tab]) => <SpelarePage id={id} tab={tab} />],
-  [/^\/(?:nexus|avancerat)$/, () => <NexusPage />], // /avancerat is the old address
+  [/^\/(?:nexus|avancerat)(?:\/([^/]+))?$/, ([tab]) => <NexusPage tab={tab} />], // /avancerat is the old address
   [/^\/nyheter\/([^/]+)$/, ([id]) => <NyheterPage id={id} />],
   [/^\/media(?:\/([^/]+))?$/, ([range]) => <MediaPage range={range} />],
   [/^\/lag$/, () => <TabellPage tab="" />], // old link to the teams page, now the Tabell page
