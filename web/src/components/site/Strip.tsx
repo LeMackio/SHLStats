@@ -1,14 +1,14 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useData } from '@/data/context'
+import { loadLive, type LiveData } from '@/data/live'
 import { dateParts, DAYS, MONTHS, todayStr } from '@/lib/format'
 import { statusTxt } from '@/lib/game'
-import { pillStyle } from '@/lib/teams'
 import { isFinal, isLive, type Game } from '@/lib/types'
 import { TeamBadge } from './TeamBadge'
 
 // The score strip above the header: every game of the season in one row, opened at today's games
 export function Strip() {
-  const { games, fav, tName } = useData()
+  const { core, games, fav, tName } = useData()
   const track = useRef<HTMLDivElement>(null)
   const anchor = useRef<HTMLDivElement>(null)
 
@@ -34,7 +34,8 @@ export function Strip() {
   const row = (c: string, right: React.ReactNode, loser = false) => (
     <div className={`s-row${loser ? ' loser' : ''}`}><TeamBadge code={c} /><span className="code">{c}</span>{right}</div>
   )
-  const pill = (p: number) => <span className="wp num" style={pillStyle(p)}>{Math.round(p * 100)}%</span>
+  // Coming games: each team's place in the table
+  const rank = (c: string) => { const i = core.standings.findIndex((t) => t.code === c); return i < 0 ? null : <span className="s-rank num" title={`Plats ${i + 1} i tabellen`}>{i + 1}</span> }
   const score = (s: number | null | undefined) => <span className="score">{s ?? ''}</span>
 
   return (
@@ -51,10 +52,10 @@ export function Strip() {
               const done = isFinal(g), live = isLive(g), isFav = fav && (g.home === fav || g.away === fav)
               return (
                 <a key={g.id} className={`s-game ${isFav ? 'fav' : ''}`} href={`#/match/${g.id}`} draggable={false} title={`${tName(g.home)} – ${tName(g.away)}`}>
-                  <div className={`s-status ${live ? 'live' : ''}`}><span>{live ? 'Live' : statusTxt(g)}</span></div>
+                  {live ? <LiveStatus g={g} /> : <div className="s-status"><span>{statusTxt(g)}</span></div>}
                   {done || live
                     ? <>{row(g.away, score(g.as), done && g.as! < g.hs!)}{row(g.home, score(g.hs), done && g.hs! < g.as!)}</>
-                    : <>{row(g.away, pill(1 - g.ph))}{row(g.home, pill(g.ph))}</>}
+                    : <>{row(g.away, rank(g.away))}{row(g.home, rank(g.home))}</>}
                 </a>
               )
             }),
@@ -66,6 +67,29 @@ export function Strip() {
         <button className="strip-today" title="Hoppa till dagens matcher" onClick={() => toToday(true)}>Idag</button>
         <button className="strip-btn" aria-label="Senare matcher" onClick={() => track.current?.scrollBy({ left: track.current.clientWidth * 0.8 })}>›</button>
       </div>
+    </div>
+  )
+}
+
+// A game being played: the period in a green badge and the time into it, over a thin line with a green bar sweeping
+// through it (the sign that the game is on)
+function LiveStatus({ g }: { g: Game }) {
+  const [L, setL] = useState<LiveData | null>(null)
+  useEffect(() => {
+    let off = false
+    const tick = () => loadLive(g.id).then((x) => { if (!off) setL(x) })
+    tick()
+    const t = setInterval(tick, 15000)
+    return () => { off = true; clearInterval(t) }
+  }, [g.id])
+  const st = String(L?.state || '')
+  const pause = !!L?.p && (/intermission|break|pause/i.test(st) || (/end/i.test(st) && L.t === '20:00' && L.p < 3))
+  const per = !L?.p ? 'Live' : pause ? 'Paus' : L.p === 4 ? 'ÖT' : L.p >= 5 ? 'Straff' : `P${L.p}`
+  return (
+    <div className="s-status s-live">
+      <span className="s-per">{per}</span>
+      {L?.t && L.p && L.p < 5 && !pause ? <span className="s-clock num">{L.t}</span> : null}
+      <span className="s-liveline" aria-hidden="true" />
     </div>
   )
 }

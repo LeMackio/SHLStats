@@ -42,7 +42,7 @@ export function SearchPalette({ open, onOpenChange }: { open: boolean; onOpenCha
   }, [onOpenChange])
 
   const teamItem = useCallback((c: string): CommandItem => ({
-    id: `#/lag/${c}`, label: tName(c), description: c === fav ? 'Mitt lag' : c, group: 'Lag', icon: <TeamBadge code={c} />,
+    id: `#/lag/${c}`, label: tName(c), description: c, group: 'Lag', icon: <TeamBadge code={c} />,
   }), [tName, fav])
   // With nothing typed: the pages, then the teams (your own first)
   const start = useMemo(() => [

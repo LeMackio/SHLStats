@@ -181,7 +181,8 @@ function Nexus({ E, tab }: { E: Edge; tab: '' | 'lag' }) {
 }
 
 const Tile = ({ k, v, s }: { k: string; v: string | number; s?: ReactNode }) => (
-  <div className="tile"><span className="k">{k}</span><span className="v"><CountUp text={String(v)} /></span>{s ? <span className="s">{s}</span> : null}</div>
+  // The subline is always there (empty if need be), so every tile has the same height whichever numbers are shown
+  <div className="tile"><span className="k">{k}</span><span className="v"><CountUp text={String(v)} /></span><span className="s">{s || ' '}</span></div>
 )
 
 interface Shot { k: number; sh: string | null; gk: string | null; x: number; y: number; g: number; xg: number; team: string; en: number; str: number; game: Edge['games'][number] | null; opp: string | null; clip: number }
@@ -249,7 +250,8 @@ function ShotMap({ E, skRows, gkRows, gkAll, lgSv }: { E: Edge; skRows: SkE[]; g
       <div className="p-body"><div className="smap">
         <div className="smap-side">
           <Seg id="sm-kind" value={kind} onChange={changeKind} options={[['sk', 'Spelare'], ['gk', 'Målvakt'], ['t', 'Lag']]} />
-          {kind !== 't' && <PickSearch key={kind} id="sm-search-wrap" placeholder={kind === 'gk' ? 'Sök målvakt' : 'Sök spelare'} label="Sök till skottkartan" filter={searchFilter} onPick={(h) => pick(h.id)} />}
+          {/* Teams have no search, but its room is kept so nothing below moves when switching */}
+          {kind !== 't' ? <PickSearch key={kind} id="sm-search-wrap" placeholder={kind === 'gk' ? 'Sök målvakt' : 'Sök spelare'} label="Sök till skottkartan" filter={searchFilter} onPick={(h) => pick(h.id)} /> : <div className="sm-search-ph" aria-hidden="true" />}
           <div className="chips" id="sm-picks">
             {picks.map((r) => (
               <button key={r.id} className={`chip ${kind === 't' ? 'chip-team' : ''}`} aria-pressed={r.id === id} onClick={() => pick(r.id)}>
@@ -287,7 +289,8 @@ function ShotMap({ E, skRows, gkRows, gkAll, lgSv }: { E: Edge; skRows: SkE[]; g
         </div>
         <div className="smap-main">
           <div className="smap-bar">
-            {kind === 't' && <Seg id="sm-side" value={side} onChange={(v) => { setSide(v); setSel(-1) }} options={[['for', 'Skott för'], ['mot', 'Skott mot']]} />}
+            {/* Only teams have shots for and against; the switch keeps its place for the others so the bar never reflows */}
+            <div className={kind === 't' ? undefined : 'sm-hide'} aria-hidden={kind !== 't'}><Seg id="sm-side" value={side} onChange={(v) => { setSide(v); setSel(-1) }} options={[['for', 'Skott för'], ['mot', 'Skott mot']]} /></div>
             <Seg id="sm-show" value={show} onChange={setShow} options={[['all', 'Alla'], ['g', 'Mål'], ['hd', 'Farliga']]} />
             <Seg id="sm-str" value={str} onChange={(v) => { setStr(v); setSel(-1) }} options={[['all', 'Alla lägen'], ['0', 'Jämnt'], ['1', 'PP'], ['2', 'BP']]} />
             <Seg id="sm-view" value={view} onChange={setView} options={[['dots', 'Prickar'], ['heat', 'Värme']]} />
@@ -339,7 +342,8 @@ const RINK = { S: 1.9, pad: 12, xMin: -40, xMax: 230 }
 function ShotRink({ shots, color, mode, sel, onGoal }: { shots: Shot[]; color: string; mode: 'dots' | 'heat'; sel: number; onGoal: (k: number) => void }) {
   const { S, pad, xMin, xMax } = RINK
   const W = pad * 2 + 300 * S, H = pad * 2 + (xMax - xMin) * S, cx = W / 2
-  const X = (y: number) => cx - y * S, Y = (x: number) => pad + (x - xMin) * S
+  // y is sideways from the shooter's view: positive = the shooter's right, so with the net at the top it goes right (as on shl.se)
+  const X = (y: number) => cx + y * S, Y = (x: number) => pad + (x - xMin) * S
   const L = X(150), R = X(-150), top = Y(xMin), bot = Y(xMax), cr = 85 * S
   const boards = `M${L} ${bot} L${L} ${top + cr} A${cr} ${cr} 0 0 1 ${L + cr} ${top} L${R - cr} ${top} A${cr} ${cr} 0 0 1 ${R} ${top + cr} L${R} ${bot}`
   const inside = shots.filter((s) => s.x >= xMin && s.x <= xMax)

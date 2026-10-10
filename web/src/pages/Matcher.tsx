@@ -32,7 +32,7 @@ function GamesList({ view }: { view: string }) {
     return [...m]
   }, [games, team, view])
 
-  const teamOptions = [{ value: 'ALL', label: 'Alla lag' }, ...[...codes].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => ({ value: c, label: `${tName(c)}${c === fav ? ' (mitt lag)' : ''}` }))]
+  const teamOptions = [{ value: 'ALL', label: 'Alla lag' }, ...[...codes].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => ({ value: c, label: tName(c) }))]
   return (
     <>
       <PageHead title="Matcher & resultat">Hela grundseriens spelschema {cur.replace('-', '/')} med resultat, målvideor och vinstchanser.</PageHead>

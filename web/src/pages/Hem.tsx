@@ -78,13 +78,13 @@ function Overview() {
         </Panel>
       </div>
       <div className="ov-row r-two">
+        <Panel title="Senaste resultat" more={{ href: '#/matcher/spelade', label: 'Alla resultat' }}>
+          {lastGames.length ? <div className="day"><h3>{fmtDay(lastDate)}</h3>{lastGames.map((g) => <GameRow key={g.id} g={g} />)}</div> : <Empty>Inga spelade matcher ännu.</Empty>}
+        </Panel>
         <Panel title="Kommande matcher" more={{ href: '#/matcher', label: 'Alla matcher' }}>
           {comingDays.length ? comingDays.map(([d, gs]) => (
             <div className="day" key={d}><h3>{d === today ? 'Idag' : fmtDay(d)}</h3>{gs.map((g) => <GameRow key={g.id} g={g} />)}</div>
           )) : <Empty>Inga fler matcher i grundserien.</Empty>}
-        </Panel>
-        <Panel title="Senaste resultat" more={{ href: '#/matcher/spelade', label: 'Alla resultat' }}>
-          {lastGames.length ? <div className="day"><h3>{fmtDay(lastDate)}</h3>{lastGames.map((g) => <GameRow key={g.id} g={g} />)}</div> : <Empty>Inga spelade matcher ännu.</Empty>}
         </Panel>
       </div>
       {hls.length > 0 && (

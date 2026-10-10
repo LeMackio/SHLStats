@@ -30,7 +30,7 @@ export function Footer({ stamp }: { stamp: string }) {
   return (
     <footer id="foot">
       <p className="foot-upd">Uppdaterad {stamp}</p>
-      <p className="foot-sig"><span className="brand-word">SHL<em>stats</em></span> by M</p>
+      <p className="foot-sig"><span className="brand-word">SHL<em>stats</em></span></p>
     </footer>
   )
 }

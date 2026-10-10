@@ -19,9 +19,8 @@ const MAIN_NAV: [string, string, string][] = [
 const THEME_ICON: Record<ThemeName, ReactNode> = {
   dark: <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" /></svg>,
   light: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4.2" /><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" /></svg>,
-  paper: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M6 3h8l4 4v14H6Z" /><path d="M14 3v4h4M9 12h6M9 16h6" /></svg>,
 }
-const THEME_LABEL: Record<ThemeName, [string, string]> = { dark: ['Mörkt', 'Mörkt tema'], light: ['Ljust', 'Ljust tema'], paper: ['Papper', 'Papperstema'] }
+const THEME_LABEL: Record<ThemeName, [string, string]> = { dark: ['Mörkt', 'Mörkt tema'], light: ['Ljust', 'Ljust tema'] }
 
 export function Header({ path, onSearch, onSettings }: {
   path: string
@@ -70,13 +69,13 @@ function FavLink() {
   const { fav, teams, tName } = useData()
   if (!fav || !teams[fav]) return null
   return (
-    <a className="favlink" href={`#/lag/${fav}`} title={`Mitt lag: ${tName(fav)}`} aria-label={`Mitt lag: ${tName(fav)}`}>
+    <a className="favlink" href={`#/lag/${fav}`} title={tName(fav)} aria-label={`${tName(fav)}, lagsidan`}>
       <TeamBadge code={fav} /><span>{fav}</span>
     </a>
   )
 }
 
-// Theme: one button showing the current theme; it opens a small menu with the three themes
+// Theme: one button showing the current theme; it opens a small menu with the two themes
 function ThemeMenu() {
   const { current, setTheme } = useTheme()
   const [open, setOpen] = useState(false)

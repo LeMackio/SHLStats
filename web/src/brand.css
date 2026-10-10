@@ -1,6 +1,6 @@
 /* SHLstats on Arc. Arc's foundation (components/arc/foundation.css) brings the spacing, radii, type scale, motion
    and keyboard focus ring; this layer, which comes after the site's own stylesheet, points Arc's semantic colours at
-   the site's theme tokens. Those already change with every theme (dark, light, paper, or the device's own setting)
+   the site's theme tokens. Those already change with every theme (dark, light, or the device's own setting)
    and screen size, so Arc components match the page in all of them, with the SHLstats blue as the accent. */
 
 :root {
@@ -57,6 +57,10 @@
     --control-thumb-shadow: 0 0 0 .5px oklch(0% 0 0 / .3), 0 1px 2px oklch(0% 0 0 / .35), 0 2px 6px oklch(0% 0 0 / .2);
   }
 }
+
+/* The scrollbar's room is always kept, so a page that switches between a short and a tall view (Tabell and Odds)
+   never jumps sideways when the scrollbar comes and goes */
+html { scrollbar-gutter: stable; }
 
 body {
   font-family: var(--font-body);
@@ -129,6 +133,31 @@ details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .b
 .lu-p.out { opacity: .8; }
 .lu-p.out img, .lu-p.out .av { filter: grayscale(.7); }
 .lu-note { margin: var(--space-2) 0 0; color: var(--text-muted); font-size: var(--text-xs); }
+
+/* Score strip. Live: the period in a green badge, the time into it, and a thin line with a green bar sweeping through */
+.s-status.s-live { position: relative; display: flex; align-items: center; justify-content: flex-start; gap: 6px; padding-bottom: 5px; margin-bottom: -5px; color: var(--foreground); }
+.s-per { padding: 1px 6px; border-radius: 5px; background: var(--good); color: #fff; font-size: 11px; font-weight: 600; letter-spacing: .02em; }
+.s-clock { color: var(--text-secondary); font-size: 12px; font-weight: 500; }
+.s-liveline { position: absolute; right: 0; bottom: 0; left: 0; height: 2px; overflow: hidden; border-radius: 2px; background: color-mix(in oklab, var(--foreground) 14%, transparent); }
+.s-liveline::after { position: absolute; top: 0; bottom: 0; left: 0; width: 34%; border-radius: inherit; background: var(--good); content: ""; animation: s-sweep 1.8s ease-in-out infinite; }
+@keyframes s-sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+@media (prefers-reduced-motion: reduce) { .s-liveline::after { width: 100%; animation: none; } }
+/* Coming games: each team's place in the table */
+.s-rank { min-width: 24px; padding: 1px 6px; border-radius: 6px; background: var(--surface-muted); color: var(--text-secondary); font-size: 12px; font-weight: 500; text-align: center; }
+
+/* The followed team in the header's corner: just the logo, no circle behind it */
+.favlink, .favlink:hover { width: auto; height: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; transition: transform var(--duration-fast) var(--ease-standard); }
+.favlink .tb, .favlink .tb img { width: 32px; height: 32px; }
+@media (hover: hover) and (pointer: fine) { .favlink:hover { transform: scale(1.06); } }
+
+/* Nexus shot map: every part of the side column keeps its height whatever is picked, so nothing jumps */
+.sm-hide { visibility: hidden; pointer-events: none; }
+.sm-search-ph { height: 42px; }
+#sm-picks { min-height: 194px; align-content: flex-start; }
+.smap-who { min-height: 120px; }
+#sm-zones { min-height: 98px; }
+#sm-info .tile .s { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* one line, so no tile grows */
+@media (max-width: 700px) { .sm-search-ph { height: 46px; } #sm-picks { min-height: 214px; } }
 
 /* Short "nothing here yet" notes inside cards (whole-page states use Arc's EmptyState) */
 .empty-state { padding: var(--space-6) var(--space-4); color: var(--text-muted); font-size: var(--text-sm); text-wrap: balance; }

@@ -20,7 +20,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2">
 <script>
   // Apply the saved theme before first paint
-  try { var t = localStorage.getItem('shlstats-theme'); if (t === 'dark' || t === 'light' || t === 'paper') document.documentElement.dataset.theme = t; } catch (e) {}
+  try { var t = localStorage.getItem('shlstats-theme'); if (t === 'paper') t = 'light'; if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; } catch (e) {}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

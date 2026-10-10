@@ -30,7 +30,7 @@
 }
 
 /* shadcn/ui colour slots point at the site's own tokens, which already change with each theme
-   (dark, light, paper) in styles.css. The site's names win where they clash (--accent, --muted, --radius). */
+   (dark, light) in styles.css. The site's names win where they clash (--accent, --muted, --radius). */
 @theme inline {
   --font-sans: var(--body);
   --font-heading: var(--display);

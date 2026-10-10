@@ -10,7 +10,7 @@ import styles from './SettingsSheet.module.css'
 import { TeamBadge } from './TeamBadge'
 
 const THEME_OPTIONS: { value: ThemeChoice; label: string }[] = [
-  { value: 'dark', label: 'Mörkt' }, { value: 'light', label: 'Ljust' }, { value: 'paper', label: 'Papper' }, { value: 'auto', label: 'Auto' },
+  { value: 'dark', label: 'Mörkt' }, { value: 'light', label: 'Ljust' }, { value: 'auto', label: 'Auto' },
 ]
 
 // Phones: the settings (theme, your team, notifications) in Arc's bottom sheet, opened from the gear on Hem
@@ -30,7 +30,7 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
         <SegmentedControl label="Tema" options={THEME_OPTIONS} value={choice} onValueChange={(v) => setTheme(v as ThemeChoice)} />
       </section>
       <section className={styles.group}>
-        <h3 className={styles.heading} id="set-team">Mitt lag</h3>
+        <h3 className={styles.heading} id="set-team">Följ ett lag</h3>
         <div className={styles.teams} role="radiogroup" aria-labelledby="set-team">
           {[...codes].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => (
             <button key={c} className={styles.team} role="radio" aria-checked={fav === c} onClick={() => pickTeam(c)}>

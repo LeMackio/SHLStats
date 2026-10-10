@@ -1,6 +1,6 @@
 import { useData } from '@/data/context'
 import { liveClock, type LiveData } from '@/data/live'
-import { fmtDay, fmtTime, pctTxt } from '@/lib/format'
+import { fmtDay, fmtTime } from '@/lib/format'
 import { safeEmbed, statusTxt } from '@/lib/game'
 import { winSeries } from '@/lib/match'
 import { pairColors } from '@/lib/teams'
@@ -11,20 +11,18 @@ import { Avatar, TeamBadge } from './TeamBadge'
 
 const rankOf = (standings: { code: string }[], code: string) => standings.findIndex((t) => t.code === code) + 1
 
-// A game as a clickable row: one line per team (logo, name, table position, then the score or the win chance)
+// A game as a clickable row: one line per team (logo, name, table position, then the score once it has started)
 // and a link on the right. Inside a day group the date is in the heading.
 export function GameRow({ g, dated = false }: { g: Game; dated?: boolean }) {
   const { core, tName, fav } = useData()
-  const done = isFinal(g), live = isLive(g), ph = g.ph ?? 0.5
+  const done = isFinal(g), live = isLive(g)
   const team = (c: string, s: 'home' | 'away') => {
     const score = s === 'home' ? g.hs : g.as, other = s === 'home' ? g.as : g.hs, rank = rankOf(core.standings, c)
     return (
       <div className={`gr-t ${done && score! < other! ? 'lose' : ''}`}>
         <TeamBadge code={c} size="md" /><b>{tName(c)}</b>
         {rank ? <span className="gr-rank" title="Tabellplats">{rank}</span> : <span />}
-        {done || live
-          ? <span className="gr-num num">{score ?? 0}</span>
-          : <span className="gr-pct num" title="Vinstchans">{pctTxt(s === 'home' ? ph : 1 - ph)}</span>}
+        {done || live ? <span className="gr-num num">{score ?? 0}</span> : <span />}
       </div>
     )
   }
@@ -43,11 +41,11 @@ export function GameRow({ g, dated = false }: { g: Game; dated?: boolean }) {
 
 const PLAY = <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" /></svg>
 
-// One game as a card (phones): a status chip, a row per team (score, or win chance before the game), then the goals
+// One game as a card (phones): a status chip, a row per team (table position, and the score once it has started), then the goals
 // as a sideways row (tap one to watch it) or each team's top scorers. Tapping the card opens the match page.
 export function GameCard({ g, d }: { g: Game; d?: GameDetails | null }) {
   const { core, cur, tName, fav } = useData()
-  const done = isFinal(g), live = isLive(g), isFav = !!fav && (g.home === fav || g.away === fav), ph = g.ph ?? 0.5
+  const done = isFinal(g), live = isLive(g), isFav = !!fav && (g.home === fav || g.away === fav)
   const hs = live && d ? d.hs ?? g.hs : g.hs, as = live && d ? d.as ?? g.as : g.as
 
   const row = (c: string, s: 'home' | 'away') => {
@@ -56,9 +54,7 @@ export function GameCard({ g, d }: { g: Game; d?: GameDetails | null }) {
       <div className={`gc-row ${done && score! < other! ? 'lose' : ''}`}>
         <TeamBadge code={c} size="md" />
         <div className="gc-nm"><b>{tName(c)}</b>{rank > 0 && <span className="gc-rank" title="Tabellplats" style={{ '--zone': zoneBad(rank) } as React.CSSProperties}>{rank}</span>}</div>
-        {done || live
-          ? <span className="gc-num num">{score ?? 0}</span>
-          : <span className="gc-pct num" title="Vinstchans">{pctTxt(s === 'home' ? ph : 1 - ph)}</span>}
+        {done || live ? <span className="gc-num num">{score ?? 0}</span> : null}
       </div>
     )
   }
@@ -117,7 +113,6 @@ export function GameCard({ g, d }: { g: Game; d?: GameDetails | null }) {
         {done ? <span className="gc-chip">{statusTxt(g)}</span>
           : live ? <span className="gc-chip live"><i className="live-dot" />{liveClock((d?.live as LiveData) ?? null)}</span>
           : <span className="gc-chip">{fmtTime(g.start)}</span>}
-        {isFav && <span className="gc-mine" title="Mitt lag" aria-label="Mitt lag">★</span>}
       </div>
       {row(g.home, 'home')}{row(g.away, 'away')}{mid}{wpBar}
       {hl && <div className="gc-foot"><button className="gc-btn" data-embed={hl.embed} data-title={`${g.home}–${g.away} sammandrag`}>{PLAY}Sammandrag</button></div>}

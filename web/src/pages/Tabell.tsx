@@ -87,7 +87,7 @@ function TableTab() {
           </Panel>
         : <Panel title="Tabell" className="wide" foot={<span className="stamp">Uppdaterad {stamp}</span>}
             sub="Tryck på en kolumnrubrik för att sortera. Skott, powerplay, boxplay, tekningar och tacklingar räknas från matchdata.">
-            <SortableTable cols={cols} rows={rows} sortKey="rank" desc={false} fav={fav} minWidth={1040} />
+            <SortableTable key="table" cols={cols} rows={rows} sortKey="rank" desc={false} fav={fav} minWidth={1040} />
             <Legend />
           </Panel>}
       <Panel title="Anfall mot försvar" sub="Gjorda och insläppta mål per match. Bäst är uppe till höger.">
@@ -123,7 +123,7 @@ function OddsTab() {
   return (
     <Board>
       <Panel title="Odds" className="wide" sub="10 000 simuleringar av resten av grundserien och slutspelet. Tryck på en kolumnrubrik för att sortera." foot={<span className="stamp">Uppdaterad {stamp}</span>}>
-        <SortableTable cols={cols} rows={odds} sortKey={narrow ? 'pts' : 'rank'} desc={narrow} fav={fav} minWidth={narrow ? 640 : 960} caption="Odds" />
+        <SortableTable key="odds" cols={cols} rows={odds} sortKey={narrow ? 'pts' : 'rank'} desc={narrow} fav={fav} minWidth={narrow ? 640 : 960} caption="Odds" />
         <Legend />
         <details className="explain">
           <summary>Hur räknas oddsen?</summary>
