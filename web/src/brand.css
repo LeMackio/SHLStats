@@ -1,0 +1,72 @@
+/* SHLstats on Arc. Arc's foundation (components/arc/foundation.css) brings the spacing, radii, type scale, motion
+   and keyboard focus ring; this layer, which comes after the site's own stylesheet, points Arc's semantic colours at
+   the site's theme tokens. Those already change with every theme (dark, light, paper, or the device's own setting)
+   and screen size, so Arc components match the page in all of them, with the SHLstats blue as the accent. */
+
+:root {
+  /* Arc's type: Inter for body and labels, Geist for large figures in Arc components */
+  --font-inter: "Inter";
+  --font-geist: "Geist";
+
+  /* Surfaces, text and lines */
+  --background: var(--bg);
+  --surface: var(--panel);
+  --surface-raised: var(--panel);
+  --surface-muted: var(--panel-2);
+  --foreground: var(--text);
+  --text-secondary: var(--muted);
+  --text-muted: var(--faint);
+  --border: var(--line);
+  --border-subtle: color-mix(in oklab, var(--line) 60%, transparent);
+  --border-strong: color-mix(in oklab, var(--text) 28%, var(--line));
+
+  /* The accent: the site's blue, with Arc's stronger and tinted variants derived from it */
+  --accent-strong: color-mix(in oklab, var(--accent) 72%, var(--text));
+  --accent-subtle: color-mix(in oklab, var(--accent) 16%, transparent);
+  --accent-foreground: var(--accent-ink);
+
+  /* Selection controls: the accent when on, a track drawn from the text colour so it reads on every theme */
+  --control-on: var(--accent);
+  --control-glyph: var(--accent-ink);
+  --control-fill: var(--accent);
+  --control-track: color-mix(in oklab, var(--text) 18%, var(--panel));
+  --control-track-hover: color-mix(in oklab, var(--text) 24%, var(--panel));
+  --control-thumb: #fff;
+  --control-thumb-on: #fff;
+
+  /* Status keeps the site's own meanings */
+  --success: var(--good);
+  --warning: var(--gold);
+  --danger: var(--bad);
+
+  /* The site's own font and corner tokens, used by its existing stylesheet: Inter for text, and Arc's softer
+     corners (the condensed italic "Archivo" for the logo, names and scores is set where it's used, so it stays) */
+  --body: var(--font-body);
+  --display: var(--font-body);
+  --radius: var(--radius-control);
+  --r-in: .75rem;
+  --r-sm: .5rem;
+}
+
+/* Arc's dark values for shadows and controls, for the device-chosen dark theme too (Arc only knows data-theme="dark") */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --shadow-resting: 0 1px 2px oklch(0% 0 0 / .18);
+    --shadow-raised: 0 8px 22px oklch(0% 0 0 / .22);
+    --shadow-floating: 0 22px 55px oklch(0% 0 0 / .34);
+    --control-thumb-shadow: 0 0 0 .5px oklch(0% 0 0 / .3), 0 1px 2px oklch(0% 0 0 / .35), 0 2px 6px oklch(0% 0 0 / .2);
+  }
+}
+
+body {
+  font-family: var(--font-body);
+  letter-spacing: var(--tracking-body);
+  font-feature-settings: "cv11", "ss01"; /* Inter's single-storey a and open digits read better in dense tables */
+}
+
+/* Cards rest on a hairline border, no shadow (Arc: shadows only on layers that float) */
+:root { --card-shadow: none; --shadow: none; }
+.panel { border: 1px solid var(--border); box-shadow: none; }
+
+/* Numbers that change or line up in columns */
+table.t, .num, .score, .tile .v, .lfeat-val { font-variant-numeric: tabular-nums; }

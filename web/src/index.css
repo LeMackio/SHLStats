@@ -1,6 +1,6 @@
 /* Layer order: the original site's stylesheet sits above Tailwind's base and below its components and
    utilities, so shadcn components and utility classes can still adjust anything it sets. */
-@layer theme, base, legacy, components, utilities;
+@layer theme, base, arc, legacy, brand, components, utilities;
 
 /* Tailwind without its preflight reset: the original stylesheet relies on the browser's default margins and
    headings, and resetting them would change the look. (v4 utilities set their own border style, so shadcn
@@ -12,8 +12,14 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* The site's look: the original hand-written stylesheet, kept as it was */
+/* Arc UI's design tokens (spacing, radii, type scale, motion, focus ring), under the site's own stylesheet */
+@import "./components/arc/foundation.css" layer(arc);
+
+/* The site's look: the original hand-written stylesheet */
 @import "./styles.css" layer(legacy);
+
+/* SHLstats on Arc: Arc's colour slots point at the site's theme tokens, Inter for text, softer corners */
+@import "./brand.css" layer(brand);
 
 /* Dark mode for dark: utilities follows the site's themes: the dark theme, or no choice on a dark device */
 @custom-variant dark {
