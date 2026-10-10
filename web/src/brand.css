@@ -74,6 +74,11 @@ table.t, .num, .score, .tile .v, .lfeat-val { font-variant-numeric: tabular-nums
 /* A page's views (Arc's segmented control; its phone width is in Switch.module.css) */
 .page-switch { display: flex; }
 .tt-switch { margin-bottom: var(--space-3); }
+/* A switch straight inside a card lines up with the card's heading and body */
+.panel > .seg-wrap { padding: 0 var(--panel-x, 22px); }
+@media (max-width: 700px) { .panel > .seg-wrap { --panel-x: 16px; } }
+/* Toggles that once laid out their own buttons as a grid now hold one Arc control */
+@media (max-width: 700px) { .seg-wrap.stat-tabs, .seg-wrap.media-tabs { display: block; } }
 
 /* Plain tables (fixed order: standings, odds, squads, careers) drawn like Arc's sortable table: sentence-case muted
    headers, roomy rows on hairlines, a soft hover, and your team tinted with an accent edge */
@@ -94,6 +99,19 @@ table.t .odds span { min-width: 48px; padding: 3px 8px; border-radius: 999px; fo
 @media (max-width: 700px) {
   table.t td { height: 44px; font-size: var(--text-sm); padding: 0 6px; }
   table.t th { padding: var(--space-1) 6px; }
+}
+
+/* Small labels, buttons and links in sentence case (Arc: no small capitals or tracked-out labels). Names, team names,
+   scores and the big headings keep the condensed uppercase identity. */
+.up, .s-date b, .s-status, .crumbs, .field, .chip, .tile .k, .leader .lbl, .more, .ltile h3, .pc-war .lbl, .day h3,
+.gr-day, .gr-st, .mscore .st, .timeline h4, .cmp-row .lbl, .line .lab, .playbtn, .favlink, .mini-lbl, .strip-today,
+details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .btn, .mday-stats span, .lfeat-lbl,
+.nslide-meta, .live-badge, .live-nums .k, .recap h3, .rx-win, .rm-tag, .tn-meta, .rk-lbl, .sm-zones h3, .smd-k, .gc-top,
+.gc-foot span:last-child, .sheet-in h3, .card-foot, .list-foot, .gc-mine, .gc-lbl, .mt-lbl, .mt-g-d, .mh-side,
+.phero-team, .phero-season, .ol-k, .wc-mid span, .lu-lab, .pc-team, .mts-lbl, .mts-k, .mts-odds span, .mts-d, .gl-per,
+.fd-sides, .fd-stats span, .wp-team small, .ref-first.ref-kicker, .pk-k, .tf-date, .beta-note span, .ps-tiles span,
+.ps-rh, .pg-d, .p-head .more-link, .tabs a, nav.main a, .datetabs a b, .stamp.up {
+  text-transform: none; letter-spacing: var(--tracking-body); font-weight: 500;
 }
 
 /* Team and player names in tables are text, not headings: Arc's medium weight at a reading size */

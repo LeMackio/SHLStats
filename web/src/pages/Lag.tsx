@@ -2,7 +2,7 @@ import { useLayoutEffect, useState } from 'react'
 import { HBars, LineChart } from '@/components/charts/Basic'
 import { CountUp } from '@/components/site/CountUp'
 import { GameRow } from '@/components/site/Games'
-import { Board, RouteTabs, UTabs, type TabDef } from '@/components/site/Layout'
+import { Board, RouteTabs, Seg, type TabDef } from '@/components/site/Layout'
 import { Empty, Panel, Skeleton } from '@/components/site/Panel'
 import { ClipCard, FavButton, FormChips, LeaderList, LineupGrid, RefHero, TeamNewsCards } from '@/components/site/Pieces'
 import { Avatar, PlayerLink, TeamBadge, TeamLink } from '@/components/site/TeamBadge'
@@ -114,7 +114,7 @@ function Overview({ code, teamGames, news }: { code: string; teamGames: Game[]; 
       <div className="ov-row r-two wide">
         <div className="stack">
           <Panel title="Poängliga" more={{ href: `#/lag/${code}/trupp`, label: 'Hela truppen' }}>
-            <UTabs id="tl-tabs" value={stat} onChange={setStat} options={LEADER_STATS.map((x) => [x.k, x.label])} />
+            <Seg className="lsec-tabs" id="tl-tabs" label="Poängliga: statistik" value={stat} onChange={setStat} options={LEADER_STATS.map((x) => [x.k, x.label])} />
             <div id="tl-body">
               <LeaderList rows={[...sk].sort((a, b) => st.v(b) - st.v(a) || st.tie(b) - st.tie(a))} val={st.v} fmt={st.f || ((v: number) => v)} n={8} logos={false} sub={st.sub} />
             </div>

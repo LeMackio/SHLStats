@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
 import { GsaaChart } from '@/components/charts/TeamCharts'
-import { Field, FieldInput, FieldSelect } from '@/components/site/Field'
+import { Input } from '@/components/arc/input/input'
+import { SearchField } from '@/components/arc/search-field/search-field'
+import { Select } from '@/components/arc/select/select'
+import filters from '@/components/site/Filters.module.css'
 import { Board, PageHead, Seg } from '@/components/site/Layout'
 import { LeaderSection, type LeaderSectionDef, type LeaderStat } from '@/components/site/Leaders'
 import { Panel } from '@/components/site/Panel'
@@ -59,7 +62,7 @@ export function StatistikPage() {
       <PageHead title="Statistik">Topplistor och fullständig statistik för alla SHL-spelare. Tryck på en spelare för hela profilen.</PageHead>
       {/* Phones: one leader section at a time, picked with tabs at the top */}
       {narrow && (
-        <Seg className="stat-tabs" id="stat-tabs" value={sec} onChange={setSec}
+        <Seg className="stat-tabs" id="stat-tabs" fill label="Topplista" value={sec} onChange={setSec}
           options={SECTION_ORDER_PHONE.map((id) => sections.find((s) => s.id === id)!).map((s) => [s.id, s.title])} />
       )}
       <div className="lsec-row">
@@ -129,14 +132,14 @@ function AllPlayers() {
         <svg className="alla-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
       </CollapsibleTrigger>
       <CollapsibleContent className="p-body" id="alla-body">
-        <div className="controls">
-          <Seg id="sk" value={f.kind} onChange={(kind) => set({ kind })} options={[['skaters', 'Spelare'], ['goalies', 'Målvakter']]} />
-          <Field label="Säsong"><FieldSelect label="Säsong" value={f.season} onChange={(season) => set({ season })} options={[[cur, cur], [prev, prev]]} /></Field>
-          <Field label="Lag"><FieldSelect label="Lag" value={team} onChange={(t) => set({ team: t })} options={[['ALL', 'Alla lag'], ...teams.map((t) => [t, tName(t)] as [string, string])]} /></Field>
-          <Field label="Position" hidden={!isSk}><FieldSelect label="Position" value={f.pos} onChange={(pos) => set({ pos })} options={[['ALL', 'Alla'], ['F', 'Forwards'], ['D', 'Backar']]} /></Field>
-          <Field label="Visa"><FieldSelect label="Visa" value={f.rk ? '1' : ''} onChange={(v) => set({ rk: !!v })} options={[['', 'Alla spelare'], ['1', 'Endast rookies']]} /></Field>
-          <Field label="Minst matcher"><FieldInput id="sm" type="number" min={0} className="w-[62px]" value={f.minGp} onChange={(e) => set({ minGp: +e.target.value || 0 })} /></Field>
-          <Field label="Sök"><FieldInput id="sq" type="search" placeholder="Namn" className="w-[170px]" value={f.q} onChange={(e) => set({ q: e.target.value })} /></Field>
+        <Seg id="sk" label="Visa" fill value={f.kind} onChange={(kind) => set({ kind })} options={[['skaters', 'Spelare'], ['goalies', 'Målvakter']]} />
+        <div className={filters.filters}>
+          <Select label="Säsong" value={f.season} onValueChange={(season) => set({ season })} options={[{ value: cur, label: cur }, { value: prev, label: prev }]} />
+          <Select label="Lag" value={team} onValueChange={(t) => set({ team: t })} options={[{ value: 'ALL', label: 'Alla lag' }, ...teams.map((t) => ({ value: t, label: tName(t) }))]} />
+          {isSk && <Select label="Position" value={f.pos} onValueChange={(pos) => set({ pos })} options={[{ value: 'ALL', label: 'Alla' }, { value: 'F', label: 'Forwards' }, { value: 'D', label: 'Backar' }]} />}
+          <Select label="Spelare" value={f.rk ? 'rk' : 'all'} onValueChange={(v) => set({ rk: v === 'rk' })} options={[{ value: 'all', label: 'Alla spelare' }, { value: 'rk', label: 'Endast rookies' }]} />
+          <Input label="Minst matcher" type="number" inputMode="numeric" min={0} value={f.minGp} onChange={(e) => set({ minGp: +e.target.value || 0 })} />
+          <SearchField label="Sök" placeholder="Namn" clearLabel="Rensa sökningen" value={f.q} onValueChange={(q) => set({ q })} />
         </div>
         {isSk
           ? <SortableTable key={`sk-${f.season}`} cols={skCols} rows={rows as SkRow[]} sortKey="pts" limit={25} fav={fav} />

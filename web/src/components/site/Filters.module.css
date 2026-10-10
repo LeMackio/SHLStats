@@ -1,0 +1,7 @@
+/* A row of Arc filter fields (labels above), as even columns that wrap */
+.filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3); align-items: end; margin: var(--space-3) 0 var(--space-4); }
+/* Phones: 16px text in the fields so iPhones don't zoom in when one is tapped */
+@media (max-width: 700px) {
+  .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filters input, .filters button[role="combobox"] { font-size: 16px; }
+}

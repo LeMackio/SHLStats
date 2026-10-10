@@ -46,7 +46,7 @@ function Media({ M, want }: { M: MediaData; want: string }) {
 
   return (
     <>
-      <Seg className="media-tabs" id="media-range" value={range} onChange={(r) => go(r === 'vecka' ? '#/media' : `#/media/${r}`)}
+      <Seg className="media-tabs" id="media-range" fill label="Visa" value={range} onChange={(r) => go(r === 'vecka' ? '#/media' : `#/media/${r}`)}
         options={[['dag', 'Matchdagen'], ['vecka', 'Veckan'], ...(fav ? [['lag', <><TeamBadge code={fav} />{fav}</>] as ['lag', React.ReactNode]] : [])]} />
       {best.length > 0 && <>
         <div className="m-sec"><h2>{bestTitle}</h2><p>Svåra lägen och stora ögonblick, högst två mål per match.</p></div>

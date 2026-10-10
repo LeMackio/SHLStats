@@ -4,7 +4,7 @@ import { POS_SHORT } from '@/lib/format'
 import { readable, teamHue, tColor } from '@/lib/teams'
 import { useTheme } from '@/lib/theme'
 import { CountUp } from './CountUp'
-import { UTabs } from './Layout'
+import { Seg } from './Layout'
 import { Empty } from './Panel'
 import { Portrait } from './Portrait'
 import { SlideIndicator } from './SlideIndicator'
@@ -46,7 +46,7 @@ export function LeaderSection({ sec, hidden = false }: { sec: LeaderSectionDef; 
   return (
     <section className="panel lsec" data-sec={sec.id} hidden={hidden}>
       <div className="p-head"><h2>{sec.title}</h2>{sec.note && <span className="stamp">{sec.note}</span>}</div>
-      <UTabs id={`lt-${sec.id}`} value={statKey} onChange={(k) => { setStatKey(k); setOn(0) }} options={sec.stats.map((s) => [s.k, s.label])} />
+      <Seg className="lsec-tabs" id={`lt-${sec.id}`} label={`${sec.title}: statistik`} value={statKey} onChange={(k) => { setStatKey(k); setOn(0) }} options={sec.stats.map((s) => [s.k, s.label])} />
       <div className="p-body" id={`lb-${sec.id}`}>
         {!top.length ? <Empty>Ingen statistik ännu.</Empty> : (
           <div className="lsec-grid">
