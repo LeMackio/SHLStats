@@ -28,11 +28,11 @@ export function SearchPalette({ open, onOpenChange }: { open: boolean; onOpenCha
   const { codes, tName, fav } = useData()
   const index = useSearchIndex()
 
-  // ⌘K / Ctrl K and "/" open it from anywhere (not while typing in a field or with the video open)
+  // ⌘K / Ctrl K and "/" open it from anywhere ("/" not while typing in a field or with another dialog open)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '')
-      if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') || (e.key === '/' && !typing && !document.querySelector('dialog.video[open]'))) {
+      if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') || (e.key === '/' && !typing && !document.querySelector('[role="dialog"]'))) {
         e.preventDefault()
         onOpenChange(true)
       }
