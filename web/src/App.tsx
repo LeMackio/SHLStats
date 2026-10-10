@@ -2,6 +2,7 @@ import { Component, lazy, Suspense, useEffect, useRef, useState, type ComponentT
 import { BottomNav, Footer } from '@/components/site/BottomNav'
 import { Header } from '@/components/site/Header'
 import { Panel, Skeleton } from '@/components/site/Panel'
+import { SearchPalette } from '@/components/site/SearchPalette'
 import { SettingsSheet } from '@/components/site/SettingsSheet'
 import { Strip } from '@/components/site/Strip'
 import { VideoDialog } from '@/components/site/VideoDialog'
@@ -68,7 +69,6 @@ export default function App() {
 
   useBodyClass('is-home', path === '/') // the settings button shows on Hem (phones)
   useBodyClass('is-sub', SUB_PAGES.includes(seg))
-  useBodyClass('search-open', searchOpen)
   useCompactNav()
   usePullToRefresh()
   useAppMode(core.updated)
@@ -81,7 +81,7 @@ export default function App() {
   return (
     <>
       <Strip />
-      <Header path={path} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onSettings={() => setSettingsOpen(true)} />
+      <Header path={path} onSearch={() => setSearchOpen(true)} onSettings={() => setSettingsOpen(true)} />
       <main id="app">
         <PageErrorBoundary key={path}><Suspense fallback={<Skeleton />}>{renderRoute(path)}</Suspense></PageErrorBoundary>
       </main>
@@ -89,6 +89,7 @@ export default function App() {
       <BottomNav path={path} />
       <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <VideoDialog />
+      <SearchPalette open={searchOpen} onOpenChange={setSearchOpen} />
     </>
   )
 }

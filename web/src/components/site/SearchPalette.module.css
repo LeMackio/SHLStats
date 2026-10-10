@@ -1,0 +1,42 @@
+/* The palette sits a little above the middle of the screen, like a native search sheet; the palette itself draws the surface */
+.content {
+  position: fixed;
+  z-index: 51;
+  left: 50%;
+  top: max(var(--space-6), 12vh);
+  width: min(calc(100vw - var(--space-8)), 620px);
+  transform: translateX(-50%);
+  animation: rise var(--duration-standard) var(--ease-enter) both;
+}
+.content:focus { outline: none; }
+.content[data-state="closed"] { animation: leave var(--duration-fast) var(--ease-standard) both; pointer-events: none; }
+/* Team badges and headshots fill the palette's icon slot instead of overflowing it */
+.content :global(.tb), .content :global(.av) { width: 22px; height: 22px; font-size: 8px; }
+.hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 700px) {
+  .content { top: calc(var(--space-3) + env(safe-area-inset-top, 0px)); width: calc(100vw - var(--space-6)); }
+}
+
+@keyframes rise { from { opacity: 0; transform: translate(-50%, 6px); } }
+@keyframes leave { to { opacity: 0; transform: translate(-50%, 4px); } }
+@media (prefers-reduced-motion: reduce) {
+  .content, .content[data-state="closed"] { animation-duration: var(--duration-instant); }
+}
+
+/* The header button that opens the palette: a quiet field-like pill on computers, a round icon on phones */
+.trigger {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  height: var(--control-height-sm); padding: 0 var(--space-2) 0 var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-pill);
+  background: var(--surface-muted); color: var(--text-secondary);
+  font: 400 var(--text-sm)/1 var(--font-body); letter-spacing: var(--tracking-body); cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+.triggerLabel { min-width: 7rem; text-align: left; }
+.triggerKey { padding: 2px 6px; border: 1px solid var(--border); border-radius: var(--radius-pill); color: var(--text-muted); font: 500 var(--text-xs)/1.2 var(--font-body); }
+@media (hover: hover) and (pointer: fine) { .trigger:hover { background: color-mix(in oklab, var(--foreground) 8%, var(--surface-muted)); color: var(--foreground); } }
+@media (max-width: 700px) {
+  .trigger { width: 42px; height: 42px; padding: 0; justify-content: center; border: 0; background: var(--surface-muted); color: var(--foreground); }
+  .triggerLabel, .triggerKey { display: none; }
+}
