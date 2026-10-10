@@ -159,6 +159,18 @@ details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .b
 #sm-info .tile .s { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* one line, so no tile grows */
 @media (max-width: 700px) { .sm-search-ph { height: 46px; } #sm-picks { min-height: 214px; } }
 
+/* One type scale inside cards, on every page: card titles 16px, names and primary text 15px medium, numbers in game
+   rows 18px medium, secondary text (subs, notes, stamps, legends, links) 13px. Phones one step larger for reading. */
+.panel .p-head h2 { font-size: 16px; font-weight: 600; }
+.gr-t b, ol.lb .n a, ol.lb .n b, .tf-row .tf-opp b, .teamcell .nm b, .pcell a, .rk-nm a { font-size: 15px; font-weight: 500; }
+.gr-time, .gr-num, .tf-res b { font-size: 18px; font-weight: 500; }
+.p-sub, .stamp, .legend, .note, .more-link, .gr-day, .gr-st, .pcell small, .rk-nm small, ol.lb small, .tf-row small, .tf-date, .day h3 { font-size: 13px; }
+.more-link { font-weight: 500; }
+@media (max-width: 700px) {
+  .gr-t b, ol.lb .n a, ol.lb .n b, .tf-row .tf-opp b, .teamcell .nm b, .pcell a, .rk-nm a { font-size: 16px; }
+  .p-sub, .stamp, .legend, .note, .more-link, .gr-day, .gr-st, .pcell small, .rk-nm small, ol.lb small, .tf-row small, .tf-date, .day h3 { font-size: 13.5px; }
+}
+
 /* Short "nothing here yet" notes inside cards (whole-page states use Arc's EmptyState) */
 .empty-state { padding: var(--space-6) var(--space-4); color: var(--text-muted); font-size: var(--text-sm); text-wrap: balance; }
 

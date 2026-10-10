@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { HBars } from '@/components/charts/Basic'
 import { GsaaChart } from '@/components/charts/TeamCharts'
 import { Input } from '@/components/arc/input/input'
 import { SearchField } from '@/components/arc/search-field/search-field'
@@ -57,6 +58,13 @@ export function StatistikPage() {
   const sections = useSections()
   const [sec, setSec] = useKeptState('stats-sec', 'sk')
   const [gSeason, setGSeason] = useState(cur)
+  const [pSeason, setPSeason] = useState(cur)
+  // Points per game among skaters with at least 40 % of the most games played that season: as many as the goalie chart beside it shows,
+  // so both cards end at the same height
+  const ppgLeaders = (s: string) => {
+    const sk = core.seasons[s].skaters, most = Math.max(1, ...sk.map((p) => p.gp)), min = Math.max(1, Math.ceil(most * 0.4))
+    return sk.filter((p) => p.gp >= min).map((p) => ({ label: p.name, code: p.team, v: p.pts / p.gp })).sort((a, b) => b.v - a.v).slice(0, Math.max(15, core.seasons[s].goalies.filter((g) => g.mins >= (s === cur ? 60 : 600)).length))
+  }
 
   return (
     <>
@@ -75,6 +83,11 @@ export function StatistikPage() {
           sub="Räddningar minus de skott en genomsnittlig SHL-målvakt skulle ha räddat. Tar inte hänsyn till skottens kvalitet.">
           <Seg id="gs" value={gSeason} onChange={setGSeason} options={[[prev, prev], [cur, cur]]} />
           <div className="chart"><GsaaChart season={core.seasons[gSeason]} label={gSeason} isCur={gSeason === cur} /></div>
+        </Panel>
+        {/* Its skater counterpart beside it, drawn the same way, so the row is never half empty */}
+        <Panel title="Utespelare: poäng per match" className="gsaa-card" sub="Spelare med minst 40 % av lagets matcher.">
+          <Seg id="ppg" value={pSeason} onChange={setPSeason} options={[[prev, prev], [cur, cur]]} />
+          <div className="chart"><HBars items={ppgLeaders(pSeason)} logos labelW={170} fmt={(v) => dec(v, 2)} /></div>
         </Panel>
       </Board>
     </>

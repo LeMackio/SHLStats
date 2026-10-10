@@ -47,16 +47,17 @@ const CHART_STRINGS: LineChartStrings = { series: 'serier', exploreBy: 'utforska
 
 // Lines over time: Arc's line chart, with a crosshair readout of every series and toggles when there are several.
 // fromZero false lets the axis start near the data (save percentages).
-export function LineChart({ series, label, xLabels, yFmt = (v) => String(v), fromZero = true, category = 'Datum', height = 220 }: {
+export function LineChart({ series, label, xLabels, tips, yFmt = (v) => String(v), fromZero = true, category = 'Datum', height = 220 }: {
   series: Series[]
   label: string
   xLabels: string[]
+  tips?: string[] // the crosshair's title for each point, when it should say more than the axis (default: the axis label)
   yFmt?: (v: number) => string
   fromZero?: boolean
   category?: string
   height?: number
 }) {
-  const data = xLabels.map((x, i) => ({ key: String(i), label: x, axisLabel: x, values: Object.fromEntries(series.map((s, k) => [`s${k}`, s.pts[i]])) }))
+  const data = xLabels.map((x, i) => ({ key: String(i), label: tips?.[i] ?? x, axisLabel: x, values: Object.fromEntries(series.map((s, k) => [`s${k}`, s.pts[i]])) }))
   return (
     <ArcLineChart data={data} series={series.map((s, k) => ({ key: `s${k}`, label: s.label, color: s.color, area: !!s.area }))}
       label={label} categoryLabel={category} height={height} fromZero={fromZero} locale="sv-SE" strings={CHART_STRINGS}

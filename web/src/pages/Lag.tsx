@@ -1,13 +1,12 @@
-import { useLayoutEffect, useState } from 'react'
-import { HBars, LineChart } from '@/components/charts/Basic'
+import { useLayoutEffect, useState, type ReactNode } from 'react'
 import { GameRow } from '@/components/site/Games'
 import { Board, RouteTabs, Seg, type TabDef } from '@/components/site/Layout'
-import { Empty, Panel, Skeleton } from '@/components/site/Panel'
+import { Empty, PageState, Panel, Skeleton } from '@/components/site/Panel'
 import { ClipCard, FavButton, FormChips, LeaderList, LineupGrid, RefHero, TeamNewsCards } from '@/components/site/Pieces'
 import { Avatar, PlayerLink, TeamBadge, TeamLink } from '@/components/site/TeamBadge'
 import { useData } from '@/data/context'
 import { teamsFile, useFile } from '@/data/loaders'
-import { dec, fmtDate, fmtDay, mmss, oddsTxt, pctTxt, signed, sum } from '@/lib/format'
+import { dec, fmtDay, mmss, oddsTxt, pctTxt, signed, sum } from '@/lib/format'
 import { ordinal } from '@/lib/game'
 import { NAT } from '@/lib/nat'
 import { usePageTitle } from '@/lib/pageTitle'
@@ -18,7 +17,7 @@ import { useChartWidth, useNarrow } from '@/lib/useNarrow'
 import { NotFound } from './NotFound'
 import season from './LagSeason.module.css'
 
-const TABS = ['', 'form', 'trupp', 'schema', 'historik']
+const TABS = ['', 'schema', 'trupp', 'media', 'historik']
 
 export function LagPage({ code, tab: want }: { code: string; tab: string }) {
   const { core, games, cur, tName, teams } = useData()
@@ -45,7 +44,7 @@ export function LagPage({ code, tab: want }: { code: string; tab: string }) {
   const roster = core.rosters[code] || []
   const teamGames = games.filter((g) => g.home === code || g.away === code)
   const rank = core.standings.indexOf(r) + 1
-  const tabs: TabDef[] = [{ key: '', label: 'Översikt' }, { key: 'schema', label: 'Matcher', icon: 'calendar' }, { key: 'trupp', label: 'Trupp', count: roster.length || '' }, { key: 'form', label: 'Statistik', icon: 'chart' }, { key: 'historik', label: 'Historik' }]
+  const tabs: TabDef[] = [{ key: '', label: 'Översikt' }, { key: 'schema', label: 'Matcher', icon: 'calendar' }, { key: 'trupp', label: 'Trupp', count: roster.length || '' }, { key: 'media', label: 'Media', icon: 'play' }, { key: 'historik', label: 'Historik' }]
 
   // Every home arena, the most used first (Djurgården: Hovet and Avicii Arena)
   const arenaCount: Record<string, number> = {}
@@ -67,8 +66,8 @@ export function LagPage({ code, tab: want }: { code: string; tab: string }) {
       {tab === 'trupp' ? <Roster code={code} />
         : tab === 'schema' ? <Schedule teamGames={teamGames} />
         : tab === 'historik' ? <History code={code} />
-        : tab === 'form' ? <Form code={code} logs={td.logs[code] || []} />
-        : <Overview code={code} teamGames={teamGames} news={td.news[code] || []} />}
+        : tab === 'media' ? <Media code={code} news={td.news[code] || []} />
+        : <Overview code={code} teamGames={teamGames} logs={td.logs[code] || []} />}
     </>
   )
 }
@@ -81,128 +80,108 @@ const LEADER_STATS: { k: string; label: string; v: (p: Skater) => number; tie: (
   { k: 'pm', label: '+/-', v: (p) => p.pm, tie: (p) => p.pts, sub: (p) => `${p.gp} matcher`, f: signed },
 ]
 
-function Overview({ code, teamGames, news }: { code: string; teamGames: Game[]; news: TeamNews[] }) {
-  const { core, cur, tName } = useData()
-  const s = core.sim[code]
+// Översikt: everything about the team's season on one page. The cards are laid out as a masonry board, so each takes
+// the height its content needs and no space is left empty. Games first, then the numbers, the points list, the
+// playoff outlook, home and away, and every game of the season at the bottom.
+function Overview({ code, teamGames, logs }: { code: string; teamGames: Game[]; logs: (string | number | null)[][] }) {
+  const { core, cur } = useData()
   const [stat, setStat] = useState('pts')
   const st = LEADER_STATS.find((x) => x.k === stat)!
   const sk = core.seasons[cur].skaters.filter((p) => p.team === code)
-  const days = Object.keys(core.history).sort().filter((d) => core.history[d].t[code])
   const next = teamGames.filter((g) => !isFinal(g)).slice(0, 3), last = teamGames.filter(isFinal).slice(-3).reverse()
-  const clips = (core.recentClips || []).filter((c) => c.team === code).slice(0, 4)
-  const qf = Object.entries(s.qf || {})
+  const S = useSeasonLog(logs)
 
   return (
     <Board>
-      {/* What matters now first: the next games and the latest results */}
-      <div className="ov-row r-two wide">
-        <Panel title="Kommande matcher" more={{ href: `#/lag/${code}/schema`, label: 'Alla matcher' }}>
-          {next.length ? <div className="day">{next.map((g) => <GameRow key={g.id} g={g} dated />)}</div> : <Empty>Inga fler matcher.</Empty>}
-        </Panel>
-        <Panel title="Senaste resultat" more={{ href: `#/lag/${code}/schema`, label: 'Alla resultat' }}>
-          {last.length ? <div className="day">{last.map((g) => <GameRow key={g.id} g={g} dated />)}</div> : <Empty>Inga spelade matcher ännu.</Empty>}
-        </Panel>
+      <Panel title="Kommande matcher" more={{ href: `#/lag/${code}/schema`, label: 'Alla matcher' }}>
+        {next.length ? <div className="day">{next.map((g) => <GameRow key={g.id} g={g} dated />)}</div> : <Empty>Inga fler matcher.</Empty>}
+      </Panel>
+      <Panel title="Senaste resultat" more={{ href: `#/lag/${code}/schema`, label: 'Alla resultat' }}>
+        {last.length ? <div className="day">{last.map((g) => <GameRow key={g.id} g={g} dated />)}</div> : <Empty>Inga spelade matcher ännu.</Empty>}
+      </Panel>
+      <Panel title="Säsongsstatistik" sub="Placering i ligan. Full stapel = bäst i SHL.">
+        <SeasonStats code={code} xgp={S?.all.xgp ?? null} gax={S && S.all.xgp != null ? S.all.gf - S.all.xgf : null} />
+      </Panel>
+      <Panel title="Poängliga" more={{ href: `#/lag/${code}/trupp`, label: 'Hela truppen' }}>
+        <Seg className="lsec-tabs" id="tl-tabs" label="Poängliga: statistik" value={stat} onChange={setStat} options={LEADER_STATS.map((x) => [x.k, x.label])} />
+        <div id="tl-body">
+          <LeaderList rows={[...sk].sort((a, b) => st.v(b) - st.v(a) || st.tie(b) - st.tie(a))} val={st.v} fmt={st.f || ((v: number) => v)} n={8} logos={false} sub={st.sub} />
+        </div>
+      </Panel>
+      <Panel title="Slutspel och prognos" sub="10 000 simuleringar av resten av säsongen."><Outlook code={code} /></Panel>
+      {S && <GameByGame S={S} />}
+      {S && <HomeAway S={S} />}
+    </Board>
+  )
+}
+const clipSub = (c: GoalClip) => `${c.team} mot ${c.opp} · ${c.score[0]}–${c.score[1]} · ${fmtDay(c.date)}`
+
+// One horizontal bar row, the team page's single chart style (like the special teams chart): label, bar, value
+function BarRow({ label, p, max = 1, value, color }: { label: ReactNode; p: number; max?: number; value: string; color?: string }) {
+  return (
+    <div className={season.barRow}>
+      <span className={season.barLabel}>{label}</span>
+      <span className={season.bar}><i style={{ width: `${Math.min(100, Math.max(p > 0 ? 1.5 : 0, (p / max) * 100))}%`, background: color }} /></span>
+      <b className="num">{value}</b>
+    </div>
+  )
+}
+
+// The playoff outlook in one card: the chance of each step, the most likely final places and the likely
+// quarter-final opponents, all as the same bar rows
+function Outlook({ code }: { code: string }) {
+  const { core, tName } = useData()
+  const s = core.sim[code]
+  const places = s.rank.map((p, i) => ({ place: i + 1, p })).sort((a, b) => b.p - a.p).slice(0, 3).sort((a, b) => a.place - b.place)
+  const qf = Object.entries(s.qf || {}).map(([c, p]) => ({ c, p: p / Math.max(0.001, s.top10) })).sort((a, b) => b.p - a.p).slice(0, 3)
+  return (
+    <div className={season.outlook}>
+      <div className={season.group}>
+        <BarRow label="Slutspel" p={s.top10} value={oddsTxt(s.top10)} />
+        <BarRow label="Topp 6" p={s.top6} value={oddsTxt(s.top6)} />
+        <BarRow label="Semifinal" p={s.semi} value={oddsTxt(s.semi)} />
+        <BarRow label="Final" p={s.final} value={oddsTxt(s.final)} />
+        <BarRow label="SM-guld" p={s.gold} value={oddsTxt(s.gold)} color="var(--gold)" />
+        <BarRow label="SHL-kval" p={s.rel} value={oddsTxt(s.rel)} color="var(--bad)" />
       </div>
-      {/* Then the season: the record, form and odds in one card, beside the points list */}
-      <div className="ov-row r-two wide">
-        <Panel title="Säsongen" more={{ href: `#/lag/${code}/form`, label: 'All statistik' }}><SeasonCard code={code} teamGames={teamGames} /></Panel>
-        <Panel title="Poängliga" more={{ href: `#/lag/${code}/trupp`, label: 'Hela truppen' }}>
-          <Seg className="lsec-tabs" id="tl-tabs" label="Poängliga: statistik" value={stat} onChange={setStat} options={LEADER_STATS.map((x) => [x.k, x.label])} />
-          <div id="tl-body">
-            <LeaderList rows={[...sk].sort((a, b) => st.v(b) - st.v(a) || st.tie(b) - st.tie(a))} val={st.v} fmt={st.f || ((v: number) => v)} n={8} logos={false} sub={st.sub} />
-          </div>
-        </Panel>
+      <div className={season.group}>
+        <h3 className={season.groupTitle}>Trolig slutplacering <span>Prognos {dec(s.proj, 0)} poäng</span></h3>
+        {places.map((x) => <BarRow key={x.place} label={`${ordinal(x.place)} plats`} p={x.p} max={places[0] ? Math.max(...places.map((y) => y.p)) : 1} value={pctTxt(x.p)} />)}
       </div>
+      {qf.length > 0 && (
+        <div className={season.group}>
+          <h3 className={season.groupTitle}>Trolig kvartsfinalmotståndare</h3>
+          {qf.map((x) => <BarRow key={x.c} label={<><TeamBadge code={x.c} />{tName(x.c)}</>} p={x.p} value={pctTxt(x.p)} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Media: the club's news and the team's latest goals and game highlights
+function Media({ code, news }: { code: string; news: TeamNews[] }) {
+  const { core, tName } = useData()
+  const clips = (core.recentClips || []).filter((c) => c.team === code)
+  const hls = (core.highlights || []).filter((h) => h.home === code || h.away === code)
+  if (!news.length && !clips.length && !hls.length) return <PageState icon="later" title="Ingen media ännu" description="Nyheter och målvideor dyker upp här efter hand." />
+  return (
+    <Board>
       {news.length > 0 && (
         <Panel title={`Nyheter om ${tName(code)}`} className="wide" sub="Från klubbens egen sajt och shl.se. Artiklarna öppnas hos källan.">
           <div className="tnews-row"><TeamNewsCards code={code} news={news} /></div>
         </Panel>
       )}
       {clips.length > 0 && (
-        <Panel title="Senaste målen">
+        <Panel title="Senaste målen" className="wide">
           <div className="clips">{clips.map((c) => <ClipCard key={c.id} c={c} title={c.scorer?.name || 'Mål'} sub={clipSub(c)} />)}</div>
         </Panel>
       )}
-      <Panel title="Slutspelsodds över tid">
-        {days.length >= 2 ? <>
-          <div className="chart">
-            <LineChart label="Slutspelsodds över tid" yFmt={(v) => Math.round(v) + ' %'} xLabels={days.map((d) => `${+d.slice(8)}/${+d.slice(5, 7)}`)} series={[
-              { pts: days.map((d) => core.history[d].t[code][1] * 100), color: 'var(--accent)', area: true, label: 'Slutspel' },
-              { pts: days.map((d) => core.history[d].t[code][0] * 100), color: 'color-mix(in srgb, var(--accent) 50%, var(--text))', label: 'Topp 6' },
-              { pts: days.map((d) => core.history[d].t[code][2] * 100), color: 'var(--gold)', label: 'SM-guld' },
-            ]} />
-          </div>
-        </> : <Empty>Historiken byggs upp efter hand. Varje ny matchdag lägger till en punkt{days.length ? `, första punkten sparades ${fmtDate(days[0])}` : ''}.</Empty>}
-      </Panel>
-      <Panel title="Slutplacering" sub="Chans att sluta på varje placering efter grundserien.">
-        <div className="chart"><RankDist rank={s.rank} /></div>
-      </Panel>
-      <Panel title="Trolig kvartsfinalmotståndare" sub="Om laget når kvartsfinal: andel av simuleringarna mot varje lag.">
-        <div className="chart">
-          {qf.length
-            ? <HBars items={qf.map(([c, p]) => ({ label: tName(c), code: c, v: p / Math.max(0.001, s.top10) }))} max={1} labelW={130} logos fmt={(v) => pctTxt(v)} />
-            : <Empty>Laget når slutspel i för få simuleringar för att visa en trolig motståndare.</Empty>}
-        </div>
-      </Panel>
-    </Board>
-  )
-}
-
-// The season in one card: the record, goals, the current streak and the last five games, then the odds
-function SeasonCard({ code, teamGames }: { code: string; teamGames: Game[] }) {
-  const { core } = useData()
-  const r = core.standings.find((t) => t.code === code)!, s = core.sim[code]
-  const played = teamGames.filter(isFinal)
-  const ptsOf = (g: Game) => { const us = g.home === code ? g.hs! : g.as!, them = g.home === code ? g.as! : g.hs!, ex = g.ot || g.so; return us > them ? (ex ? 2 : 3) : ex ? 1 : 0 }
-  const won = (g: Game) => ptsOf(g) >= 2
-  let streak = 0
-  const lastWon = played.length ? won(played[played.length - 1]) : false
-  for (let i = played.length - 1; i >= 0 && won(played[i]) === lastWon; i--) streak++
-  const five = played.slice(-5), fivePts = sum(five.map(ptsOf))
-  const odds: [string, number, string?][] = [['Slutspel', s.top10], ['Topp 6', s.top6], ['SM-guld', s.gold, 'var(--gold)'], ['SHL-kval', s.rel, 'var(--bad)']]
-  return (
-    <div className={season.card}>
-      <div className={season.record}>
-        {([['V', r.w], ['ÖV', r.otw], ['ÖF', r.otl], ['F', r.l]] as const).map(([k, v]) => <div key={k}><b className="num">{v}</b><small>{k}</small></div>)}
-        <div className={season.goals}><b className="num">{r.gf}–{r.ga}</b><small>Mål ({signed(r.gf - r.ga)})</small></div>
-      </div>
-      {played.length > 0 && (
-        <div className={season.facts}>
-          <div><small>Svit</small><b>{streak} {lastWon ? (streak === 1 ? 'vinst' : 'vinster') : streak === 1 ? 'förlust' : 'förluster'} i rad</b></div>
-          <div><small>Senaste {five.length}</small><b>{fivePts} av {five.length * 3} poäng</b></div>
-          <div><small>Prognos</small><b>{dec(s.proj, 0)} poäng</b></div>
-        </div>
+      {hls.length > 0 && (
+        <Panel title="Matchsammandrag" className="wide">
+          <div className="clips">{hls.map((h) => <ClipCard key={h.gid} c={h} title={`${h.home} ${h.hs}–${h.as} ${h.away}`} sub={fmtDay(h.date)} />)}</div>
+        </Panel>
       )}
-      <div className={season.odds}>
-        {odds.map(([k, p, c]) => (
-          <div key={k} className={season.odd}>
-            <span>{k}</span>
-            <span className={season.bar}><i style={{ width: `${Math.max(p > 0 ? 2 : 0, p * 100)}%`, background: c }} /></span>
-            <b className="num">{oddsTxt(p)}</b>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-const clipSub = (c: GoalClip) => `${c.team} mot ${c.opp} · ${c.score[0]}–${c.score[1]} · ${fmtDay(c.date)}`
-
-// The chance of finishing in each place after the regular season
-function RankDist({ rank }: { rank: number[] }) {
-  const W = useChartWidth(560), H = 170, n = rank.length, bw = (W - 30) / n, mx = Math.max(...rank, 0.01)
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Slutplacering">
-      {rank.map((p, i) => {
-        const h = p / mx * (H - 44), x = 20 + i * bw, c = i < 6 ? 'var(--accent)' : i < 10 ? 'color-mix(in srgb, var(--accent) 50%, var(--faint))' : i >= n - 2 ? 'var(--bad)' : 'var(--faint)'
-        return (
-          <g key={i}>
-            <rect x={x + 3} y={H - 22 - h} width={bw - 6} height={h} rx="3" style={{ fill: c }}><title>{`Plats ${i + 1}: ${pctTxt(p, 1)}`}</title></rect>
-            <text x={x + bw / 2} y={H - 6} textAnchor="middle" fontSize="11" style={{ fill: 'var(--faint)' }}>{i + 1}</text>
-            {p >= 0.02 && <text x={x + bw / 2} y={H - 26 - h} textAnchor="middle" fontSize="10.5" style={{ fill: 'var(--muted)' }}>{Math.round(p * 100)}</text>}
-          </g>
-        )
-      })}
-    </svg>
+    </Board>
   )
 }
 
@@ -222,8 +201,9 @@ function Schedule({ teamGames }: { teamGames: Game[] }) {
 
 type LogRow = { g: Game; id: string; home: boolean; opp: string; gf: number; ga: number; xgf: number | null; xga: number | null; ppg: number; ppo: number; ppga: number; pko: number; res: 'V' | 'ÖV' | 'ÖF' | 'F'; pts: number }
 
-function Form({ code, logs }: { code: string; logs: (string | number | null)[][] }) {
-  const { gamesById, tName } = useData()
+// The team's games from the data refresh (score, xG, special teams), with season, home and away totals
+function useSeasonLog(logs: (string | number | null)[][]) {
+  const { gamesById } = useData()
   const rows: LogRow[] = logs.map((r) => {
     const g = gamesById[r[0] as string]
     if (!g) return null
@@ -231,8 +211,7 @@ function Form({ code, logs }: { code: string; logs: (string | number | null)[][]
     return { g, id: r[0] as string, home: !!r[1], opp: r[1] ? g.away : g.home, gf, ga, xgf: r[4] as number | null, xga: r[5] as number | null, ppg: r[6] as number, ppo: r[7] as number, ppga: r[8] as number, pko: r[9] as number,
       res: win ? (ex ? 'ÖV' : 'V') : (ex ? 'ÖF' : 'F'), pts: win ? (ex ? 2 : 3) : (ex ? 1 : 0) } as LogRow
   }).filter((x): x is LogRow => !!x).sort((a, b) => a.g.start.localeCompare(b.g.start))
-  if (!rows.length) return <Panel title="Form & statistik"><Empty>Statistiken visas efter lagets första match.</Empty></Panel>
-
+  if (!rows.length) return null
   const pct = (a: number, b: number) => b ? a / b : null
   const agg = (list: LogRow[]) => {
     const n = (k: string) => list.filter((r) => r.res === k).length, t = (k: keyof LogRow) => sum(list.map((r) => (r[k] as number) || 0))
@@ -240,45 +219,50 @@ function Form({ code, logs }: { code: string; logs: (string | number | null)[][]
     return { gp: list.length, V: n('V'), ÖV: n('ÖV'), ÖF: n('ÖF'), F: n('F'), gf: t('gf'), ga: t('ga'), pts: t('pts'),
       pp: pct(t('ppg'), t('ppo')), pk: t('pko') ? 1 - t('ppga') / t('pko') : null, xgp: xgf + xga ? xgf / (xgf + xga) : null, xgf, xga }
   }
-  const all = agg(rows), home = agg(rows.filter((r) => r.home)), away = agg(rows.filter((r) => !r.home))
+  return { rows, all: agg(rows), home: agg(rows.filter((r) => r.home)), away: agg(rows.filter((r) => !r.home)) }
+}
+type SeasonLog = NonNullable<ReturnType<typeof useSeasonLog>>
 
-  const RES_TXT = { V: 'Vinst', ÖV: 'Vinst ÖT', ÖF: 'Förlust ÖT', F: 'Förlust' }, RES_CLS = { V: 'w', ÖV: 'o', ÖF: 'ol', F: 'l' }
-  const hasXg = rows.some((r) => r.xgf != null)
-  const splitRow = (label: string, a: ReturnType<typeof agg>) => (
+function HomeAway({ S }: { S: SeasonLog }) {
+  const splitRow = (label: string, a: SeasonLog['all']) => (
     <tr key={label}><td className="l"><b>{label}</b></td><td>{a.gp}</td><td>{a.V}</td><td>{a.ÖV}</td><td>{a.ÖF}</td><td>{a.F}</td><td>{a.gf}–{a.ga}</td><td className="hl">{a.pts}</td>
-      <td>{a.gp ? dec(a.pts / a.gp, 2) : '–'}</td><td>{a.pp != null ? pctTxt(a.pp, 1) : '–'}</td><td>{a.pk != null ? pctTxt(a.pk, 1) : '–'}</td><td>{a.xgp != null ? pctTxt(a.xgp, 1) : '–'}</td></tr>
+      <td>{a.gp ? dec(a.pts / a.gp, 2) : '–'}</td><td>{a.pp != null ? pctTxt(a.pp, 1) : '–'}</td><td>{a.pk != null ? pctTxt(a.pk, 1) : '–'}</td></tr>
   )
-
   return (
-    <Board>
-      <Panel title="Säsongsstatistik" className="wide" sub="Lagets siffror och placering i ligan. Stapeln visar placeringen: full stapel = bäst i SHL.">
-        <SeasonStats code={code} xgp={all.xgp} gax={all.xgp != null ? all.gf - all.xgf : null} />
-      </Panel>
-      {/* Match för match: one row per game, newest first: when, where, who, the result, and how the chances (xG) were split */}
-      <Panel title="Match för match" className="wide" sub={hasXg ? 'Nyast först. Stapeln visar hur chanserna (xG) fördelades i matchen: fylld del = lagets andel.' : 'Nyast först.'}>
-        <div className="tf-list">
-          {[...rows].reverse().map((r) => {
-            const share = r.xgf != null && r.xgf + (r.xga ?? 0) > 0 ? r.xgf / (r.xgf + (r.xga ?? 0)) : null
-            return (
-              <a key={r.id} className="tf-row" href={`#/match/${r.id}`}>
-                <span className="tf-date">{fmtDay(r.g.start)}</span>
-                <span className="tf-opp"><small>{r.home ? 'Hemma mot' : 'Borta mot'}</small><TeamBadge code={r.opp} /><b>{tName(r.opp)}</b></span>
-                <span className={`tf-res fm-${RES_CLS[r.res]}`}><b className="num">{r.gf}–{r.ga}</b><small>{RES_TXT[r.res]}</small></span>
-                {hasXg && <span className="tf-xg">{share == null ? <small>–</small> : <><small className="num">xG {dec(r.xgf, 1)}–{dec(r.xga, 1)}</small><span className="tf-xgbar"><i style={{ width: `${share * 100}%` }} /></span></>}</span>}
-              </a>
-            )
-          })}
-        </div>
-      </Panel>
-      <Panel title="Hemma och borta">
-        <div className="tscroll">
-          <table className="t">
-            <thead><tr><th className="l"></th><th>SM</th><th>V</th><th>ÖV</th><th>ÖF</th><th>F</th><th>Mål</th><th>P</th><th>P/M</th><th title="Powerplay">PP%</th><th title="Boxplay">BP%</th><th title="Andel av matchernas xG">xG%</th></tr></thead>
-            <tbody>{splitRow('Hemma', home)}{splitRow('Borta', away)}{splitRow('Totalt', all)}</tbody>
-          </table>
-        </div>
-      </Panel>
-    </Board>
+    <Panel title="Hemma och borta">
+      <div className="tscroll">
+        <table className="t">
+          <thead><tr><th className="l"></th><th>SM</th><th>V</th><th>ÖV</th><th>ÖF</th><th>F</th><th>Mål</th><th>P</th><th>P/M</th><th title="Powerplay">PP%</th><th title="Boxplay">BP%</th></tr></thead>
+          <tbody>{splitRow('Hemma', S.home)}{splitRow('Borta', S.away)}{splitRow('Totalt', S.all)}</tbody>
+        </table>
+      </div>
+    </Panel>
+  )
+}
+
+// Match för match: one row per game, newest first: when, where, who, the result, and how the chances (xG) were split
+function GameByGame({ S }: { S: SeasonLog }) {
+  const { tName } = useData()
+  const [all, setAll] = useState(false) // the 10 latest games, the rest behind a button
+  const RES_TXT = { V: 'Vinst', ÖV: 'Vinst ÖT', ÖF: 'Förlust ÖT', F: 'Förlust' }, RES_CLS = { V: 'w', ÖV: 'o', ÖF: 'ol', F: 'l' }
+  const hasXg = S.rows.some((r) => r.xgf != null)
+  return (
+    <Panel title="Match för match" sub={hasXg ? 'Nyast först. Stapeln visar lagets andel av chanserna (xG) i matchen.' : 'Nyast först.'}>
+      <div className="tf-list">
+        {[...S.rows].reverse().slice(0, all ? undefined : 10).map((r) => {
+          const share = r.xgf != null && r.xgf + (r.xga ?? 0) > 0 ? r.xgf / (r.xgf + (r.xga ?? 0)) : null
+          return (
+            <a key={r.id} className="tf-row" href={`#/match/${r.id}`}>
+              <span className="tf-date">{fmtDay(r.g.start)}</span>
+              <span className="tf-opp"><small>{r.home ? 'Hemma mot' : 'Borta mot'}</small><TeamBadge code={r.opp} /><b>{tName(r.opp)}</b></span>
+              <span className={`tf-res fm-${RES_CLS[r.res]}`}><b className="num">{r.gf}–{r.ga}</b><small>{RES_TXT[r.res]}</small></span>
+              {hasXg && <span className="tf-xg">{share == null ? <small>–</small> : <><small className="num">xG {dec(r.xgf, 1)}–{dec(r.xga, 1)}</small><span className="tf-xgbar"><i style={{ width: `${share * 100}%` }} /></span></>}</span>}
+            </a>
+          )
+        })}
+      </div>
+      {S.rows.length > 10 && <button className="more" onClick={() => setAll(!all)} aria-expanded={all}>{all ? 'Visa färre' : `Visa alla ${S.rows.length} matcher`}</button>}
+    </Panel>
   )
 }
 

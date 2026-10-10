@@ -120,7 +120,9 @@ function Player({ P, id, want }: { P: PlayersData; id: string; want: string }) {
       trend = (
         <Panel title="Poängutveckling" sub={`Ackumulerade poäng ${cur}.`}>
           <div className="chart"><LineChart label="Poängutveckling" category="Match" series={[{ pts, color: 'var(--accent)', area: true, label: 'Poäng' }]} yFmt={(v) => String(Math.round(v))}
-            xLabels={log.map((r) => { const g = gamesById[r[0] as string]; return g ? `${dateParts(g.start).d}/${dateParts(g.start).m}` : '' })} /></div>
+            // Games played along the axis (1, 2, 3 …); the crosshair also names the date and the opponent
+            xLabels={log.map((_, i) => String(i + 1))}
+            tips={log.map((r, i) => { const g = gamesById[r[0] as string]; return `Match ${i + 1}${g ? ` · ${dateParts(g.start).d}/${dateParts(g.start).m}` : ''} mot ${r[2]}` })} /></div>
         </Panel>
       )
     }
