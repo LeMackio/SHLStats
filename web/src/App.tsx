@@ -83,7 +83,7 @@ export default function App() {
       <Strip />
       <Header path={path} onSearch={() => setSearchOpen(true)} onSettings={() => setSettingsOpen(true)} />
       <main id="app">
-        <PageErrorBoundary key={path}><Suspense fallback={<Skeleton />}>{renderRoute(path)}</Suspense></PageErrorBoundary>
+        <PageErrorBoundary key={path}><Suspense fallback={<Skeleton kind={/^\/(lag|spelare)\//.test(path) ? 'profile' : /^\/match\//.test(path) ? 'match' : 'page'} />}>{renderRoute(path)}</Suspense></PageErrorBoundary>
       </main>
       <Footer stamp={stamp} />
       <BottomNav path={path} />

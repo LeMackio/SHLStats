@@ -271,7 +271,7 @@ function BoxTable({ d, side }: { d: GameDetails; side: 'home' | 'away' }) {
   ]
   const use = narrow
     ? [{ k: 'name', label: 'Spelare', l: true, asc: true, h: (r: BoxR) => <div className="pcell rankcell"><Avatar id={r.id} name={r.name} team={team} /><div className="rk-nm"><PlayerLink id={r.id} name={shortName(r.name)} /><small>#{r.num ?? '–'} · {POS_SHORT[r.pos] || ''}</small></div></div> } as Col<BoxR>,
-      ...cols.filter((c) => ['g', 'a', 'pts', 'pm', 'sog'].includes(c.k))]
+      ...cols.filter((c) => ['g', 'a', 'pts', 'sog'].includes(c.k))]
     : cols
   return <SortableTable cols={use} rows={rows.map((r) => ({ ...r, team: undefined }))} sortKey={narrow ? 'pts' : 'toi'} />
 }
@@ -297,12 +297,12 @@ export function MatchPlayers({ d, official }: { d: GameDetails; official?: { hom
       <Panel title="Målvakter" className="wide">
         <div className="tscroll">
           <table className="t" id="gk-table">
-            <thead><tr><th className="l">Målvakt</th><th>Skott</th><th>Räddn.</th><th>Insl.</th><th>Rädd%</th></tr></thead>
+            <thead><tr><th className="l">Målvakt</th><th>Skott</th><th className="ph-x">Räddn.</th><th>Insl.</th><th>Rädd%</th></tr></thead>
             <tbody>
               {gkRows.map((r, i) => (
                 <tr key={i}>
                   <td className="l"><div className="pcell"><TeamBadge code={r.team} />{!narrow && <Avatar id={r.id} name={r.name} team={r.team} />}<PlayerLink id={r.id} name={narrow ? shortName(r.name) : r.name} /></div></td>
-                  <td>{r.soga}</td><td>{r.svs}</td><td>{r.ga}</td><td className="hl">{dec(r.svs / r.soga * 100, 1)}</td>
+                  <td>{r.soga}</td><td className="ph-x">{r.svs}</td><td>{r.ga}</td><td className="hl">{dec(r.svs / r.soga * 100, 1)}</td>
                 </tr>
               ))}
             </tbody>

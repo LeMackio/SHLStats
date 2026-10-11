@@ -204,6 +204,10 @@ details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .b
 .ref-mark-svg { position: absolute; z-index: -1; top: 50%; left: 50%; display: block; height: 150%; aspect-ratio: 1; transform: translate(-50%, -50%); color: color-mix(in oklab, var(--tc, #6b8cff) 45%, #fff); opacity: .62; pointer-events: none; }
 .ref-mark-svg svg { display: block; width: 100%; height: 100%; overflow: hidden; }
 .ref-mark-svg svg :is(path, polygon, polyline, rect, circle, ellipse, line) { fill: none; stroke: currentColor; stroke-width: 1.6px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+/* The header is always dark (team colour to near black), so it keeps the dark theme's colours in the light theme too; the line under the name takes the club colour */
+.ref { color-scheme: dark; --text: #eef2f6; --muted: #a4b0bd; --faint: #8a96a4; --line: #343f4c; --panel: #212934; --panel-2: #29323e; --good: #4fb37f; --bad: #e0607a; --gold: #e3b75a; --logo-filter: invert(1); --brand-ink: #fff;
+  --foreground: var(--text); --text-secondary: var(--muted); --text-muted: var(--faint); --surface-muted: var(--panel-2); --border-subtle: color-mix(in oklab, var(--line) 60%, transparent); }
+.ref-tinted .ref-rule, .ref-tinted .sl-ind.sl-line { background: color-mix(in oklab, var(--tc) 75%, #fff); }
 /* Text in front stays easy to read: a soft darkening behind the left side, where the name and numbers sit */
 .ref-tinted::after { position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(5, 7, 11, .72) 0%, rgba(5, 7, 11, .45) 38%, rgba(5, 7, 11, 0) 70%); content: ""; pointer-events: none; }
 .ref-outline-ink { flood-color: color-mix(in oklab, var(--tc, #6b8cff) 62%, #fff); }
@@ -221,3 +225,60 @@ details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .b
 /* Team and player names in tables are text, not headings: Arc's medium weight at a reading size */
 .teamcell .nm b { font: 500 15px/1.2 var(--font-body); letter-spacing: var(--tracking-body); }
 .pcell a { font-weight: 500; }
+
+/* Match header, in the same style as the team and player headers: split down a diagonal, the home club's colour fading
+   to near black on the left and the away club's on the right, each with its logo drawn as outlines over a fine mesh */
+.mpanel .band { overflow: hidden; border-radius: var(--radius) var(--radius) 0 0; background: #06080c; color-scheme: dark; }
+.mpanel .band::after { display: block; z-index: -1; background: radial-gradient(42% 75% at 50% 58%, rgba(5, 7, 11, .62), transparent 72%); }
+.mbg { position: absolute; inset: 0; z-index: -2; pointer-events: none; }
+.mbg-side { position: absolute; inset: 0; overflow: hidden; background-image: radial-gradient(circle, rgba(255, 255, 255, .055) .8px, transparent 1.1px), var(--side-grad); background-size: 5px 5px, 100% 100%; }
+.mbg-home { --tc: var(--hb, var(--hc)); clip-path: polygon(0 0, 56% 0, 44% 100%, 0 100%);
+  --side-grad: linear-gradient(100deg, color-mix(in oklab, var(--tc) 88%, #000) 0%, color-mix(in oklab, var(--tc) 40%, #06080c) 45%, #06080c 60%); }
+.mbg-away { --tc: var(--ab, var(--ac)); clip-path: polygon(56% 0, 100% 0, 100% 100%, 44% 100%);
+  --side-grad: linear-gradient(280deg, color-mix(in oklab, var(--tc) 88%, #000) 0%, color-mix(in oklab, var(--tc) 40%, #06080c) 45%, #06080c 60%); }
+/* The seam: a thin light line down the diagonal */
+.mbg::after { position: absolute; inset: 0; background: rgba(255, 255, 255, .16); content: ""; clip-path: polygon(55.9% 0, 56.1% 0, 44.1% 100%, 43.9% 100%); }
+.mbg .ref-mark-svg { height: 175%; opacity: .34; }
+.mbg-home .ref-mark-svg { left: 22%; }
+.mbg-away .ref-mark-svg { left: 78%; }
+@media (max-width: 700px) { .mbg .ref-mark-svg { height: 130%; opacity: .32; } .mbg-home .ref-mark-svg { left: 18%; } .mbg-away .ref-mark-svg { left: 82%; } }
+
+/* Loading skeletons in the shape of the page: the header card (always dark, like the real one) and cards with rows */
+.skel-line { display: block; max-width: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--surface-muted) 0%, color-mix(in oklab, var(--surface-muted), var(--foreground) 9%) 40%, var(--surface-muted) 80%); background-size: 300% 100%; }
+.skel-hero { position: relative; overflow: hidden; height: auto; border-radius: var(--radius); background: linear-gradient(180deg, #1a2230, #06080c); color-scheme: dark; --surface-muted: #222b38; --foreground: #eef2f6; }
+.skel-ref { display: flex; align-items: center; justify-content: space-between; gap: var(--space-6); min-height: 404px; padding: 40px 30px; }
+.skel-ref-text { display: grid; flex: 1; gap: 18px; margin-bottom: 40px; }
+.skel-tabs { position: absolute; right: 0; bottom: 0; left: 0; display: flex; gap: 28px; padding: 18px 30px; border-top: 1px solid rgba(255, 255, 255, .07); }
+.skel-stats { display: flex; gap: 34px; margin-top: 10px; }
+.skel-stats > span { display: grid; gap: 8px; }
+.skel-mark { width: 180px; height: 180px; flex: none; border-radius: 50%; background: #1d2531; animation: none; opacity: .7; }
+.skel-match { display: flex; align-items: center; justify-content: space-around; min-height: 386px; padding: 40px 30px; }
+.skel-badge { width: 104px; height: 104px; border-radius: 50%; background: #1d2531; animation: none; }
+.skel-panel { display: grid; align-content: start; gap: 14px; padding: 22px; }
+.skel-head { display: grid; gap: 10px; margin-bottom: 6px; }
+.skel-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 48px; align-items: center; gap: 12px; height: 34px; }
+.skel-row .skel-line:last-child { justify-self: end; }
+.skel-dot { width: 28px; height: 28px; border-radius: 8px; background: var(--surface-muted); animation: none; }
+@media (min-width: 1000px) { .skel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) {
+  .skel-ref { flex-direction: column-reverse; align-items: flex-start; min-height: 0; padding: 24px 18px; }
+  .skel-mark { width: 96px; height: 96px; align-self: center; }
+  .skel-match { min-height: 240px; padding: 24px 12px; }
+  .skel-badge { width: 64px; height: 64px; }
+  .skel-stats { gap: 22px; }
+  .skel-ref { padding-bottom: 70px; }
+  .skel-tabs { gap: 18px; padding: 18px; overflow: hidden; }
+}
+
+/* Tables on phones: columns marked ph-x are left out so the table fits the screen, ph-only lines show only there */
+.ph-only { display: none; }
+@media (max-width: 699px) {
+  table.t .ph-x { display: none; }
+  .ph-only { display: block; margin-top: 2px; font-size: 12px; line-height: 1.3; white-space: normal; }
+  table.t td, table.t th { padding-right: 6px; padding-left: 6px; }
+}
+@media (max-width: 699px) { .career-t .teamlink span { display: none; } }
+/* Long player names in phone tables end in an ellipsis instead of widening the table */
+@media (max-width: 699px) { .rankcell .rk-nm { flex: 0 1 auto; min-width: 0; max-width: 150px; } .rankcell .rk-nm a { overflow: hidden; text-overflow: ellipsis; } }
+/* Team names in the match header fit their column (the header clips anything wider) */
+@media (max-width: 699px) { .mpanel .mhead .mteam b { font-size: min(16px, calc(158cqi / var(--n, 10))); } }

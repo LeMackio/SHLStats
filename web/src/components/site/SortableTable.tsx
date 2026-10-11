@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { SortableDataTable, type DataColumn, type SortableDataTableStrings } from '@/components/arc/sortable-data-table/sortable-data-table'
 import { dec } from '@/lib/format'
+import { useNarrow } from '@/lib/useNarrow'
 
 export interface Col<R> {
   k: string
@@ -14,6 +15,7 @@ export interface Col<R> {
   f?: (v: never) => ReactNode // how to show the value
   h?: (r: R, i: number) => ReactNode // a whole custom cell
   w?: number // a fixed width in px (tables that should line up with each other, such as Tabell and Odds)
+  wide?: boolean // only on computers: phones leave the column out so the table fits the screen
 }
 
 export const TABLE_STRINGS: SortableDataTableStrings = {
@@ -46,14 +48,15 @@ export function SortableTable<R extends { team?: string }>({ cols, rows, sortKey
     return o
   }), [rows, cols])
 
-  const columns = useMemo(() => cols.map((c): DataColumn<Cells> => ({
+  const narrow = useNarrow()
+  const columns = useMemo(() => cols.filter((c) => !(narrow && c.wide)).map((c): DataColumn<Cells> => ({
     key: c.k, label: c.label, title: c.title, sortable: !c.noSort, numeric: !c.l, firstDirection: c.asc ? 'asc' : 'desc', width: c.w,
     render: (v, row, i) => (c.h ? c.h(row.$row as R, i) : fmtCell(v, c as Col<never>)),
-  })), [cols])
+  })), [cols, narrow])
 
   return (
     <SortableDataTable rows={cells} columns={columns} rowKey="$key" caption={caption} emptyMessage="Inga rader att visa"
       defaultSort={{ key: sortKey, direction: desc ? 'desc' : 'asc' }} strings={TABLE_STRINGS} locale="sv"
-      rowHighlight={fav ? (row) => (row.$row as R).team === fav : undefined} limit={limit} minWidth={minWidth} fold={false} />
+      rowHighlight={fav ? (row) => (row.$row as R).team === fav : undefined} limit={limit} minWidth={minWidth ?? (narrow ? 1 : undefined)} fold={false} />
   )
 }

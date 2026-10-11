@@ -3,7 +3,7 @@ import { FeedCard } from '@/components/match/Feed'
 import { Cmp, CmpRow, GoalList, MatchEvents, MatchPlayers, MatchVideo, Momentum, Recap, TeamCompare, WinChart } from '@/components/match/MatchParts'
 import { Board, RouteTabs, type TabDef } from '@/components/site/Layout'
 import { Empty, PageState, Panel, Skeleton } from '@/components/site/Panel'
-import { FormChips, LineupGrid } from '@/components/site/Pieces'
+import { FormChips, LineupGrid, OutlineLogo } from '@/components/site/Pieces'
 import { Avatar, PlayerLink, TeamBadge, TeamLink } from '@/components/site/TeamBadge'
 import { TeamToggle } from '@/components/site/TeamToggle'
 import { useTeamSide } from '@/lib/pageState'
@@ -62,7 +62,7 @@ function Match({ g, want }: { g: Game; want: string }) {
   const { ready, d } = useMatchData(g)
   const official = useOfficialLineup(g, core.seasons[cur], (!done && !live && want === 'uppstallning') || (live && want === 'spelare' && narrow && !d?.box?.home?.length))
 
-  if (!ready) return <Skeleton />
+  if (!ready) return <Skeleton kind="match" />
   // During a game the score comes from the live data
   const hs = live && d ? d.hs : g.hs, as = live && d ? d.as : g.as
   const base = `/match/${g.id}`
@@ -93,6 +93,11 @@ function Match({ g, want }: { g: Game; want: string }) {
     <>
       <section className="panel mpanel" style={{ '--hc': hc, '--ac': ac, '--hb': vivid(teamHue(g.home)), '--ab': vivid(teamHue(g.away)) } as React.CSSProperties}>
         <div className="band">
+          {/* Split down a diagonal: the home club's colour and logo outline on the left, the away club's on the right */}
+          <div className="mbg" aria-hidden="true">
+            <div className="mbg-side mbg-home"><OutlineLogo code={g.home} /></div>
+            <div className="mbg-side mbg-away"><OutlineLogo code={g.away} /></div>
+          </div>
           <div className="crumbs" style={{ padding: '16px 22px 0' }}><a href="#/matcher">Matcher</a> / {tName(g.home)} – {tName(g.away)}</div>
           <div className="mhead" style={{ '--n': Math.max(tName(g.home).length, tName(g.away).length) } as React.CSSProperties}>
             {team(g.home, 'Hemma')}

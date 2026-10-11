@@ -36,11 +36,36 @@ export function Panel({ title, sub, more, extra, foot, className = '', id, child
 
 export const MoreLink = ({ href, children }: { href: string; children: ReactNode }) => <a className="more-link" href={href}>{children} ›</a>
 
-export function Skeleton() {
+// While a page loads: the same shapes as what is coming (the header card, then cards with a title and rows), so
+// nothing jumps when the content arrives. kind: "profile" for team and player pages, "match" for a game, else a page.
+const SkelLine = ({ w, h = 12 }: { w: string; h?: number }) => <span className="skel skel-line" style={{ width: w, height: h }} />
+function SkelCard({ rows = 5, i = 0 }: { rows?: number; i?: number }) {
   return (
-    <div className="skel-page" aria-label="Laddar">
-      <div className="skel skel-hero" />
-      <div className="skel-grid"><div className="skel skel-card" /><div className="skel skel-card" /></div>
+    <section className="panel skel-panel" aria-hidden="true">
+      <div className="skel-head"><SkelLine w="38%" h={16} /><SkelLine w="62%" h={11} /></div>
+      {Array.from({ length: rows }, (_, r) => (
+        <div key={r} className="skel-row"><span className="skel skel-dot" /><SkelLine w={`${48 + ((r * 17 + i * 11) % 34)}%`} /><SkelLine w="14%" /></div>
+      ))}
+    </section>
+  )
+}
+export function Skeleton({ kind = 'page' }: { kind?: 'page' | 'profile' | 'match' }) {
+  return (
+    <div className="skel-page" role="status" aria-label="Laddar">
+      {kind === 'profile' && (
+        <div className="skel-hero skel-ref" aria-hidden="true">
+          <div className="skel-ref-text"><SkelLine w="90px" h={11} /><SkelLine w="min(360px, 70%)" h={38} /><div className="skel-stats">{[0, 1, 2].map((k) => <span key={k}><SkelLine w="52px" h={10} /><SkelLine w="44px" h={28} /></span>)}</div></div>
+          <span className="skel skel-mark" />
+          <div className="skel-tabs">{[70, 64, 56, 52, 60].map((w, k) => <SkelLine key={k} w={`${w}px`} h={10} />)}</div>
+        </div>
+      )}
+      {kind === 'match' && (
+        <div className="skel-hero skel-match" aria-hidden="true">
+          <span className="skel skel-badge" /><SkelLine w="120px" h={52} /><span className="skel skel-badge" />
+        </div>
+      )}
+      {kind === 'page' && <SkelLine w="min(280px, 60%)" h={30} />}
+      <div className="skel-grid">{[6, 4, 5, 3].map((n, i) => <SkelCard key={i} rows={n} i={i} />)}</div>
     </div>
   )
 }

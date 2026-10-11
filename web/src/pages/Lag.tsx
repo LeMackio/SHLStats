@@ -14,6 +14,7 @@ import { NAT } from '@/lib/nat'
 import { usePageTitle } from '@/lib/pageTitle'
 import { teamAccent, teamHue, vivid } from '@/lib/teams'
 import { useTheme } from '@/lib/theme'
+import { useNarrow } from '@/lib/useNarrow'
 import { isFinal, type ClubHistory, type Game, type GoalClip, type Skater, type TeamNews, type TeamsData } from '@/lib/types'
 import { NotFound } from './NotFound'
 import hist from './LagHistory.module.css'
@@ -39,7 +40,7 @@ export function LagPage({ code, tab: want }: { code: string; tab: string }) {
 
   if (!teams[code]) return <NotFound msg="Laget hittades inte." />
   if (!s || !r) return <NotFound msg={`${tName(code)} spelar inte i SHL den här säsongen.`} />
-  if (TD.state === 'loading') return <Skeleton />
+  if (TD.state === 'loading') return <Skeleton kind="profile" />
   const td: TeamsData = TD.state === 'ready' ? TD.data : { logs: {}, news: {} } // the page works without it
 
   const tab = TABS.includes(want) ? want : ''
@@ -93,10 +94,11 @@ function Overview({ code, teamGames, logs }: { code: string; teamGames: Game[]; 
   const st = LEADER_STATS.find((x) => x.k === stat)!
   const sk = core.seasons[cur].skaters.filter((p) => p.team === code)
   const [allSk, setAllSk] = useState(false)
+  const narrow = useNarrow()
   const skCols: Col<Skater>[] = [
-    { k: 'name', label: 'Spelare', l: true, asc: true, w: 200, h: (p) => <div className="pcell"><Avatar id={p.id} name={p.name} team={code} /><div><PlayerLink id={p.id} name={p.name} /><br /><small>#{p.num ?? '–'} · {POS_SHORT[p.pos] || 'F'}</small></div></div> },
+    { k: 'name', label: 'Spelare', l: true, asc: true, w: narrow ? undefined : 200, h: (p) => <div className="pcell"><Avatar id={p.id} name={p.name} team={code} /><div><PlayerLink id={p.id} name={p.name} /><br /><small>#{p.num ?? '–'} · {POS_SHORT[p.pos] || 'F'}</small></div></div> },
     { k: 'gp', label: 'SM', title: 'Spelade matcher' }, { k: 'g', label: 'M', title: 'Mål' }, { k: 'a', label: 'A', title: 'Assist' }, { k: 'pts', label: 'P', title: 'Poäng' },
-    { k: 'pm', label: '+/-', f: signed }, { k: 'toi', label: 'Istid', title: 'Istid per match', f: mmss },
+    { k: 'pm', label: '+/-', f: signed, wide: true }, { k: 'toi', label: 'Istid', title: 'Istid per match', f: mmss, wide: true },
   ]
   const next = teamGames.filter((g) => !isFinal(g)).slice(0, 3), last = teamGames.filter(isFinal).slice(-3).reverse()
   const S = useSeasonLog(logs)
@@ -118,7 +120,7 @@ function Overview({ code, teamGames, logs }: { code: string; teamGames: Game[]; 
         <Grow>
           <AnimatePresence mode="popLayout" initial={false}>
             {allSk
-              ? <motion.div key="all" {...fade}><SortableTable key="all-sk" cols={skCols} rows={sk} sortKey={stat === 'pm' ? 'pm' : stat} caption="Lagets spelare" minWidth={420} /></motion.div>
+              ? <motion.div key="all" {...fade}><SortableTable key="all-sk" cols={skCols} rows={sk} sortKey={stat === 'pm' ? 'pm' : stat} caption="Lagets spelare" minWidth={narrow ? undefined : 420} /></motion.div>
               : <motion.div key="top" {...fade}>
                 <Seg className="lsec-tabs" id="tl-tabs" label="Poängliga: statistik" value={stat} onChange={setStat} options={LEADER_STATS.map((x) => [x.k, x.label])} />
                 <div id="tl-body">
@@ -267,14 +269,14 @@ type SeasonLog = NonNullable<ReturnType<typeof useSeasonLog>>
 
 function HomeAway({ S }: { S: SeasonLog }) {
   const splitRow = (label: string, a: SeasonLog['all']) => (
-    <tr key={label}><td className="l"><b>{label}</b></td><td>{a.gp}</td><td>{a.V}</td><td>{a.ÖV}</td><td>{a.ÖF}</td><td>{a.F}</td><td>{a.gf}–{a.ga}</td><td className="hl">{a.pts}</td>
-      <td>{a.gp ? dec(a.pts / a.gp, 2) : '–'}</td><td>{a.pp != null ? pctTxt(a.pp, 1) : '–'}</td><td>{a.pk != null ? pctTxt(a.pk, 1) : '–'}</td></tr>
+    <tr key={label}><td className="l"><b>{label}</b></td><td>{a.gp}</td><td className="ph-x">{a.V}</td><td className="ph-x">{a.ÖV}</td><td className="ph-x">{a.ÖF}</td><td className="ph-x">{a.F}</td><td>{a.gf}–{a.ga}</td><td className="hl">{a.pts}</td>
+      <td className="ph-x">{a.gp ? dec(a.pts / a.gp, 2) : '–'}</td><td>{a.pp != null ? pctTxt(a.pp, 1) : '–'}</td><td>{a.pk != null ? pctTxt(a.pk, 1) : '–'}</td></tr>
   )
   return (
     <Panel title="Hemma och borta">
       <div className="tscroll">
         <table className="t">
-          <thead><tr><th className="l"></th><th>SM</th><th>V</th><th>ÖV</th><th>ÖF</th><th>F</th><th>Mål</th><th>P</th><th>P/M</th><th title="Powerplay">PP%</th><th title="Boxplay">BP%</th></tr></thead>
+          <thead><tr><th className="l"></th><th>SM</th><th className="ph-x">V</th><th className="ph-x">ÖV</th><th className="ph-x">ÖF</th><th className="ph-x">F</th><th>Mål</th><th>P</th><th className="ph-x">P/M</th><th title="Powerplay">PP%</th><th title="Boxplay">BP%</th></tr></thead>
           <tbody>{splitRow('Hemma', S.home)}{splitRow('Borta', S.away)}{splitRow('Totalt', S.all)}</tbody>
         </table>
       </div>
@@ -365,7 +367,7 @@ function Roster({ code }: { code: string }) {
       <Panel title={`${title} (${list.length})`}>
         <div className="tscroll">
           <table className="t stick">
-            <thead><tr><th className="l">Spelare</th>{pos === 'GK' ? <><th>SM</th><th>Rädd%</th><th>GAA</th><th>Nollor</th></> : <><th>SM</th><th>M</th><th>A</th><th>P</th><th>+/-</th><th>Istid</th></>}</tr></thead>
+            <thead><tr><th className="l">Spelare</th>{pos === 'GK' ? <><th>SM</th><th>Rädd%</th><th>GAA</th><th className="ph-x">Nollor</th></> : <><th>SM</th><th>M</th><th>A</th><th>P</th><th className="ph-x">+/-</th><th className="ph-x">Istid</th></>}</tr></thead>
             <tbody>
               {[...list].sort((a, b) => val(b.id) - val(a.id)).map((p) => {
                 const g = gkStats.get(p.id), s = skStats.get(p.id)
@@ -373,8 +375,8 @@ function Roster({ code }: { code: string }) {
                   <tr key={p.id}>
                     <td className="l"><div className="pcell"><Avatar id={p.id} name={p.name} team={code} /><div><PlayerLink id={p.id} name={p.name} /><br /><small>#{p.num ?? '–'} · {NAT[p.nat || ''] || p.nat || ''}</small></div></div></td>
                     {pos === 'GK'
-                      ? <><td>{g?.gpi ?? 0}</td><td className="hl">{g ? dec(g.svp, 2) : '–'}</td><td>{g ? dec(g.gaa, 2) : '–'}</td><td>{g?.so ?? 0}</td></>
-                      : <><td>{s?.gp ?? 0}</td><td>{s?.g ?? 0}</td><td>{s?.a ?? 0}</td><td className="hl">{s?.pts ?? 0}</td><td>{s ? signed(s.pm) : '–'}</td><td>{s ? mmss(s.toi) : '–'}</td></>}
+                      ? <><td>{g?.gpi ?? 0}</td><td className="hl">{g ? dec(g.svp, 2) : '–'}</td><td>{g ? dec(g.gaa, 2) : '–'}</td><td className="ph-x">{g?.so ?? 0}</td></>
+                      : <><td>{s?.gp ?? 0}</td><td>{s?.g ?? 0}</td><td>{s?.a ?? 0}</td><td className="hl">{s?.pts ?? 0}</td><td className="ph-x">{s ? signed(s.pm) : '–'}</td><td className="ph-x">{s ? mmss(s.toi) : '–'}</td></>}
                   </tr>
                 )
               })}
@@ -432,16 +434,16 @@ function History({ code, H, names }: { code: string; H?: ClubHistory; names: Rec
       <Panel title="Alla säsonger i SHL" className="wide" sub="Nyast först. Grundserien och hur slutspelet slutade.">
         <div className="tscroll">
           <table className="t">
-            <thead><tr><th className="l">Säsong</th><th>Serie</th><th className="l">Slutspel</th><th>SM</th><th>V</th><th>ÖV</th><th>ÖF</th><th>F</th><th>Mål</th><th>P</th><th className="l">Poängbäst</th></tr></thead>
+            <thead><tr><th className="l">Säsong</th><th>Serie</th><th className="l">Slutspel</th><th className="ph-x">SM</th><th className="ph-x">V</th><th className="ph-x">ÖV</th><th className="ph-x">ÖF</th><th className="ph-x">F</th><th className="ph-x">Mål</th><th>P</th><th className="l ph-x">Poängbäst</th></tr></thead>
             <tbody>
               {H.seasons.slice(0, nSeasons).map((s) => (
                 <tr key={s[0]}>
-                  <td className="l">{seasonTxt(s[0])}{s[0] === cur && <> <span className="faint">(pågår)</span></>}</td>
+                  <td className="l">{seasonTxt(s[0])}{s[0] === cur && <> <span className="faint">(pågår)</span></>}{s[11] && <small className="ph-only faint">{s[11]}, {s[13]} p</small>}</td>
                   <td className="hl">{s[1]}</td>
                   <td className="l">{s[14] != null ? <span className={`${hist.po} ${s[14] === 0 ? hist.poGold : s[14] === 1 ? hist.poSilver : ''}`}>{PO_LONG[s[14]] || 'Slutspel'}</span> : <span className="faint">–</span>}</td>
-                  <td>{s[2]}</td><td>{s[3]}</td><td>{s[4]}</td><td>{s[5]}</td><td>{s[6]}</td>
-                  <td><span className="gfga num"><span>{s[7]}</span>–<span>{s[8]}</span></span></td><td className="hl">{s[9]}</td>
-                  <td className="l">{s[11] ? <>{s[12] ? <PlayerLink id={s[12]} name={s[11]} /> : s[11]} <span className="faint">{s[13]} p</span></> : <span className="faint">–</span>}</td>
+                  <td className="ph-x">{s[2]}</td><td className="ph-x">{s[3]}</td><td className="ph-x">{s[4]}</td><td className="ph-x">{s[5]}</td><td className="ph-x">{s[6]}</td>
+                  <td className="ph-x"><span className="gfga num"><span>{s[7]}</span>–<span>{s[8]}</span></span></td><td className="hl">{s[9]}</td>
+                  <td className="l ph-x">{s[11] ? <>{s[12] ? <PlayerLink id={s[12]} name={s[11]} /> : s[11]} <span className="faint">{s[13]} p</span></> : <span className="faint">–</span>}</td>
                 </tr>
               ))}
             </tbody>
@@ -453,8 +455,8 @@ function History({ code, H, names }: { code: string; H?: ClubHistory; names: Rec
         <Panel title="Poängliga genom tiderna" sub={`Grundserien i ${tName(code)}, säsonger med spelarstatistik.`}>
           <div className="tscroll">
             <table className="t">
-              <thead><tr><th className="rank">#</th><th className="l">Spelare</th><th>Säs.</th><th>SM</th><th>M</th><th>A</th><th>P</th></tr></thead>
-              <tbody>{H.leaders.slice(0, nLeaders).map((r, i) => <tr key={r[1] + i}><td className="rank">{i + 1}</td><td className="l">{r[0] ? <PlayerLink id={r[0]} name={r[1]} /> : r[1]}</td><td>{r[6]}</td><td>{r[2]}</td><td>{r[3]}</td><td>{r[4]}</td><td className="hl">{r[5]}</td></tr>)}</tbody>
+              <thead><tr><th className="rank">#</th><th className="l">Spelare</th><th className="ph-x">Säs.</th><th>SM</th><th>M</th><th>A</th><th>P</th></tr></thead>
+              <tbody>{H.leaders.slice(0, nLeaders).map((r, i) => <tr key={r[1] + i}><td className="rank">{i + 1}</td><td className="l">{r[0] ? <PlayerLink id={r[0]} name={r[1]} /> : r[1]}</td><td className="ph-x">{r[6]}</td><td>{r[2]}</td><td>{r[3]}</td><td>{r[4]}</td><td className="hl">{r[5]}</td></tr>)}</tbody>
             </table>
           </div>
           {moreLeaders}
@@ -464,8 +466,8 @@ function History({ code, H, names }: { code: string; H?: ClubHistory; names: Rec
         <Panel title="Målvakter genom tiderna" sub="Flest matcher i grundserien.">
           <div className="tscroll">
             <table className="t">
-              <thead><tr><th className="rank">#</th><th className="l">Målvakt</th><th>Säs.</th><th>SM</th><th>V</th><th>Nollor</th><th>Rädd%</th></tr></thead>
-              <tbody>{H.goalies.map((r, i) => <tr key={r[1] + i}><td className="rank">{i + 1}</td><td className="l">{r[0] ? <PlayerLink id={r[0]} name={r[1]} /> : r[1]}</td><td>{r[6]}</td><td className="hl">{r[2]}</td><td>{r[3]}</td><td>{r[4]}</td><td>{r[5] != null ? dec(r[5], 1) : '–'}</td></tr>)}</tbody>
+              <thead><tr><th className="rank">#</th><th className="l">Målvakt</th><th className="ph-x">Säs.</th><th>SM</th><th className="ph-x">V</th><th className="ph-x">Nollor</th><th>Rädd%</th></tr></thead>
+              <tbody>{H.goalies.map((r, i) => <tr key={r[1] + i}><td className="rank">{i + 1}</td><td className="l">{r[0] ? <PlayerLink id={r[0]} name={r[1]} /> : r[1]}</td><td className="ph-x">{r[6]}</td><td className="hl">{r[2]}</td><td className="ph-x">{r[3]}</td><td className="ph-x">{r[4]}</td><td>{r[5] != null ? dec(r[5], 1) : '–'}</td></tr>)}</tbody>
             </table>
           </div>
         </Panel>

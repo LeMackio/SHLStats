@@ -187,7 +187,7 @@ async function outlineSvg(code: string) {
     return (OUTLINES[code] = null)
   }
 }
-function OutlineLogo({ code, fallback }: { code: string; fallback?: string }) {
+export function OutlineLogo({ code, fallback }: { code: string; fallback?: string }) {
   const [svg, setSvg] = useState<string | null | undefined>(() => OUTLINES[code])
   useEffect(() => {
     let off = false

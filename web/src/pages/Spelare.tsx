@@ -23,7 +23,7 @@ const n = (v: unknown) => +(v as number) || 0
 
 export function SpelarePage({ id, tab }: { id: string; tab: string }) {
   const P = useFile(playersFile)
-  if (P.state === 'loading') return <Skeleton />
+  if (P.state === 'loading') return <Skeleton kind="profile" />
   if (P.state === 'error') return <NotFound msg="Spelaren kunde inte laddas. Försök igen om en stund." />
   return <Player P={P.data} id={id} want={tab} />
 }
@@ -228,19 +228,19 @@ function Career({ rows, gk }: { rows: Row[]; gk: boolean }) {
     const sv = tot(3), ga = tot(4), mins = tot(10)
     const b = { gp: bestOf(2), sv: bestOf(3), svp: bestOf(5), gaa: bestOf(6, true), so: bestOf(7), w: bestOf(8) }
     table = (
-      <table className="t">
-        <thead><tr><th className="l">Säsong</th><th className="l">Lag</th><th>SM</th><th>Räddn.</th><th>Insl.</th><th>Rädd%</th><th>GAA</th><th>Nollor</th><th>V</th><th>F</th></tr></thead>
+      <table className="t career-t">
+        <thead><tr><th className="l">Säsong</th><th className="l">Lag</th><th>SM</th><th className="ph-x">Räddn.</th><th className="ph-x">Insl.</th><th>Rädd%</th><th>GAA</th><th className="ph-x">Nollor</th><th className="ph-x">V</th><th className="ph-x">F</th></tr></thead>
         <tbody>
           {rows.map((r, k) => (
             <tr key={k}><td className="l">{r[0]}</td><td className="l"><TeamLink code={r[1] as string} name /></td>
-              <Cell v={n(r[2])} shown={r[2]} best={b.gp} /><Cell v={n(r[3])} shown={r[3]} best={b.sv} /><td>{r[4]}</td>
+              <Cell v={n(r[2])} shown={r[2]} best={b.gp} /><Cell v={n(r[3])} shown={r[3]} best={b.sv} cls="ph-x" /><td className="ph-x">{r[4]}</td>
               {n(r[2]) >= 10 ? <Cell v={n(r[5])} shown={dec(n(r[5]), 2)} best={b.svp} cls="hl" /> : <td className="hl">{dec(n(r[5]), 2)}</td>}
               {n(r[2]) >= 10 ? <Cell v={n(r[6])} shown={dec(n(r[6]), 2)} best={b.gaa} /> : <td>{dec(n(r[6]), 2)}</td>}
-              <Cell v={n(r[7])} shown={r[7]} best={b.so} /><Cell v={n(r[8])} shown={r[8] ?? '–'} best={b.w} /><td>{r[9] ?? '–'}</td></tr>
+              <Cell v={n(r[7])} shown={r[7]} best={b.so} cls="ph-x" /><Cell v={n(r[8])} shown={r[8] ?? '–'} best={b.w} cls="ph-x" /><td className="ph-x">{r[9] ?? '–'}</td></tr>
           ))}
           {rows.length > 1 && (
-            <tr className="total"><td className="l"><b>Totalt</b></td><td></td><td><b>{tot(2)}</b></td><td><b>{sv}</b></td><td><b>{ga}</b></td>
-              <td className="hl">{sv + ga ? dec(sv / (sv + ga) * 100, 2) : '–'}</td><td><b>{mins ? dec(ga * 60 / mins, 2) : '–'}</b></td><td><b>{tot(7)}</b></td><td><b>{tot(8)}</b></td><td><b>{tot(9)}</b></td></tr>
+            <tr className="total"><td className="l"><b>Totalt</b></td><td></td><td><b>{tot(2)}</b></td><td className="ph-x"><b>{sv}</b></td><td className="ph-x"><b>{ga}</b></td>
+              <td className="hl">{sv + ga ? dec(sv / (sv + ga) * 100, 2) : '–'}</td><td><b>{mins ? dec(ga * 60 / mins, 2) : '–'}</b></td><td className="ph-x"><b>{tot(7)}</b></td><td className="ph-x"><b>{tot(8)}</b></td><td className="ph-x"><b>{tot(9)}</b></td></tr>
           )}
         </tbody>
       </table>
@@ -249,18 +249,18 @@ function Career({ rows, gk }: { rows: Row[]; gk: boolean }) {
     const gp = tot(2)
     const b = { gp: bestOf(2), g: bestOf(3), a: bestOf(4), p: bestOf(5), pm: bestOf(6), sog: bestOf(8), ppg: bestOf(10) }
     table = (
-      <table className="t">
-        <thead><tr><th className="l">Säsong</th><th className="l">Lag</th><th>SM</th><th>M</th><th>A</th><th>P</th><th>P/M</th><th>+/-</th><th>Utv</th><th>PPM</th><th>Skott</th><th>Istid</th></tr></thead>
+      <table className="t career-t">
+        <thead><tr><th className="l">Säsong</th><th className="l">Lag</th><th>SM</th><th>M</th><th>A</th><th>P</th><th className="ph-x">P/M</th><th className="ph-x">+/-</th><th className="ph-x">Utv</th><th className="ph-x">PPM</th><th className="ph-x">Skott</th><th className="ph-x">Istid</th></tr></thead>
         <tbody>
           {rows.map((r, k) => (
             <tr key={k}><td className="l">{r[0]}</td><td className="l"><TeamLink code={r[1] as string} name /></td>
               <Cell v={n(r[2])} shown={r[2]} best={b.gp} /><Cell v={n(r[3])} shown={r[3]} best={b.g} /><Cell v={n(r[4])} shown={r[4]} best={b.a} /><Cell v={n(r[5])} shown={r[5]} best={b.p} cls="hl" />
-              <td>{dec(n(r[2]) ? n(r[5]) / n(r[2]) : 0, 2)}</td><Cell v={n(r[6])} shown={signed(n(r[6]))} best={b.pm} /><td>{r[7]}</td>
-              <Cell v={n(r[10])} shown={r[10] ?? '–'} best={b.ppg} /><Cell v={n(r[8])} shown={r[8]} best={b.sog} /><td>{mmss(n(r[9]))}</td></tr>
+              <td className="ph-x">{dec(n(r[2]) ? n(r[5]) / n(r[2]) : 0, 2)}</td><Cell v={n(r[6])} shown={signed(n(r[6]))} best={b.pm} cls="ph-x" /><td className="ph-x">{r[7]}</td>
+              <Cell v={n(r[10])} shown={r[10] ?? '–'} best={b.ppg} cls="ph-x" /><Cell v={n(r[8])} shown={r[8]} best={b.sog} cls="ph-x" /><td className="ph-x">{mmss(n(r[9]))}</td></tr>
           ))}
           {rows.length > 1 && (
             <tr className="total"><td className="l"><b>Totalt</b></td><td></td><td><b>{gp}</b></td><td><b>{tot(3)}</b></td><td><b>{tot(4)}</b></td><td className="hl">{tot(5)}</td>
-              <td><b>{gp ? dec(tot(5) / gp, 2) : '–'}</b></td><td><b>{signed(tot(6))}</b></td><td><b>{tot(7)}</b></td><td><b>{tot(10)}</b></td><td><b>{tot(8)}</b></td><td></td></tr>
+              <td className="ph-x"><b>{gp ? dec(tot(5) / gp, 2) : '–'}</b></td><td className="ph-x"><b>{signed(tot(6))}</b></td><td className="ph-x"><b>{tot(7)}</b></td><td className="ph-x"><b>{tot(10)}</b></td><td className="ph-x"><b>{tot(8)}</b></td><td className="ph-x"></td></tr>
           )}
         </tbody>
       </table>
