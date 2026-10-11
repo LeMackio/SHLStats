@@ -166,6 +166,14 @@ async function outlineSvg(code: string) {
     const doc = new DOMParser().parseFromString(await res.text(), 'image/svg+xml')
     const svg = doc.documentElement
     if (svg.nodeName !== 'svg' || doc.querySelector('parsererror')) throw new Error('not an svg')
+    // Shapes the logo never paints (fill none and no stroke, like an artboard frame) would show up as outlines: drop them
+    const css = [...svg.querySelectorAll('style')].map((s) => s.textContent || '').join('')
+    const hidden = new Set([...css.matchAll(/\.([\w-]+)\s*\{([^}]*)\}/g)].filter((m) => /fill\s*:\s*none/i.test(m[2]) && !/stroke\s*:\s*(?!none)/i.test(m[2])).map((m) => m[1]))
+    svg.querySelectorAll(SHAPES).forEach((n) => {
+      const fillNone = n.getAttribute('fill') === 'none' || /fill\s*:\s*none/i.test(n.getAttribute('style') || '') || [...n.classList].some((c) => hidden.has(c))
+      const stroked = (n.getAttribute('stroke') || 'none') !== 'none' || /stroke\s*:\s*(?!none)/i.test(n.getAttribute('style') || '')
+      if (fillNone && !stroked) n.remove()
+    })
     svg.querySelectorAll('script, style, foreignObject, image, text').forEach((n) => n.remove())
     for (const n of [svg, ...svg.querySelectorAll('*')]) {
       for (const a of [...n.attributes]) if (/^on/i.test(a.name) || a.name === 'class' || a.name === 'style' || a.name === 'id') n.removeAttribute(a.name)
