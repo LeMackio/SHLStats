@@ -188,6 +188,23 @@ details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .b
 /* Masonry boards: a card pinned to its column takes the first free rows in it (dense), so cards stack without holes */
 .board { grid-auto-flow: row dense; }
 
+/* Team and player headers, NHL.com style: the team colour fading to near black over a fine jersey mesh, and the club
+   logo large behind the name, drawn only as outlines (SVG filter #ref-outline) in a light tint of the team colour */
+.ref-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.ref .ref-bg {
+  inset: 0; z-index: -2; transform: none; filter: none;
+  background-color: #06080c;
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, .055) 0.8px, transparent 1.1px),
+    linear-gradient(180deg, color-mix(in oklab, var(--tc, #2f4f86) 92%, #000) 0%, color-mix(in oklab, var(--tc, #2f4f86) 45%, #06080c) 55%, #06080c 100%);
+  background-size: 5px 5px, 100% 100%;
+}
+.ref-mark { position: absolute; z-index: -1; top: 50%; left: 34%; width: auto; height: 165%; max-width: none; transform: translate(-50%, -50%) rotate(-8deg); opacity: .8; filter: url(#ref-outline); pointer-events: none; }
+.ref-outline-ink { flood-color: color-mix(in oklab, var(--tc, #6b8cff) 62%, #fff); }
+/* Light text keeps its contrast over the coloured top of the card */
+.ref .ref-last, .ref .ref-first { text-shadow: 0 2px 18px rgba(0, 0, 0, .35); }
+@media (max-width: 700px) { .ref-mark { left: 50%; height: 130%; opacity: .45; } }
+
 /* Short "nothing here yet" notes inside cards (whole-page states use Arc's EmptyState) */
 .empty-state { padding: var(--space-6) var(--space-4); color: var(--text-muted); font-size: var(--text-sm); text-wrap: balance; }
 

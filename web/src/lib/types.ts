@@ -184,6 +184,7 @@ export interface TeamsData {
   poRounds?: string[] // playoff result names by rounds from the final: Guld, Final, Semifinal …
 }
 export interface ClubHistory {
+  titles?: [number, number, string][] // every SM final since 1922: [year, 0 = SM-guld / 1 = lost, the other finalist]
   // [label, rank, gp, w, otw, otl, l, gf, ga, pts, teams, top scorer, id, pts, playoff result (rounds from the final: 0 = champion, 1 = final …, null = none)], newest first
   seasons: [string, number, number, number, number, number, number, number, number, number, number, string | null, string | null, number | null, number | null][]
   leaders: [string | null, string, number, number, number, number, number][] // [id, name, gp, g, a, pts, seasons]

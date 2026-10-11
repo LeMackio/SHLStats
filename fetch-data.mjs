@@ -735,6 +735,30 @@ for (const s of finished) {
 }
 writeJson(PO_CACHE, poCache);
 
+// ---------- Swedish champions since 1922 (English Wikipedia's list) ----------
+// SM-guld was played for long before Elitserien (Djurgården has 16 titles, ten of them before 1976), so every
+// champion and runner-up comes from the list "List of Swedish ice hockey champions". Kept in cache/champions.json and
+// looked up again each run (one request), so a new champion appears once the list has it.
+const CH_CACHE = 'cache/champions.json';
+let champions = readJson(CH_CACHE, []); // [year the season ended, winner names[], runner-up names[]]
+try {
+  const r = await fetch(`https://en.wikipedia.org/w/api.php?action=parse&format=json&prop=wikitext&redirects=1&page=${encodeURIComponent('List of Swedish ice hockey champions')}`,
+    { headers: { 'user-agent': 'SHLstats/1.0 (fan site data refresh; https://shlstats.net)' } });
+  const text = (await r.json()).parse?.wikitext?.['*'] || '';
+  const table = text.split('{|')[1]?.split('|}')[0] || '';
+  const linkNames = (cell) => { const out = []; for (const m of cell.matchAll(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g)) { out.push(m[1]); if (m[2]) out.push(m[2]); } return out };
+  const rows = [];
+  for (const line of table.split('\n')) {
+    if (!/^\|\s*\[\[/.test(line)) continue;
+    // Footnotes name other clubs (2019/20: no playoffs, "Luleå HF won the regular season"), so they are dropped first
+    const bare = line.replace(/\{\{(?:efn|refn|sfn|ref)[\s\S]*?\}\}/gi, '').replace(/<ref[^>]*\/>|<ref[\s\S]*?<\/ref>/g, '');
+    const [yc, wc = '', rc = ''] = bare.replace(/^\|/, '').split('||');
+    const year = Number((yc.match(/(\d{4})\]\]/) || yc.match(/(\d{4})/) || [])[1]);
+    if (year) rows.push([year, linkNames(wc), linkNames(rc)]);
+  }
+  if (rows.length > 50) { champions = rows; writeJson(CH_CACHE, champions); }
+} catch (e) { console.warn('champions list failed', e.message); }
+
 // ---------- club history (every SHL/Elitserien season, back to 1975/76) ----------
 // Per current team: the table row of every season it played with its playoff result, that season's top scorer, the
 // club's all-time points and goalie leaders over the seasons with player stats, and its record against every
@@ -762,7 +786,12 @@ for (const code of codes) {
       const v = (vs[opp] ??= [0, 0, 0, 0, 0]); v[0]++; if (us > them) v[1]++; else v[2]++; v[3] += us; v[4] += them;
     }
   }
+  // Every SM final the club played since 1922: [year, 0 = won (SM-guld) / 1 = lost, the other finalist]
+  const titles = [];
+  const shown = (names) => (names[1] || names[0] || '').replace(/\s*\(\d{4}[–-]\d{4}\)/, '') // the link's text, as the list shows it
+  for (const [year, w, ru] of champions) { if (codeFor(w, cur.teams) === code) titles.push([year, 0, shown(ru)]); else if (codeFor(ru, cur.teams) === code) titles.push([year, 1, shown(w)]); }
   clubHistory[code] = {
+    titles,
     seasons, // [label, rank, gp, w, otw, otl, l, gf, ga, pts, teams in the league, top scorer, id, points, playoff result: rounds from the final, 0 = champion, null = none], newest first
     leaders: Object.values(leaders).sort((a, b) => b.pts - a.pts).slice(0, 10).map((e) => [e.id, e.name, e.gp, e.g, e.a, e.pts, e.n]),
     goalies: Object.values(goalies).filter((e) => e.gp > 0).sort((a, b) => b.gp - a.gp).slice(0, 5).map((e) => [e.id, e.name, e.gp, e.w, e.so, e.sa ? Math.round((e.sv / e.sa) * 1000) / 10 : null, e.n]),

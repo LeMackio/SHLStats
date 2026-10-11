@@ -97,8 +97,25 @@ export function RefHero({ bg, tc, photo, photoCls = '', first, firstCls = '', la
   // A row's column names only show when they differ from the row above
   const keysOf = (r: RefRow) => r.cells.map(([k]) => k).join('|')
   return (
-    <section className="ref" style={tc ? ({ '--tc': tc } as React.CSSProperties) : undefined}>
-      {bg && <div className="ref-bg" style={{ backgroundImage: `url('${bg}')` }} />}
+    <section className={`ref ${tc ? 'ref-tinted' : ''}`} style={tc ? ({ '--tc': tc } as React.CSSProperties) : undefined}>
+      {/* The background, in the style of NHL.com: the team colour fading to black over a fine mesh, with the club logo
+          large behind everything, drawn only as outlines in a light tint of the team colour. The logos are pictures, so
+          the outlines come from an SVG filter: edge detection for the lines inside the logo, plus a ring around its shape. */}
+      {bg && <>
+        <svg className="ref-defs" aria-hidden="true" focusable="false">
+          <filter id="ref-outline" x="-2%" y="-2%" width="104%" height="104%" colorInterpolationFilters="sRGB">
+            <feConvolveMatrix in="SourceGraphic" order="3" kernelMatrix="-1 -1 -1 -1 8 -1 -1 -1 -1" preserveAlpha="true" result="edges" />
+            <feColorMatrix in="edges" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.2 2.2 2.2 0 0" result="lines" />
+            <feMorphology in="SourceAlpha" operator="dilate" radius="1.6" result="grown" />
+            <feComposite in="grown" in2="SourceAlpha" operator="out" result="ring" />
+            <feMerge result="all"><feMergeNode in="lines" /><feMergeNode in="ring" /></feMerge>
+            <feFlood className="ref-outline-ink" />
+            <feComposite in2="all" operator="in" />
+          </filter>
+        </svg>
+        <div className="ref-bg" />
+        <img className="ref-mark" src={bg} alt="" />
+      </>}
       {/* Phones: a player's studio background is removed so the player stands on the card */}
       {photo && <RefPhoto src={photo} cls={photoCls} clean={narrow && !photoCls} />}
       {action && <div className="ref-action">{action}</div>}
