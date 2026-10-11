@@ -9,9 +9,9 @@ import { useTeamSide } from '@/lib/pageState'
 import { useData } from '@/data/context'
 import { dec, mmss, POS_SHORT, signed } from '@/lib/format'
 import { safeEmbed } from '@/lib/game'
-import { keyMoments, OFFENCE, recapFacts, recapText, threeStars, winSeries } from '@/lib/match'
+import { OFFENCE, recapFacts, recapText, threeStars, winSeries } from '@/lib/match'
 import { shortName, strengthTag } from '@/lib/stats'
-import { pairColors, tColor } from '@/lib/teams'
+import { pairColors } from '@/lib/teams'
 import type { BoxRow, GameDetails, Lineup, LineupPlayer } from '@/lib/types'
 import { useChartWidth, useNarrow } from '@/lib/useNarrow'
 
@@ -190,11 +190,11 @@ export function WinChart({ d }: { d: GameDetails }) {
   )
 }
 
-// Match report (finished games): summary text, three stars, xG and key moments
+// Match report (finished games): summary text, three stars and xG
 export function Recap({ d }: { d: GameDetails }) {
   const { tName } = useData()
   if (!d.goals.length || d.hs === d.as) return null
-  const F = recapFacts(d), text = recapText(d, F, tName), stars = threeStars(F), moments = keyMoments(d, F)
+  const F = recapFacts(d), text = recapText(d, F, tName), stars = threeStars(F)
   const [hc, ac] = pairColors(d.home, d.away)
   let xg: ReactNode = null
   if (d.xg) {
@@ -231,24 +231,6 @@ export function Recap({ d }: { d: GameDetails }) {
             </div>
           )}
         </div>
-        {moments.length > 0 && (
-          <div className="rmoments">
-            <h3>Nyckelögonblick</h3>
-            <ol>
-              {moments.map(([x, labels], i) => (
-                <li key={i}>
-                  <span className="rm-t num">{x.p <= 3 ? `P${x.p}` : x.p === 4 ? 'ÖT' : 'STR'} {x.p >= 5 ? '' : x.t}</span>
-                  <span className="rm-dot" style={{ background: tColor(d[x.team]) }} />
-                  <div className="rm-what">
-                    <span className="rm-tags">{labels.map((t) => <span key={t} className="rm-tag">{t}</span>)}</span>
-                    <span>{x.scorer?.id ? <PlayerLink id={x.scorer.id} name={x.scorer.name} /> : x.scorer?.name || 'Mål'} <span className="faint">{d[x.team]}</span></span>
-                  </div>
-                  <span className="rm-sc num">{x.score[0]}–{x.score[1]}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
       </div>
     </section>
   )

@@ -179,6 +179,14 @@ export interface TeamNews { src: string; date: string; title: string; intro: str
 export interface TeamsData {
   logs: Record<string, (string | number | null)[][]> // [gameId, home, gf, ga, xgf, xga, ppg, ppo, ppga, pko]
   news: Record<string, TeamNews[]>
+  history?: Record<string, ClubHistory>
+  names?: Record<string, string> // every club in the loaded seasons (upper-case code → name), for opponents no longer in SHL
+}
+export interface ClubHistory {
+  seasons: [string, number, number, number, number, number, number, number, number, number, number, string | null, string | null, number | null][] // [label, rank, gp, w, otw, otl, l, gf, ga, pts, teams, top scorer, id, pts], newest first
+  leaders: [string | null, string, number, number, number, number, number][] // [id, name, gp, g, a, pts, seasons]
+  goalies: [string | null, string, number, number, number, number | null, number][] // [id, name, gp, w, so, sv%, seasons]
+  vs: [string, number, number, number, number, number][] // [opp, gp, w, l, gf, ga]
 }
 
 // media.json

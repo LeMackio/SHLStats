@@ -27,13 +27,14 @@ export function TabellPage({ tab }: { tab: string }) {
   )
 }
 
-// The table's first columns, shared by Tabell and Odds: the rank in its zone colour and the team.
+// The table's first columns, shared by Tabell and Odds: the rank in its zone colour and the team. Fixed widths, so the
+// two tables line up exactly and nothing seems to move when switching between them.
 // Phones: just the team code, so the numbers keep their room.
 function teamCols<R extends { rank: number; code: string; name: string }>(narrow: boolean): Col<R>[] {
-  if (narrow) return [{ k: 'name', label: 'Lag', l: true, asc: true, h: (r) => <a className="teamcell" href={`#/lag/${r.code}`}><TeamBadge code={r.code} /><div className="nm"><b>{r.code}</b></div></a> }]
+  if (narrow) return [{ k: 'name', label: 'Lag', l: true, asc: true, w: 92, h: (r) => <a className="teamcell" href={`#/lag/${r.code}`}><TeamBadge code={r.code} /><div className="nm"><b>{r.code}</b></div></a> }]
   return [
-    { k: 'rank', label: '#', asc: true, h: (r) => <span className="rank" style={{ '--zone': rankZone(r.rank) } as React.CSSProperties}>{r.rank}</span> },
-    { k: 'name', label: 'Lag', l: true, asc: true, h: (r) => <a className="teamcell" href={`#/lag/${r.code}`}><TeamBadge code={r.code} size="md" /><div className="nm"><b>{r.name}</b></div></a> },
+    { k: 'rank', label: '#', asc: true, w: 52, h: (r) => <span className="rank" style={{ '--zone': rankZone(r.rank) } as React.CSSProperties}>{r.rank}</span> },
+    { k: 'name', label: 'Lag', l: true, asc: true, w: 210, h: (r) => <a className="teamcell" href={`#/lag/${r.code}`}><TeamBadge code={r.code} size="md" /><div className="nm"><b>{r.name}</b></div></a> },
   ]
 }
 

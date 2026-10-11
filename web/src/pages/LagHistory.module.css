@@ -1,0 +1,37 @@
+/* Historia: the summary, the season-by-season place chips and the record against every opponent */
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
+.summary div { display: grid; gap: 2px; padding: var(--space-3) var(--space-4); border-radius: calc(var(--radius-control) - 6px); background: var(--surface-muted); }
+.summary b { font-size: 26px; font-weight: 500; line-height: 1.1; }
+.summary small { color: var(--text-muted); font-size: 13px; }
+
+/* One chip per season: the place, coloured by where it put the club */
+.timeline { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 6px; margin-bottom: var(--space-3); }
+.chip { display: grid; justify-items: center; gap: 2px; padding: 8px 4px 6px; border-radius: 8px; background: var(--surface-muted); }
+.chip b { font-size: 18px; font-weight: 500; line-height: 1; }
+.chip small { color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.top { background: color-mix(in oklab, var(--accent) 22%, var(--surface-muted)); }
+.mid { background: color-mix(in oklab, var(--accent) 9%, var(--surface-muted)); }
+.low { background: var(--surface-muted); }
+.bad { background: color-mix(in oklab, var(--bad) 22%, var(--surface-muted)); }
+.out { background: transparent; box-shadow: inset 0 0 0 1px var(--border-subtle); }
+.out b { color: var(--text-muted); }
+.dotTop, .dotMid, .dotBad, .dotOut { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.dotTop { background: color-mix(in oklab, var(--accent) 45%, var(--surface-muted)); }
+.dotMid { background: color-mix(in oklab, var(--accent) 18%, var(--surface-muted)); }
+.dotBad { background: color-mix(in oklab, var(--bad) 45%, var(--surface-muted)); }
+.dotOut { box-shadow: inset 0 0 0 1px var(--border); }
+
+/* Against every opponent: the site's bar rows */
+.vs { display: grid; gap: var(--space-2); }
+.vsRow { display: grid; grid-template-columns: minmax(120px, 190px) minmax(0, 1fr) 52px 52px; align-items: center; gap: var(--space-3); min-height: 28px; font-size: var(--text-sm); }
+.vsRow span.num { font-weight: 500; text-align: right; }
+.vsRow small { color: var(--text-muted); font-size: 13px; text-align: right; }
+.vsTeam { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; color: var(--text-secondary); text-overflow: ellipsis; white-space: nowrap; }
+.oldBadge { display: inline-grid; width: 24px; height: 24px; flex: none; place-items: center; border-radius: 6px; background: var(--surface-muted); color: var(--text-muted); font-size: 8px; font-weight: 600; }
+.vsBar { height: 10px; overflow: hidden; border-radius: 3px; background: color-mix(in oklab, var(--foreground) 9%, transparent); }
+.vsBar i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+
+@media (max-width: 700px) {
+  .summary { grid-template-columns: 1fr 1fr; }
+  .vsRow { grid-template-columns: 110px minmax(0, 1fr) 44px 44px; gap: var(--space-2); }
+}

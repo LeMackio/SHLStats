@@ -10,6 +10,7 @@ import { isFinal, type Clip, type Lineup, type LineupPlayer, type NewsItem, type
 import { useNarrow } from '@/lib/useNarrow'
 import { Empty } from './Panel'
 import { CleanImg } from './Portrait'
+import pcard from './PlayerCard.module.css'
 import { Avatar, PlayerLink, TeamBadge } from './TeamBadge'
 
 const durTxt = (s?: number) => s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : ''
@@ -216,19 +217,35 @@ export function PlayerCardCompact({ x }: { x: Card }) {
   useTheme()
   const grpName = x.grp === 'G' ? 'målvakter' : x.grp === 'D' ? 'backar' : 'forwards', minGp = x.minGp || MIN_GP, pct = Math.round(x.impact * 100)
   const tc = readable(teamHue(x.team))
+  // The impact as a ring in the team colour; each percentile as a bar row (red under 25, grey under 50, team colour above)
+  const R = 34, C = 2 * Math.PI * R
   return (
-    <div className="pk">
-      <div className="pk-top">
-        <div className="pk-imp"><span className="pk-k">Påverkan</span><b className="num">{pct}<small>%</small></b><span className="pk-sub">Bättre än {pct} % av SHL-{grpName}</span></div>
-        {x.role && <span className="pk-role">{x.role}</span>}
+    <div className={pcard.card} style={{ '--tc': tc } as React.CSSProperties}>
+      <div className={pcard.top}>
+        <svg className={pcard.ring} viewBox="0 0 84 84" aria-hidden="true">
+          <circle cx="42" cy="42" r={R} className={pcard.track} />
+          <circle cx="42" cy="42" r={R} className={pcard.fill} strokeDasharray={`${C * x.impact} ${C}`} transform="rotate(-90 42 42)" />
+        </svg>
+        <span className={pcard.pct}><b className="num">{pct}</b><small>%</small></span>
+        <div className={pcard.who}>
+          <span className={pcard.k}>Påverkan</span>
+          <b>Bättre än {pct} % av SHL-{grpName}</b>
+          {x.role && <span className={pcard.role}>{x.role}</span>}
+        </div>
       </div>
-      <div className="pk-grid">
+      <div className={pcard.grid}>
         {(x.metrics || METRICS).map((m) => {
-          const p = x.pct[m.k], c = p < 0.25 ? 'var(--bad)' : tc
-          return <div key={m.k} className="pk-row"><span className="pk-l">{m.label}</span><span className="pk-bar"><i style={{ width: `${Math.max(2, p * 100)}%`, background: c }} /></span><b className="pk-v num">{Math.round(p * 100)}</b></div>
+          const p = x.pct[m.k], c = p < 0.25 ? 'var(--bad)' : p < 0.5 ? 'color-mix(in oklab, var(--foreground) 35%, transparent)' : tc
+          return (
+            <div key={m.k} className={pcard.row}>
+              <span className={pcard.label}>{m.label}</span>
+              <span className={pcard.bar}><i style={{ width: `${Math.max(2, p * 100)}%`, background: c }} /></span>
+              <b className="num">{Math.round(p * 100)}</b>
+            </div>
+          )
         })}
       </div>
-      <p className="pk-note">Percentiler bland SHL-{grpName} med minst {minGp} matcher, viktat {prev.slice(0, 2)}/{prev.slice(3)} och {cur.slice(0, 2)}/{cur.slice(3)}.{x.gp < minGp ? ` Litet underlag (${Math.round(x.gp)} viktade matcher).` : ''}</p>
+      <p className={pcard.note}>Percentiler bland SHL-{grpName} med minst {minGp} matcher, viktat {prev.slice(0, 2)}/{prev.slice(3)} och {cur.slice(0, 2)}/{cur.slice(3)}.{x.gp < minGp ? ` Litet underlag (${Math.round(x.gp)} viktade matcher).` : ''}</p>
     </div>
   )
 }

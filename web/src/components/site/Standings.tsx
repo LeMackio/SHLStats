@@ -47,7 +47,7 @@ export function StandingsTable({ mode = 'full', live = false }: { mode?: 'full' 
                     </a>
                   </td>
                   <td>{r.gp}</td><td>{r.w}</td><td className="hide-sm">{r.otw}</td><td className="hide-sm">{r.otl}</td><td>{r.l}</td>
-                  <td className="hide-sm">{r.gf}–{r.ga}</td><td>{signed(r.gf - r.ga)}</td>
+                  <td className="hide-sm"><GoalsFor gf={r.gf} ga={r.ga} /></td><td>{signed(r.gf - r.ga)}</td>
                   <td><b>{r.pts}</b>{r.dPts > 0 && <small className="lt-plus">+{r.dPts}</small>}</td>
                 </motion.tr>
               )
@@ -83,13 +83,13 @@ export function StandingsTable({ mode = 'full', live = false }: { mode?: 'full' 
                 <td className="l"><a className="teamcell" href={`#/lag/${r.code}`}><TeamBadge code={r.code} size={compact ? '' : 'md'} /><div className="nm"><b>{compact ? r.code : tName(r.code)}</b></div></a></td>
                 {mode === 'stats' && <>
                   <td>{r.gp}</td><td>{r.w}</td><td className="hide-sm">{r.otw}</td><td className="hide-sm">{r.otl}</td><td>{r.l}</td>
-                  <td className="hide-sm">{r.gf}–{r.ga}</td><td>{signed(r.gf - r.ga)}</td><td><b>{r.pts}</b></td>
+                  <td className="hide-sm"><GoalsFor gf={r.gf} ga={r.ga} /></td><td>{signed(r.gf - r.ga)}</td><td><b>{r.pts}</b></td>
                 </>}
                 {mode === 'proj' && <>
                   <td><b>{r.pts}</b></td><td>{Math.round(s.proj)}</td><Odds p={s.top6} className="hide-sm" /><Odds p={s.top10} /><Odds p={s.rel} color="var(--bad)" className="hide-sm" />{gold}
                 </>}
                 {mode === 'full' && <>
-                  <td>{r.gp}</td><td>{r.w}</td><td>{r.otw}</td><td>{r.otl}</td><td>{r.l}</td><td>{r.gf}–{r.ga}</td><td><b>{r.pts}</b></td><td>{pace}</td><td><b>{Math.round(s.proj)}</b></td>
+                  <td>{r.gp}</td><td>{r.w}</td><td>{r.otw}</td><td>{r.otl}</td><td>{r.l}</td><td><GoalsFor gf={r.gf} ga={r.ga} /></td><td><b>{r.pts}</b></td><td>{pace}</td><td><b>{Math.round(s.proj)}</b></td>
                   <Odds p={s.top6} /><Odds p={s.top10} /><Odds p={s.rel} color="var(--bad)" />{gold}
                 </>}
               </tr>
@@ -100,6 +100,9 @@ export function StandingsTable({ mode = 'full', live = false }: { mode?: 'full' 
     </div>
   )
 }
+
+// Goals for and against with the dash in one place on every row: for right-aligned, against left-aligned
+const GoalsFor = ({ gf, ga }: { gf: number; ga: number }) => <span className="gfga num"><span>{gf}</span>–<span>{ga}</span></span>
 
 export function Legend() {
   return (

@@ -13,6 +13,7 @@ export interface Col<R> {
   v?: (r: R) => number | string | null | undefined // the value to sort and show (default: r[k])
   f?: (v: never) => ReactNode // how to show the value
   h?: (r: R, i: number) => ReactNode // a whole custom cell
+  w?: number // a fixed width in px (tables that should line up with each other, such as Tabell and Odds)
 }
 
 export const TABLE_STRINGS: SortableDataTableStrings = {
@@ -46,7 +47,7 @@ export function SortableTable<R extends { team?: string }>({ cols, rows, sortKey
   }), [rows, cols])
 
   const columns = useMemo(() => cols.map((c): DataColumn<Cells> => ({
-    key: c.k, label: c.label, title: c.title, sortable: !c.noSort, numeric: !c.l, firstDirection: c.asc ? 'asc' : 'desc',
+    key: c.k, label: c.label, title: c.title, sortable: !c.noSort, numeric: !c.l, firstDirection: c.asc ? 'asc' : 'desc', width: c.w,
     render: (v, row, i) => (c.h ? c.h(row.$row as R, i) : fmtCell(v, c as Col<never>)),
   })), [cols])
 

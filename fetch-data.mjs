@@ -663,7 +663,40 @@ mkdirSync('site/data/games', { recursive: true });
 writeJson('site/data/core.json', core);
 writeJson('site/data/players.json', { bios, career, goalieCareer, gamelogs, goalieLogs, goalClips });
 writeJson('site/data/edge.json', edge);
-writeJson('site/data/teams.json', { logs: teamLogs, news: teamNews });
+// ---------- club history (every loaded SHL season, back to 2002/03) ----------
+// Per current team: the table row of every season it played, that season's top scorer, the club's all-time points and
+// goalie leaders over those seasons, and its record against every opponent. Codes are compared case-insensitively
+// (the standings write "MoDo" where the schedule writes "MODO").
+const same = (a, b) => String(fix(a)).toUpperCase() === String(fix(b)).toUpperCase();
+const clubHistory = {}, histNames = {};
+for (const s of ALL_SEASONS) for (const [c, t] of Object.entries(s.teams || {})) histNames[c.toUpperCase()] ??= t.name;
+for (const code of codes) {
+  const seasons = [], leaders = {}, goalies = {}, vs = {};
+  for (const s of ALL_SEASONS) {
+    const row = (s.standings || []).find((r) => same(r.code, code));
+    const sk = s.skaters.filter((p) => same(p.team, code)), gk = s.goalies.filter((p) => same(p.team, code));
+    if (row) {
+      const top = [...sk].sort((a, b) => b.pts - a.pts || b.g - a.g)[0];
+      seasons.push([s.label, row.rank, row.gp, row.w, row.otw, row.otl, row.l, row.gf, row.ga, row.pts, (s.standings || []).length,
+        top ? top.name : null, top ? pidOf(top) : null, top ? top.pts : null]);
+    }
+    for (const p of sk) { const id = pidOf(p) || `n:${norm(p.name)}`, e = (leaders[id] ??= { id: pidOf(p), name: p.name, gp: 0, g: 0, a: 0, pts: 0, n: 0 }); e.gp += p.gp || 0; e.g += p.g || 0; e.a += p.a || 0; e.pts += p.pts || 0; e.n++; }
+    for (const p of gk) { const id = pidOf(p) || `n:${norm(p.name)}`, e = (goalies[id] ??= { id: pidOf(p), name: p.name, gp: 0, w: 0, so: 0, sv: 0, sa: 0, n: 0 }); e.gp += p.gpi || 0; e.w += p.w_ || 0; e.so += p.so || 0; e.sv += p.sv || 0; e.sa += (p.sv || 0) + (p.ga || 0); e.n++; }
+    for (const g of s.games.filter(isFinal)) {
+      const home = same(g.home, code), away = same(g.away, code);
+      if (!home && !away) continue;
+      const opp = (home ? g.away : g.home).toUpperCase(), us = home ? g.hs : g.as, them = home ? g.as : g.hs;
+      const v = (vs[opp] ??= [0, 0, 0, 0, 0]); v[0]++; if (us > them) v[1]++; else v[2]++; v[3] += us; v[4] += them;
+    }
+  }
+  clubHistory[code] = {
+    seasons, // [label, rank, gp, w, otw, otl, l, gf, ga, pts, teams in the league, top scorer, top scorer id, top scorer points], newest first
+    leaders: Object.values(leaders).sort((a, b) => b.pts - a.pts).slice(0, 10).map((e) => [e.id, e.name, e.gp, e.g, e.a, e.pts, e.n]),
+    goalies: Object.values(goalies).filter((e) => e.gp > 0).sort((a, b) => b.gp - a.gp).slice(0, 5).map((e) => [e.id, e.name, e.gp, e.w, e.so, e.sa ? Math.round((e.sv / e.sa) * 1000) / 10 : null, e.n]),
+    vs: Object.entries(vs).filter(([o]) => !same(o, code)).map(([o, v]) => [o, ...v]).sort((a, b) => b[1] - a[1]), // [opp, gp, w, l, gf, ga]
+  };
+}
+writeJson('site/data/teams.json', { logs: teamLogs, news: teamNews, history: clubHistory, names: histNames });
 // Media page (phones): goal videos from the last two weeks with their xG, and every highlights package this season
 const mediaCut = Date.now() - 14 * 864e5;
 writeJson('site/data/media.json', {

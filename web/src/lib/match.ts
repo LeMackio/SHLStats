@@ -80,7 +80,9 @@ export function recapFacts(d: GameDetails): Facts {
 export function threeStars(F: Facts) {
   const rated = [
     ...F.sk.map((r) => ({ ...r, kind: 'sk' as const, score: r.g * 3 + r.a * 2 + (r.pm || 0) * 0.5 + (r.sog || 0) * 0.15 + (F.gwg?.scorer?.id && F.gwg.scorer.id === r.id ? 1 : 0) })),
-    ...F.gks.map((r) => ({ ...r, kind: 'gk' as const, score: (r.svs - r.soga * 0.9) * 1.5 + (r.ga === 0 && r.soga >= 15 ? 3 : 0) + (r.side === F.winSide ? 1 : 0) })),
+    // Goalies: saves above a league-average goalie (90.5 %) count most, plus a bonus for a shutout, the win and a busy night,
+    // so a strong game in net competes with a goal and an assist
+    ...F.gks.map((r) => ({ ...r, kind: 'gk' as const, score: (r.svs - r.soga * 0.905) * 2.2 + (r.ga === 0 && r.soga >= 15 ? 4 : 0) + (r.side === F.winSide ? 1.5 : 0) + r.soga * 0.04 })),
   ].filter((r) => r.name).sort((a, b) => b.score - a.score)
   return rated.slice(0, 3).map((r) => ({
     id: r.id, name: r.name, team: r.team,

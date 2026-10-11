@@ -171,6 +171,18 @@ details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .b
   .p-sub, .stamp, .legend, .note, .more-link, .gr-day, .gr-st, .pcell small, .rk-nm small, ol.lb small, .tf-row small, .tf-date, .day h3 { font-size: 13.5px; }
 }
 
+/* GM–IM: the dash sits in the same place on every row */
+.gfga { display: inline-grid; grid-template-columns: minmax(2.2ch, auto) auto minmax(2.2ch, auto); }
+.gfga span:first-child { text-align: right; }
+.gfga span:last-child { text-align: left; }
+
+/* Nexus: the two "Så räknas xG" tables side by side, stacked on phones */
+.xg-tables { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-top: 6px; min-width: 0; }
+@media (max-width: 700px) { .xg-tables { grid-template-columns: 1fr; } }
+/* Nexus player card: the faded jersey number sits behind the photo on the right, clear of the impact figure */
+.pc-hero .pc-num { left: auto; right: 16px; }
+@media (max-width: 700px) { .pc-hero .pc-num { font-size: 92px; } }
+
 /* Short "nothing here yet" notes inside cards (whole-page states use Arc's EmptyState) */
 .empty-state { padding: var(--space-6) var(--space-4); color: var(--text-muted); font-size: var(--text-sm); text-wrap: balance; }
 

@@ -167,7 +167,7 @@ function Nexus({ E, tab }: { E: Edge; tab: '' | 'lag' }) {
             <div><p>Farliga skott är skott med minst {Math.round(E.model.zones.hd * 100)} % chans att bli mål. Ligans räddningsprocent är {dec(lgSv * 100, 1)} totalt.</p></div>
             <div><p>SHL publicerar ingen spårningsdata, så skottfart, skridskofart och missade eller blockerade skott finns inte med. Modellen ser bara skott som går på mål.</p></div>
           </div>
-          <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 6 }}>
+          <div className="xg-tables">
             <table className="t"><thead><tr><th className="l">Faktor</th><th>Chans</th></tr></thead>
               <tbody>{E.model.coef.map((c) => <tr key={c.name}><td className="l">{c.name}</td><td className={c.weight > 0 ? undefined : 'faint'}>{c.weight > 0 ? 'Ökar' : 'Minskar'}</td></tr>)}</tbody></table>
             <table className="t"><thead><tr><th className="l">Läge</th><th>Skott</th><th>Mål</th><th>Rädd%</th></tr></thead>

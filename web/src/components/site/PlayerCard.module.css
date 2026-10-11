@@ -1,0 +1,27 @@
+/* The player card on a player's page: the impact as a ring in the team colour, then the percentiles as bar rows in
+   the site's one bar style (10 px, 3 px corners) */
+.card { display: grid; gap: var(--space-4); }
+
+.top { position: relative; display: grid; grid-template-columns: 84px minmax(0, 1fr); align-items: center; gap: var(--space-4); }
+.ring { width: 84px; height: 84px; grid-area: 1 / 1; }
+.track { fill: none; stroke: color-mix(in oklab, var(--foreground) 9%, transparent); stroke-width: 8; }
+.fill { fill: none; stroke: var(--tc, var(--accent)); stroke-width: 8; stroke-linecap: round; transition: stroke-dasharray var(--duration-slow, .6s) var(--ease-standard); }
+.pct { display: flex; grid-area: 1 / 1; align-items: baseline; justify-content: center; place-self: center; }
+.pct b { font-size: 26px; font-weight: 500; line-height: 1; }
+.pct small { color: var(--text-muted); font-size: 12px; }
+.who { display: grid; gap: 4px; min-width: 0; }
+.k { color: var(--text-muted); font-size: var(--text-xs); }
+.who b { font-size: 15px; font-weight: 500; line-height: 1.3; }
+.role { justify-self: start; margin-top: 2px; padding: 2px 10px; border-radius: 999px; background: color-mix(in oklab, var(--tc, var(--accent)) 16%, transparent); color: var(--foreground); font-size: var(--text-xs); font-weight: 500; }
+
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2) var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--border-subtle); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(48px, 90px) 28px; align-items: center; gap: var(--space-2); min-height: 26px; font-size: var(--text-sm); }
+.label { overflow: hidden; color: var(--text-secondary); text-overflow: ellipsis; white-space: nowrap; }
+.row b { font-weight: 500; text-align: right; }
+.bar { height: 10px; overflow: hidden; border-radius: 3px; background: color-mix(in oklab, var(--foreground) 9%, transparent); }
+.bar i { display: block; height: 100%; border-radius: inherit; }
+
+.note { margin: 0; color: var(--text-muted); font-size: 13px; }
+
+@media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .fill { transition: none; } }

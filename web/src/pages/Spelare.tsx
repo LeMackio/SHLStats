@@ -43,7 +43,7 @@ function Player({ P, id, want }: { P: PlayersData; id: string; want: string }) {
   const careerRows: Row[] = (gk ? P.goalieCareer[id] : P.career[id]) || []
   // Phones have no Matchlogg tab: the games are rows on Översikt that open the game
   const tabList: TabDef[] = [{ key: '', label: 'Översikt' }, { key: 'karriar', label: 'Karriär' },
-    ...(narrow ? [] : [{ key: 'matchlogg', label: 'Matchlogg', count: log.length || '' }]), ...(clips.length ? [{ key: 'mal', label: 'Målvideor', count: clips.length }] : [])]
+    ...(narrow ? [] : [{ key: 'matchlogg', label: 'Matchlogg' }]), ...(clips.length ? [{ key: 'mal', label: 'Målvideor', count: clips.length }] : [])]
   const tab = tabList.some((t) => t.key === want) ? want : ''
   const [first, ...rest] = String(bio.name).split(' ')
 
