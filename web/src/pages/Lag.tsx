@@ -1,4 +1,5 @@
-import { useLayoutEffect, useState, type ReactNode } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { GameRow } from '@/components/site/Games'
 import { Board, RouteTabs, Seg, type TabDef } from '@/components/site/Layout'
 import { Empty, PageState, Panel, Skeleton } from '@/components/site/Panel'
@@ -93,10 +94,9 @@ function Overview({ code, teamGames, logs }: { code: string; teamGames: Game[]; 
   const sk = core.seasons[cur].skaters.filter((p) => p.team === code)
   const [allSk, setAllSk] = useState(false)
   const skCols: Col<Skater>[] = [
-    { k: 'name', label: 'Spelare', l: true, asc: true, w: 220, h: (p) => <div className="pcell"><Avatar id={p.id} name={p.name} team={code} /><div><PlayerLink id={p.id} name={p.name} /><br /><small>#{p.num ?? '–'} · {POS_SHORT[p.pos] || 'F'}</small></div></div> },
+    { k: 'name', label: 'Spelare', l: true, asc: true, w: 200, h: (p) => <div className="pcell"><Avatar id={p.id} name={p.name} team={code} /><div><PlayerLink id={p.id} name={p.name} /><br /><small>#{p.num ?? '–'} · {POS_SHORT[p.pos] || 'F'}</small></div></div> },
     { k: 'gp', label: 'SM', title: 'Spelade matcher' }, { k: 'g', label: 'M', title: 'Mål' }, { k: 'a', label: 'A', title: 'Assist' }, { k: 'pts', label: 'P', title: 'Poäng' },
-    { k: 'pm', label: '+/-', f: signed }, { k: 'sog', label: 'Skott' }, { k: 'pim', label: 'Utv', title: 'Utvisningsminuter' }, { k: 'hits', label: 'Tackl.' }, { k: 'blk', label: 'Block' },
-    { k: 'toi', label: 'Istid', title: 'Istid per match', f: mmss },
+    { k: 'pm', label: '+/-', f: signed }, { k: 'toi', label: 'Istid', title: 'Istid per match', f: mmss },
   ]
   const next = teamGames.filter((g) => !isFinal(g)).slice(0, 3), last = teamGames.filter(isFinal).slice(-3).reverse()
   const S = useSeasonLog(logs)
@@ -112,16 +112,21 @@ function Overview({ code, teamGames, logs }: { code: string; teamGames: Game[]; 
       <Panel title="Säsongsstatistik" sub="Placering i ligan. Full stapel = bäst i SHL.">
         <SeasonStats code={code} xgp={S?.all.xgp ?? null} gax={S && S.all.xgp != null ? S.all.gf - S.all.xgf : null} />
       </Panel>
-      {/* The top eight, or every player's numbers in a sortable table (the card widens for it) */}
-      <Panel title="Poängliga" className={allSk ? 'wide' : undefined}>
-        {allSk
-          ? <SortableTable key="all-sk" cols={skCols} rows={sk} sortKey={stat === 'pm' ? 'pm' : stat} caption="Lagets spelare" />
-          : <>
-            <Seg className="lsec-tabs" id="tl-tabs" label="Poängliga: statistik" value={stat} onChange={setStat} options={LEADER_STATS.map((x) => [x.k, x.label])} />
-            <div id="tl-body">
-              <LeaderList rows={[...sk].sort((a, b) => st.v(b) - st.v(a) || st.tie(b) - st.tie(a))} val={st.v} fmt={st.f || ((v: number) => v)} n={8} logos={false} sub={st.sub} />
-            </div>
-          </>}
+      {/* The top eight, or every player's numbers in a sortable table: the card keeps its width and grows straight down,
+          the cards below glide down with it */}
+      <Panel title="Poängliga">
+        <Grow>
+          <AnimatePresence mode="popLayout" initial={false}>
+            {allSk
+              ? <motion.div key="all" {...fade}><SortableTable key="all-sk" cols={skCols} rows={sk} sortKey={stat === 'pm' ? 'pm' : stat} caption="Lagets spelare" minWidth={420} /></motion.div>
+              : <motion.div key="top" {...fade}>
+                <Seg className="lsec-tabs" id="tl-tabs" label="Poängliga: statistik" value={stat} onChange={setStat} options={LEADER_STATS.map((x) => [x.k, x.label])} />
+                <div id="tl-body">
+                  <LeaderList rows={[...sk].sort((a, b) => st.v(b) - st.v(a) || st.tie(b) - st.tie(a))} val={st.v} fmt={st.f || ((v: number) => v)} n={8} logos={false} sub={st.sub} />
+                </div>
+              </motion.div>}
+          </AnimatePresence>
+        </Grow>
         {sk.length > 8 && <button className="more" onClick={() => setAllSk(!allSk)} aria-expanded={allSk}>{allSk ? 'Visa topp 8' : `Visa statistik för alla ${sk.length} spelare`}</button>}
       </Panel>
       <Panel title="Slutspel och prognos" sub="10 000 simuleringar av resten av säsongen."><Outlook code={code} /></Panel>
@@ -130,6 +135,27 @@ function Overview({ code, teamGames, logs }: { code: string; teamGames: Game[]; 
     </Board>
   )
 }
+// A box whose height follows its content on a spring, so a card that swaps a short list for a long table grows (and
+// shrinks) smoothly instead of jumping; the masonry board moves the cards below along as it grows
+const fade = { initial: { opacity: 0 }, animate: { opacity: 1, transition: { duration: 0.22, delay: 0.08 } }, exit: { opacity: 0, transition: { duration: 0.12 } } }
+function Grow({ children }: { children: ReactNode }) {
+  const inner = useRef<HTMLDivElement>(null)
+  const reduced = useReducedMotion()
+  const [h, setH] = useState<number | 'auto'>('auto')
+  useLayoutEffect(() => {
+    const el = inner.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setH(el.offsetHeight))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  return (
+    <motion.div style={{ overflow: 'hidden' }} initial={false} animate={{ height: h }} transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 32 }}>
+      <div ref={inner}>{children}</div>
+    </motion.div>
+  )
+}
+
 const clipSub = (c: GoalClip) => `${c.team} mot ${c.opp} · ${c.score[0]}–${c.score[1]} · ${fmtDay(c.date)}`
 
 // One horizontal bar row, the team page's single chart style (like the special teams chart): label, bar, value

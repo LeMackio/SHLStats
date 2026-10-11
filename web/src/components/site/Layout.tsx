@@ -10,21 +10,40 @@ export function PageHead({ title, children }: { title: ReactNode; children?: Rea
 }
 
 // Masonry board: each item spans rows equal to its measured height, so shorter panels slot into the
-// shortest column and no holes are left between them
+// shortest column and no holes are left between them. Once laid out, every card keeps its column: a card that
+// grows (an expanded list) only pushes the cards below it down, it never sends them to the other column.
+// The columns are chosen again when the cards change or the board's width does.
 const ROW = 4, GAP = 20
 export function Board({ className = '', children }: { className?: string; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
+  const pinned = useRef('')
   const items = Children.toArray(children).filter(Boolean)
   useLayoutEffect(() => {
     const box = ref.current
     if (!box) return
     const span = (el: Element) => { (el as HTMLElement).style.gridRowEnd = `span ${Math.max(1, Math.ceil((el.getBoundingClientRect().height + GAP) / ROW))}` }
-    const ro = new ResizeObserver((entries) => { for (const e of entries) span(e.target) })
-    ;[...box.children].forEach((el, i) => {
-      (el as HTMLElement).style.setProperty('--i', String(Math.min(i, 10))) // staggered fade-in
+    const kids = [...box.children] as HTMLElement[]
+    const pin = () => {
+      const sig = `${kids.length}|${box.clientWidth}|${kids.map((el) => el.classList.contains('wide') ? 'w' : '').join('')}`
+      if (pinned.current === sig) return
+      for (const el of kids) el.style.gridColumnStart = ''
+      kids.forEach(span)
+      const cols = getComputedStyle(box).gridTemplateColumns.split(' ').filter(Boolean).length
+      if (cols > 1) {
+        const left = box.getBoundingClientRect().left, colW = (box.clientWidth + GAP) / cols
+        for (const el of kids) if (!el.classList.contains('wide')) el.style.gridColumnStart = String(Math.min(cols, Math.floor((el.getBoundingClientRect().left - left + 2) / colW) + 1))
+      }
+      pinned.current = sig
+    }
+    // The board's own size: only a new width re-picks the columns (pin compares the width; growing taller does not)
+    const ro = new ResizeObserver((entries) => { for (const e of entries) if (e.target === box) pin(); else span(e.target) })
+    kids.forEach((el, i) => {
+      el.style.setProperty('--i', String(Math.min(i, 10))) // staggered fade-in
       span(el)
       ro.observe(el)
     })
+    pin()
+    ro.observe(box)
     return () => ro.disconnect()
   })
   return <div className={`board ${className}`} ref={ref}>{items}</div>
