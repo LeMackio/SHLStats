@@ -1,31 +1,4 @@
-/* Historia: the decade grid (one cell per season, the year it ended), the SM finals, and the record against every
-   opponent. Colours: gold for SM-guld, silver for a lost final, the accent for the playoffs, quiet for the rest. */
-.decades { display: grid; gap: 6px; margin-bottom: var(--space-3); }
-.decade { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: var(--space-3); }
-.decadeLabel { color: var(--text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
-.years { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; }
-.year { display: grid; height: 34px; place-items: center; border-radius: 8px; color: var(--text-muted); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; transition: transform var(--duration-fast) var(--ease-standard); cursor: default; }
-@media (hover: hover) and (pointer: fine) { .year:hover { transform: scale(1.08); } }
-
-.gold { background: linear-gradient(160deg, #f3d47a, #c9962b); color: #2b1d00; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25); }
-.silver { background: linear-gradient(160deg, #e6e8ec, #a5abb5); color: #1c2026; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25); }
-.playoff { background: color-mix(in oklab, var(--accent) 32%, var(--surface-muted)); color: var(--foreground); }
-.league { background: var(--surface-muted); color: var(--text-secondary); }
-.kval { background: color-mix(in oklab, var(--bad) 26%, var(--surface-muted)); color: var(--foreground); }
-.now { background: var(--surface-muted); color: var(--foreground); box-shadow: inset 0 0 0 1.5px var(--accent); }
-.none { background: transparent; box-shadow: inset 0 0 0 1px var(--border-subtle); color: color-mix(in oklab, var(--text-muted) 60%, transparent); }
-.future { visibility: hidden; }
-.key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
-
-/* SM finals: a medal, the year and the opponent */
-.finals { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.finals li { display: grid; grid-template-columns: 64px 48px minmax(0, 1fr); align-items: center; gap: var(--space-3); min-height: 34px; border-bottom: 1px solid var(--border-subtle); font-size: var(--text-sm); }
-.finals li:last-child { border-bottom: 0; }
-.finals li > span:last-child { overflow: hidden; color: var(--text-secondary); text-overflow: ellipsis; white-space: nowrap; }
-.finals b { font-weight: 500; }
-.medal { display: inline-grid; height: 24px; place-items: center; border-radius: 999px; font-size: 12px; font-weight: 600; }
-
-/* The playoff result in the seasons table */
+/* Historia: the playoff result in the seasons table (gold for SM-guld, silver for a lost final) and the record against every opponent. */
 .po { color: var(--text-secondary); }
 .poGold, .poSilver { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
 .poGold { background: linear-gradient(160deg, #f3d47a, #c9962b); color: #2b1d00; }
@@ -42,9 +15,5 @@
 .vsBar i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
 
 @media (max-width: 700px) {
-  .decade { grid-template-columns: 1fr; gap: 4px; }
-  .years { gap: 4px; }
-  .year { height: 30px; font-size: 11px; }
   .vsRow { grid-template-columns: 110px minmax(0, 1fr) 44px 44px; gap: var(--space-2); }
 }
-@media (prefers-reduced-motion: reduce) { .year { transition: none; } }

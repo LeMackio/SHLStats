@@ -65,7 +65,7 @@ function Player({ P, id, want }: { P: PlayersData; id: string; want: string }) {
     : [['SM', (p as Skater).gp], ['M', (p as Skater).g], ['A', (p as Skater).a], ['P', (p as Skater).pts], ['P/M', dec((p as Skater).gp ? (p as Skater).pts / (p as Skater).gp : 0, 2)], ['+/-', signed((p as Skater).pm)], ['Utv', (p as Skater).pim], ['Skott', (p as Skater).sog], ['Istid', mmss((p as Skater).toi)]]
 
   const hero = (
-    <RefHero bg={teams[team]?.logo} tc={vivid(teamHue(team))} photo={headshots[id]?.[1]} first={first} last={rest.join(' ')}
+    <RefHero bg={teams[team]?.logo} mark={team} tc={vivid(teamHue(team))} photo={headshots[id]?.[1]} first={first} last={rest.join(' ')}
       badge={<><TeamBadge code={team} size="md" /><b>#{bio.num ?? '–'}</b><i /><b>{gk ? 'MV' : POS_SHORT[bio.pos] || 'F'}</b></>}
       big={[...(bio.h ? [['Längd', bio.h, 'cm']] : []), ...(bio.w ? [['Vikt', bio.w, 'kg']] : []), ...(bio.born ? [['Ålder', ageOf(bio.born), 'år']] : [])] as [string, ReactNode, string][]}
       facts={facts} rows={curP ? [{ label: `Grundserien ${cur.replace('-', '/')}`, cells: cells(curP) }] : []}

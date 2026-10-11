@@ -735,6 +735,28 @@ for (const s of finished) {
 }
 writeJson(PO_CACHE, poCache);
 
+// ---------- team logos as files of our own ----------
+// The headers draw the club logo as outlines, which needs the logo's SVG code; the logo CDN sends no CORS headers, so
+// the site can't read it from there. Each current team's SVG is kept in cache/logos and copied to site/data/logos,
+// with scripts and event attributes removed.
+mkdirSync('cache/logos', { recursive: true }); mkdirSync('site/data/logos', { recursive: true });
+let logoFails = 0;
+await inBatches(codes, 4, async (code) => {
+  const url = cur.teams[code]?.logo, file = `cache/logos/${code}.svg`;
+  if (!url || !/\.svg(\?|$)/i.test(url)) return;
+  if (!existsSync(file)) {
+    try {
+      const res = await fetch(url, { headers: { 'user-agent': 'SHLstats (fan site data refresh)' } });
+      if (!res.ok) throw new Error(String(res.status));
+      const svg = (await res.text()).replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son\w+\s*=\s*("[^"]*"|'[^']*')/gi, '');
+      if (!/<svg[\s>]/i.test(svg)) throw new Error('not an svg');
+      writeFileSync(file, svg);
+    } catch (e) { logoFails++; return; }
+  }
+  writeFileSync(`site/data/logos/${code}.svg`, readFileSync(file, 'utf8'));
+});
+if (logoFails) console.warn('logos failed', logoFails);
+
 // ---------- Swedish champions since 1922 (English Wikipedia's list) ----------
 // SM-guld was played for long before Elitserien (Djurgården has 16 titles, ten of them before 1976), so every
 // champion and runner-up comes from the list "List of Swedish ice hockey champions". Kept in cache/champions.json and

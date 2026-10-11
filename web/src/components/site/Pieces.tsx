@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { useData } from '@/data/context'
+import { dataUrl, useData } from '@/data/context'
 import { ageOf, fmtDay, initials, normName, POS_SHORT } from '@/lib/format'
 import { resultFor, safeEmbed, safeUrl } from '@/lib/game'
 import { MIN_GP, METRICS, type Card } from '@/lib/cards'
@@ -78,8 +78,9 @@ export function LeaderList<T extends { id: string; name: string; team: string }>
 // uppercase name with a badge and a button, large numbers, a short facts list, a big photo on the right over a
 // blurred copy of it, and a stats band along the bottom
 export interface RefRow { label: string; cells: [string, ReactNode][] }
-export function RefHero({ bg, tc, photo, photoCls = '', first, firstCls = '', last, badge, action, big = [], facts = [], rows = [], tabs }: {
+export function RefHero({ bg, mark, tc, photo, photoCls = '', first, firstCls = '', last, badge, action, big = [], facts = [], rows = [], tabs }: {
   bg?: string
+  mark?: string // team code: its logo drawn as outlines behind the name
   tc?: string
   photo?: string
   photoCls?: string
@@ -114,7 +115,7 @@ export function RefHero({ bg, tc, photo, photoCls = '', first, firstCls = '', la
           </filter>
         </svg>
         <div className="ref-bg" />
-        <img className="ref-mark" src={bg} alt="" />
+        {mark ? <OutlineLogo code={mark} fallback={bg} /> : <img className="ref-mark" src={bg} alt="" />}
       </>}
       {/* Phones: a player's studio background is removed so the player stands on the card */}
       {photo && <RefPhoto src={photo} cls={photoCls} clean={narrow && !photoCls} />}
@@ -151,6 +152,44 @@ export function RefHero({ bg, tc, photo, photoCls = '', first, firstCls = '', la
   )
 }
 const FactRow = ({ k, v }: { k: string; v: ReactNode }) => <><dt>{k}</dt><dd>{v}</dd></>
+
+// The club logo drawn as true vector outlines (headers): the logo's own SVG, copied to the site's data by the data
+// refresh, with its colours, styles and classes taken out so the stylesheet can stroke every shape with one thin line.
+// Sharp at any size. Without an SVG for the team, the picture with the outline filter is used instead.
+const OUTLINES: Record<string, string | null> = {}
+const SHAPES = 'path, polygon, polyline, rect, circle, ellipse, line'
+async function outlineSvg(code: string) {
+  if (code in OUTLINES) return OUTLINES[code]
+  try {
+    const res = await fetch(dataUrl(`logos/${code}.svg`))
+    if (!res.ok) throw new Error(String(res.status))
+    const doc = new DOMParser().parseFromString(await res.text(), 'image/svg+xml')
+    const svg = doc.documentElement
+    if (svg.nodeName !== 'svg' || doc.querySelector('parsererror')) throw new Error('not an svg')
+    svg.querySelectorAll('script, style, foreignObject, image, text').forEach((n) => n.remove())
+    for (const n of [svg, ...svg.querySelectorAll('*')]) {
+      for (const a of [...n.attributes]) if (/^on/i.test(a.name) || a.name === 'class' || a.name === 'style' || a.name === 'id') n.removeAttribute(a.name)
+    }
+    svg.querySelectorAll(SHAPES).forEach((n) => { n.removeAttribute('fill'); n.removeAttribute('stroke') })
+    svg.removeAttribute('width'); svg.removeAttribute('height')
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
+    svg.setAttribute('aria-hidden', 'true')
+    return (OUTLINES[code] = new XMLSerializer().serializeToString(svg))
+  } catch {
+    return (OUTLINES[code] = null)
+  }
+}
+function OutlineLogo({ code, fallback }: { code: string; fallback?: string }) {
+  const [svg, setSvg] = useState<string | null | undefined>(() => OUTLINES[code])
+  useEffect(() => {
+    let off = false
+    outlineSvg(code).then((s) => { if (!off) setSvg(s) })
+    return () => { off = true }
+  }, [code])
+  if (svg) return <span className="ref-mark-svg" aria-hidden="true" dangerouslySetInnerHTML={{ __html: svg }} />
+  if (svg === null && fallback) return <img className="ref-mark" src={fallback} alt="" />
+  return null
+}
 
 // The hero's photo; on phones a player photo gets its studio background removed (shared with the leader cards)
 function RefPhoto({ src, cls, clean }: { src: string; cls: string; clean: boolean }) {

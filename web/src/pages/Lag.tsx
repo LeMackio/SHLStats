@@ -57,7 +57,7 @@ export function LagPage({ code, tab: want }: { code: string; tab: string }) {
   return (
     <>
       {/* The profile-style top card, with the club logo where a player's photo would be */}
-      <RefHero bg={teams[code].logo} tc={vivid(teamHue(code))} photo={teams[code].logo} photoCls="ref-logo" firstCls="ref-kicker"
+      <RefHero bg={teams[code].logo} mark={code} tc={vivid(teamHue(code))} photo={teams[code].logo} photoCls="ref-logo" firstCls="ref-kicker"
         first={hh ? 'Klubbens historia' : `SHL ${cur.replace('-', '/').replace(/^(\d\d)/, '20$1')}`} last={tName(code)} action={<FavButton code={code} />}
         // Only who the team is and where it stands (the record, odds and stats each live in one card below). On the Historia
         // tab the header shows the club's titles instead of this season.
@@ -422,60 +422,13 @@ function useExpand(n: number, total: number) {
 function History({ code, H, names }: { code: string; H?: ClubHistory; names: Record<string, string> }) {
   const { cur, tName, teams } = useData()
   const [nSeasons, moreSeasons] = useExpand(10, H?.seasons.length || 0)
-  const [nFinals, moreFinals] = useExpand(6, H?.titles?.length || 0)
   const [nLeaders, moreLeaders] = useExpand(5, H?.leaders.length || 0)
   const [nVs, moreVs] = useExpand(8, H?.vs.length || 0)
   if (!H || !H.seasons.length) return <PageState icon="later" title="Ingen historik ännu" description="Historiken visas efter nästa datauppdatering." />
-  const titles = H.titles || []
-  const finalBy = new Map(titles.map((t) => [t[0], t]))
-  const seasonBy = new Map(H.seasons.map((s) => [yearOf(s[0]), s]))
-  const now = yearOf(cur)
-  const firstYear = Math.min(now, ...titles.map((t) => t[0]), ...H.seasons.map((s) => yearOf(s[0])))
-  const decades = Array.from({ length: Math.floor(now / 10) - Math.floor(firstYear / 10) + 1 }, (_, i) => (Math.floor(firstYear / 10) + i) * 10)
   const oppName = (c: string) => teams[c]?.name || names[c] || c
-
-  // One year in the grid: SM-guld, final, playoffs, a season in the league, or nothing known
-  const cell = (y: number) => {
-    const f = finalBy.get(y), s = seasonBy.get(y), po = s?.[14]
-    const txt = `${y - 1}/${String(y % 100).padStart(2, '0')}`
-    if (f) return { cls: f[1] === 0 ? hist.gold : hist.silver, title: `${txt}: ${f[1] === 0 ? 'SM-guld' : 'SM-final'} mot ${f[2]}${s ? `, ${s[1]}:a i serien` : ''}` }
-    if (s && po != null) return { cls: hist.playoff, title: `${txt}: ${PO_LONG[po]}, ${s[1]}:a i serien` }
-    if (s) return { cls: s[0] === cur ? hist.now : s[1] >= s[10] - 1 ? hist.kval : hist.league, title: `${txt}: ${s[1]}:a i serien${s[0] === cur ? ' (pågår)' : ''}` }
-    return { cls: y > now ? hist.future : hist.none, title: y < 1976 ? `${txt}: ingen SM-final` : `${txt}: inte i Elitserien/SHL` }
-  }
 
   return (
     <Board>
-      <Panel title="Genom åren" className="wide" sub="Varje ruta är en säsong, med året den slutade. SM-finaler sedan 1922, säsonger i Elitserien och SHL sedan 1975/76.">
-        <div className={hist.decades}>
-          {decades.map((d) => (
-            <div key={d} className={hist.decade}>
-              <span className={hist.decadeLabel}>{d}-talet</span>
-              <div className={hist.years}>
-                {Array.from({ length: 10 }, (_, i) => d + i).map((y) => {
-                  const c = cell(y)
-                  return <span key={y} className={`${hist.year} ${c.cls}`} title={c.title}>{String(y % 100).padStart(2, '0')}</span>
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="legend">
-          <span><i className={`${hist.key} ${hist.gold}`} />SM-guld</span><span><i className={`${hist.key} ${hist.silver}`} />SM-final</span>
-          <span><i className={`${hist.key} ${hist.playoff}`} />Slutspel</span><span><i className={`${hist.key} ${hist.league}`} />I serien</span>
-          <span><i className={`${hist.key} ${hist.kval}`} />Kval</span><span><i className={`${hist.key} ${hist.none}`} />Inte i högsta serien / okänt</span>
-        </div>
-      </Panel>
-      {titles.length > 0 && (
-        <Panel title="SM-finaler" sub={`${titles.filter((t) => t[1] === 0).length} guld på ${titles.length} finaler sedan ${titles[0][0]}. Nyast först.`}>
-          <ol className={hist.finals}>
-            {[...titles].reverse().slice(0, nFinals).map(([y, lost, opp]) => (
-              <li key={y}><span className={`${hist.medal} ${lost ? hist.silver : hist.gold}`}>{lost ? 'Silver' : 'Guld'}</span><b className="num">{y}</b><span>mot {opp}</span></li>
-            ))}
-          </ol>
-          {moreFinals}
-        </Panel>
-      )}
       <Panel title="Alla säsonger i SHL" className="wide" sub="Nyast först. Grundserien och hur slutspelet slutade.">
         <div className="tscroll">
           <table className="t">
