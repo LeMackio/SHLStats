@@ -41,7 +41,7 @@ const toSec = (t) => {
   const [m, s] = t.split(':').map(Number);
   return m * 60 + s;
 };
-const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+const norm = (s) => String(s || '').replace(/[øØ]/g, 'o').replace(/[æÆ]/g, 'ae').replace(/ß/g, 'ss').replace(/[łŁ]/g, 'l').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
 const stockholmDate = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Stockholm' });
 const isFinal = (g) => g.state === 'post-game' && typeof g.hs === 'number';
 // The feed calls the shootout period "shootout"; everywhere else it is period 5
@@ -125,16 +125,55 @@ if (SEASONS.length < 2) throw new Error('Could not find two SHL seasons with sch
 const [cur, prev] = SEASONS;
 const codes = Object.keys(cur.teams);
 
-// ---------- player identity (game data uses numeric ids, the site uses uuids) ----------
-const idByNameTeam = new Map(), idByName = new Map();
-for (const p of [...cur.skaters, ...cur.goalies]) {
-  idByNameTeam.set(norm(p.name) + '|' + p.team, p.id);
-  idByName.set(norm(p.name), idByName.has(norm(p.name)) ? null : p.id); // null marks an ambiguous name
-}
-const refFor = (name, team, num) => ({
-  id: idByNameTeam.get(norm(name) + '|' + team) ?? idByName.get(norm(name)) ?? null,
-  name, num: num != null && num !== '' ? Number(num) : null,
+// ---------- rosters and headshots ----------
+const pickSize = (srcset, want) => {
+  const set = (srcset || '').split(/,\s*(?=https)/).map((s) => {
+    const t = s.trim(), i = t.lastIndexOf(' ');
+    return { w: parseInt(t.slice(i + 1)), url: t.slice(0, i) };
+  }).filter((x) => x.w);
+  return set.find((x) => x.w >= want)?.url;
+};
+const headshots = {};
+const rosters = {};
+await inBatches(codes, 4, async (code) => {
+  const uuid = cur.teams[code].uuid;
+  try {
+    const groups = await get(`/sports-v2/athletes/by-team-uuid/${uuid}`);
+    rosters[code] = groups.flatMap((grp) => grp.players.map((p) => {
+      const srcset = p.renderedLatestPortrait?.srcset;
+      const sm = pickSize(srcset, 100), lg = pickSize(srcset, 640) || pickSize(srcset, 280);
+      if (sm && lg) headshots[p.uuid] = [sm, lg];
+      return { id: p.uuid, name: p.fullName, num: p.jerseyNumber, pos: grp.positionCode, nat: p.nationality };
+    }));
+  } catch (e) { console.warn('roster failed', code, e.message); rosters[code] = []; }
 });
+// ---------- player identity (game data uses numeric ids, the site uses uuids) ----------
+// Feeds spell names differently ("Mathias Emilio Pettersen" / "Emilio Pettersen", "Hedin Raftheim" / "Raftheim Hedin"),
+// so a name falls back from the exact spelling, to the same words in any order, to the last name on the team, and
+// last to the jersey number on the team. Players without stats yet (a debut) come from the rosters.
+const idByNameTeam = new Map(), idByName = new Map(), idByWordsTeam = new Map(), idByLastTeam = new Map(), idByNumTeam = new Map(), wordsById = new Map();
+const words = (s) => String(s || '').split(/[\s-]+/).map(norm).filter(Boolean);
+const setUnique = (m, k, id) => m.set(k, m.has(k) && m.get(k) !== id ? null : id); // null marks an ambiguous key
+for (const p of [...cur.skaters, ...cur.goalies, ...Object.entries(rosters).flatMap(([team, r]) => r.map((x) => ({ ...x, team })))]) {
+  const w = words(p.name);
+  if (!wordsById.has(p.id)) wordsById.set(p.id, w);
+  if (!idByNameTeam.has(norm(p.name) + '|' + p.team)) idByNameTeam.set(norm(p.name) + '|' + p.team, p.id);
+  setUnique(idByName, norm(p.name), p.id);
+  setUnique(idByWordsTeam, [...w].sort().join(' ') + '|' + p.team, p.id);
+  for (const x of w.slice(1)) setUnique(idByLastTeam, x + '|' + p.team, p.id);
+  if (p.num != null && p.num !== '') setUnique(idByNumTeam, Number(p.num) + '|' + p.team, p.id);
+}
+const idFor = (name, team, num) => {
+  const w = words(name);
+  const exact = idByNameTeam.get(norm(name) + '|' + team) ?? idByName.get(norm(name)) ?? idByWordsTeam.get([...w].sort().join(' ') + '|' + team);
+  if (exact) return exact;
+  // Every word in one name appears in the other: the shorter spelling of the same player
+  const cands = [...new Set(w.slice(1).map((x) => idByLastTeam.get(x + '|' + team)).filter(Boolean))]
+    .filter((id) => { const o = wordsById.get(id) || []; return o.every((x) => w.includes(x)) || w.every((x) => o.includes(x)); });
+  if (cands.length === 1) return cands[0];
+  return num != null && num !== '' ? idByNumTeam.get(Number(num) + '|' + team) ?? null : null;
+};
+const refFor = (name, team, num) => ({ id: name ? idFor(name, team, num) : null, name, num: num != null && num !== '' ? Number(num) : null });
 
 // ---------- games ----------
 async function fetchGame(g) {
@@ -207,6 +246,13 @@ const sogOk = (d) => ['home', 'away'].every((side) => {
   const me = d.team?.[side] || {}, them = d.team?.[side === 'home' ? 'away' : 'home'] || {};
   return me.SOG > me.G && them.Saves === me.SOG - me.G;
 });
+// Cached games keep the player ids from when they were fetched: players who didn't match then get another try
+const rematch = (d) => {
+  const fix = (r, side) => { if (r && !r.id && r.name) r.id = idFor(r.name, d[side], r.num); };
+  for (const side of ['home', 'away']) { for (const r of d.box?.[side] || []) fix(r, side); for (const r of d.gk?.[side] || []) fix(r, side); }
+  for (const x of d.goals || []) for (const k of ['scorer', 'a1', 'a2']) fix(x[k], x.team);
+  for (const x of d.pens || []) fix(x.player, x.team);
+};
 const gameDetails = {};
 const toFetch = [];
 for (const g of cur.games) {
@@ -216,6 +262,7 @@ for (const g of cur.games) {
   if (isFinal(g) && !badResult && existsSync(file) && readJson(file).v === 2) {
     const d = readJson(file); // older cached games may still say "shootout"
     for (const k of ['goals', 'pens', 'shots']) d[k] = d[k].map((x) => ({ ...x, p: periodNo(x.p) })).sort((a, b) => a.p - b.p || String(a.t).localeCompare(String(b.t)));
+    rematch(d);
     gameDetails[g.id] = d;
   }
   else if (g.state !== 'pre-game') toFetch.push(g); // finished but not cached yet, or live
@@ -444,28 +491,6 @@ if (!lastDay || history.days[lastDay].played !== played.length) {
   writeJson(HISTORY, history);
 }
 
-// ---------- rosters and headshots ----------
-const pickSize = (srcset, want) => {
-  const set = (srcset || '').split(/,\s*(?=https)/).map((s) => {
-    const t = s.trim(), i = t.lastIndexOf(' ');
-    return { w: parseInt(t.slice(i + 1)), url: t.slice(0, i) };
-  }).filter((x) => x.w);
-  return set.find((x) => x.w >= want)?.url;
-};
-const headshots = {};
-const rosters = {};
-await inBatches(codes, 4, async (code) => {
-  const uuid = cur.teams[code].uuid;
-  try {
-    const groups = await get(`/sports-v2/athletes/by-team-uuid/${uuid}`);
-    rosters[code] = groups.flatMap((grp) => grp.players.map((p) => {
-      const srcset = p.renderedLatestPortrait?.srcset;
-      const sm = pickSize(srcset, 100), lg = pickSize(srcset, 640) || pickSize(srcset, 280);
-      if (sm && lg) headshots[p.uuid] = [sm, lg];
-      return { id: p.uuid, name: p.fullName, num: p.jerseyNumber, pos: grp.positionCode, nat: p.nationality };
-    }));
-  } catch (e) { console.warn('roster failed', code, e.message); rosters[code] = []; }
-});
 // Players not on a current roster (moved on, retired) resolve through the media service once, then stay cached
 const HS_CACHE = 'cache/headshots.json';
 const hsCache = readJson(HS_CACHE, {});
