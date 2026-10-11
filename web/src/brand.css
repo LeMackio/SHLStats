@@ -283,26 +283,35 @@ details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .b
 /* Team names in the match header fit their column (the header clips anything wider) */
 @media (max-width: 699px) { .mpanel .mhead .mteam b { font-size: min(16px, calc(158cqi / var(--n, 10))); } }
 
-/* Phone menu in the style of the NHL app: a solid rounded bar, white icons and labels, the current page in a darker
-   pill with its icon and label in blue. A followed team's logo sits on the Hem button. */
+/* Phone menu in the style of the NHL app, made of Liquid Glass: the page shows through a blurred, brightened bar with
+   a light rim along its top edge; white icons and labels, the current page in a glass pill with its icon and label in
+   blue. A followed team's logo sits on the Hem button. */
 @media (max-width: 700px) {
-  .bottom-nav { --nav-bg: #1c1d20; --nav-pill: #08090b; --nav-ink: #f4f5f7; --nav-on: #4c8dff;
-    left: 12px; right: 12px; padding: 6px; border: 1px solid rgba(255, 255, 255, .07); background: var(--nav-bg);
-    backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); }
-  .bottom-nav a, .bottom-nav.has-ind a { min-height: 60px; gap: 4px; color: var(--nav-ink); font: 500 12.5px var(--body); letter-spacing: 0; }
-  .bottom-nav a .ic { width: 25px; height: 25px; stroke-width: 1.8; }
+  .bottom-nav { --nav-tint: rgba(28, 29, 33, .42); --nav-rim: rgba(255, 255, 255, .22); --nav-edge: rgba(255, 255, 255, .1); --nav-ink: #f4f5f7; --nav-on: #5b9bff;
+    --nav-pill: rgba(0, 0, 0, .34); --nav-pill-rim: rgba(255, 255, 255, .14);
+    left: 12px; right: 12px; padding: 6px; border: 1px solid var(--nav-edge);
+    background: linear-gradient(180deg, rgba(255, 255, 255, .1), rgba(255, 255, 255, .02) 45%, rgba(255, 255, 255, .05)), var(--nav-tint);
+    backdrop-filter: blur(24px) saturate(190%) brightness(1.05); -webkit-backdrop-filter: blur(24px) saturate(190%) brightness(1.05);
+    box-shadow: inset 0 1px 0 var(--nav-rim), inset 0 -1px 0 rgba(255, 255, 255, .05), 0 12px 32px rgba(0, 0, 0, .35); }
+  .bottom-nav a, .bottom-nav.has-ind a { min-height: 60px; gap: 4px; color: var(--nav-ink); font: 500 12.5px var(--body); letter-spacing: 0; text-shadow: 0 1px 6px rgba(0, 0, 0, .25); }
+  .bottom-nav a .ic { width: 25px; height: 25px; stroke-width: 1.8; filter: drop-shadow(0 1px 4px rgba(0, 0, 0, .25)); }
   .bottom-nav a.on, .bottom-nav.has-ind a.on { color: var(--nav-on); font-weight: 500; }
   .bottom-nav a.on .ic { color: var(--nav-on); stroke-width: 2; }
-  .bottom-nav .sl-pill { border-radius: 999px; background: var(--nav-pill); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .5); }
+  .bottom-nav .sl-pill { border-radius: 999px; background: linear-gradient(180deg, rgba(255, 255, 255, .06), transparent 60%), var(--nav-pill);
+    box-shadow: inset 0 1px 0 var(--nav-pill-rim), inset 0 0 0 1px rgba(255, 255, 255, .05), 0 2px 8px rgba(0, 0, 0, .2); }
   .bn-team { display: grid; width: 25px; height: 25px; place-items: center; transition: width .35s, height .35s; }
   .bn-team .tb { width: 25px; height: 25px; }
   body.nav-compact .bottom-nav a .bn-team, body.nav-compact .bottom-nav a .bn-team .tb { width: 21px; height: 21px; }
 }
 @media (max-width: 700px) and (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .bottom-nav { --nav-bg: #ffffff; --nav-pill: #e7ebf0; --nav-ink: #17202b; --nav-on: #1f6feb; border-color: rgba(23, 32, 43, .08); box-shadow: 0 8px 26px rgba(23, 32, 43, .16); }
-  :root:not([data-theme="dark"]) .bottom-nav .sl-pill { box-shadow: none; }
+  :root:not([data-theme="dark"]) .bottom-nav { --nav-tint: rgba(255, 255, 255, .5); --nav-rim: rgba(255, 255, 255, .9); --nav-edge: rgba(23, 32, 43, .08); --nav-ink: #17202b; --nav-on: #1f6feb;
+    --nav-pill: rgba(23, 32, 43, .08); --nav-pill-rim: rgba(255, 255, 255, .8); box-shadow: inset 0 1px 0 var(--nav-rim), 0 10px 28px rgba(23, 32, 43, .16); }
+  :root:not([data-theme="dark"]) .bottom-nav a { text-shadow: none; }
+  :root:not([data-theme="dark"]) .bottom-nav a .ic { filter: none; }
 }
 @media (max-width: 700px) {
-  :root[data-theme="light"] .bottom-nav { --nav-bg: #ffffff; --nav-pill: #e7ebf0; --nav-ink: #17202b; --nav-on: #1f6feb; border-color: rgba(23, 32, 43, .08); box-shadow: 0 8px 26px rgba(23, 32, 43, .16); }
-  :root[data-theme="light"] .bottom-nav .sl-pill { box-shadow: none; }
+  :root[data-theme="light"] .bottom-nav { --nav-tint: rgba(255, 255, 255, .5); --nav-rim: rgba(255, 255, 255, .9); --nav-edge: rgba(23, 32, 43, .08); --nav-ink: #17202b; --nav-on: #1f6feb;
+    --nav-pill: rgba(23, 32, 43, .08); --nav-pill-rim: rgba(255, 255, 255, .8); box-shadow: inset 0 1px 0 var(--nav-rim), 0 10px 28px rgba(23, 32, 43, .16); }
+  :root[data-theme="light"] .bottom-nav a { text-shadow: none; }
+  :root[data-theme="light"] .bottom-nav a .ic { filter: none; }
 }
