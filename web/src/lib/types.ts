@@ -181,9 +181,11 @@ export interface TeamsData {
   news: Record<string, TeamNews[]>
   history?: Record<string, ClubHistory>
   names?: Record<string, string> // every club in the loaded seasons (upper-case code → name), for opponents no longer in SHL
+  poRounds?: string[] // playoff result names by rounds from the final: Guld, Final, Semifinal …
 }
 export interface ClubHistory {
-  seasons: [string, number, number, number, number, number, number, number, number, number, number, string | null, string | null, number | null][] // [label, rank, gp, w, otw, otl, l, gf, ga, pts, teams, top scorer, id, pts], newest first
+  // [label, rank, gp, w, otw, otl, l, gf, ga, pts, teams, top scorer, id, pts, playoff result (rounds from the final: 0 = champion, 1 = final …, null = none)], newest first
+  seasons: [string, number, number, number, number, number, number, number, number, number, number, string | null, string | null, number | null, number | null][]
   leaders: [string | null, string, number, number, number, number, number][] // [id, name, gp, g, a, pts, seasons]
   goalies: [string | null, string, number, number, number, number | null, number][] // [id, name, gp, w, so, sv%, seasons]
   vs: [string, number, number, number, number, number][] // [opp, gp, w, l, gf, ga]

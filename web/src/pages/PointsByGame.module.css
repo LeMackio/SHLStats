@@ -1,0 +1,26 @@
+/* Poängutveckling on a player's page: four numbers, then one bar per game (goals and assists stacked) */
+.card { display: grid; gap: var(--space-4); }
+
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
+.stats div { display: grid; align-content: start; gap: 2px; padding: var(--space-3); border-radius: calc(var(--radius-control) - 6px); background: var(--surface-muted); }
+.stats b { font-size: 22px; font-weight: 500; line-height: 1.1; }
+.stats small { color: var(--text-muted); font-size: 12px; line-height: 1.3; }
+
+.chart { position: relative; height: 150px; padding: 0 0 18px 18px; }
+.grid { position: absolute; inset: 0 0 18px 18px; pointer-events: none; }
+.grid span { position: absolute; left: -18px; right: 0; border-top: 1px dashed var(--border-subtle); color: var(--text-muted); font-size: 10px; line-height: 0; font-variant-numeric: tabular-nums; }
+.bars { position: relative; display: flex; align-items: stretch; gap: 3px; height: 100%; }
+.col { display: grid; flex: 1 1 0; grid-template-rows: 1fr auto; min-width: 4px; color: inherit; text-decoration: none; }
+.stack { display: flex; flex-direction: column; justify-content: flex-end; gap: 1px; width: min(100%, 26px); height: 100%; margin: 0 auto; }
+.stack i { display: block; width: 100%; border-radius: 3px; }
+.g { background: var(--accent); }
+.a { background: color-mix(in oklab, var(--accent) 45%, var(--surface-muted)); }
+.zero { height: 2px; background: color-mix(in oklab, var(--foreground) 14%, transparent); }
+.col small { position: relative; top: 4px; height: 14px; color: var(--text-muted); font-size: 10px; text-align: center; font-variant-numeric: tabular-nums; }
+@media (hover: hover) and (pointer: fine) { .col:hover .stack i { filter: brightness(1.15); } .col:hover small { color: var(--foreground); } }
+
+.dotG, .dotA { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.dotG { background: var(--accent); }
+.dotA { background: color-mix(in oklab, var(--accent) 45%, var(--surface-muted)); }
+
+@media (max-width: 700px) { .stats { grid-template-columns: 1fr 1fr; } }

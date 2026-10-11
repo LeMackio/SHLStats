@@ -5,14 +5,17 @@
 .summary small { color: var(--text-muted); font-size: 13px; }
 
 /* One chip per season: the place, coloured by where it put the club */
-.timeline { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 6px; margin-bottom: var(--space-3); }
+.timeline { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 6px; margin-bottom: var(--space-3); }
 .chip { display: grid; justify-items: center; gap: 2px; padding: 8px 4px 6px; border-radius: 8px; background: var(--surface-muted); }
-.chip b { font-size: 18px; font-weight: 500; line-height: 1; }
+.chip b { font-size: 15px; font-weight: 500; line-height: 1.2; }
 .chip small { color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .top { background: color-mix(in oklab, var(--accent) 22%, var(--surface-muted)); }
 .mid { background: color-mix(in oklab, var(--accent) 9%, var(--surface-muted)); }
 .low { background: var(--surface-muted); }
 .bad { background: color-mix(in oklab, var(--bad) 22%, var(--surface-muted)); }
+.gold { background: color-mix(in oklab, var(--gold) 55%, var(--surface-muted)); }
+.gold b { color: var(--foreground); }
+.silver { background: color-mix(in oklab, var(--foreground) 22%, var(--surface-muted)); }
 .out { background: transparent; box-shadow: inset 0 0 0 1px var(--border-subtle); }
 .out b { color: var(--text-muted); }
 .dotTop, .dotMid, .dotBad, .dotOut { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
@@ -20,6 +23,15 @@
 .dotMid { background: color-mix(in oklab, var(--accent) 18%, var(--surface-muted)); }
 .dotBad { background: color-mix(in oklab, var(--bad) 45%, var(--surface-muted)); }
 .dotOut { box-shadow: inset 0 0 0 1px var(--border); }
+.dotGold, .dotSilver { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.dotGold { background: color-mix(in oklab, var(--gold) 70%, var(--surface-muted)); }
+.dotSilver { background: color-mix(in oklab, var(--foreground) 35%, var(--surface-muted)); }
+
+/* The playoff result in the seasons table */
+.po { color: var(--text-secondary); }
+.poGold, .poSilver { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+.poGold { background: color-mix(in oklab, var(--gold) 30%, transparent); color: var(--foreground); }
+.poSilver { background: color-mix(in oklab, var(--foreground) 14%, transparent); color: var(--foreground); }
 
 /* Against every opponent: the site's bar rows */
 .vs { display: grid; gap: var(--space-2); }

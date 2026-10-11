@@ -105,19 +105,21 @@ async function loadSeason(s) {
     skaters: (await statsModule('players_summary')).map(skaterRow).filter((p) => p.pos !== 'GK'),
     goalies: (await statsModule('goalkeepers_summary')).map(goalieRow),
   };
-  if (state === 'closed' && season.skaters.length) writeJson(cacheFile, season);
+  // Finished seasons are kept: with player stats, or (the oldest seasons, which have none) with a schedule and a table
+  if (state === 'closed' && (season.skaters.length || (Number(s.code) < 2002 && season.standings.length && games.length))) writeJson(cacheFile, season);
   return season;
 }
 
-// Every season shl.se has stats for (finished seasons are cached, so this is a one-time download).
-// The site's tables and history use the latest N_SEASONS; player careers use all of them.
-const ALL_SEASONS = [];
+// Every season shl.se has (finished seasons are cached, so this is a one-time download), back to Elitserien's first
+// in 1975/76. The site's tables use the latest N_SEASONS, player careers the latest MAX_CAREER (with stats), and the
+// club history every season with a schedule.
+const HIST_SEASONS = [];
 for (const s of [...filter.season].sort((a, b) => b.code - a.code)) {
-  if (ALL_SEASONS.length === MAX_CAREER) break;
   let season = null;
   try { season = await loadSeason(s); } catch (e) { console.warn('season failed', s.code, e.message); }
-  if (season && (ALL_SEASONS.length < 2 || season.skaters.length)) ALL_SEASONS.push(season);
+  if (season) HIST_SEASONS.push(season);
 }
+const ALL_SEASONS = HIST_SEASONS.filter((s, i) => i < 2 || s.skaters.length).slice(0, MAX_CAREER);
 const SEASONS = ALL_SEASONS.slice(0, N_SEASONS);
 if (SEASONS.length < 2) throw new Error('Could not find two SHL seasons with schedules');
 const [cur, prev] = SEASONS;
@@ -663,22 +665,93 @@ mkdirSync('site/data/games', { recursive: true });
 writeJson('site/data/core.json', core);
 writeJson('site/data/players.json', { bios, career, goalieCareer, gamelogs, goalieLogs, goalClips });
 writeJson('site/data/edge.json', edge);
-// ---------- club history (every loaded SHL season, back to 2002/03) ----------
-// Per current team: the table row of every season it played, that season's top scorer, the club's all-time points and
-// goalie leaders over those seasons, and its record against every opponent. Codes are compared case-insensitively
-// (the standings write "MoDo" where the schedule writes "MODO").
+// ---------- playoffs (English Wikipedia's season pages) ----------
+// shl.se's API has no playoff data for past seasons, so each season's bracket comes from its Wikipedia page
+// ("1990–91 Elitserien season", "2015–16 SHL season"). Every team's furthest round becomes its playoff result:
+// champion, final, semifinal, quarter-final or eighth-final (play in). Finished seasons are cached; the latest
+// finished season is looked up again until it has a champion.
+const PO_CACHE = 'cache/playoffs.json';
+const poCache = readJson(PO_CACHE, {});
+const PO_ROUND = ['Guld', 'Final', 'Semifinal', 'Kvartsfinal', 'Åttondelsfinal']; // by rounds from the final (0 = won it)
+const tkey = (name) => {
+  const n = String(name).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  if (/vastra\s*frolunda/.test(n)) return 'frolunda';
+  if (/^aik\b/.test(n)) return 'aik'; // AIK, AIK IF, AIK Ishockey (not Skellefteå AIK)
+  if (/vasteras/.test(n)) return 'vasteras'; // VIK Västerås HK, Västerås IK
+  if (/redh?w?a?w?ks|^mif\b|malmo/.test(n)) return 'malmo'; // Malmö IF, Malmö Redhawks (and a misspelt MIF Redhwaks)
+  return n.replace(/\b(if|bk|hc|ik|hk|sk|hf|aik|hockey|club)\b/g, ' ').replace(/[^a-z0-9]/g, '') || n.replace(/[^a-z0-9]/g, '');
+};
+const codeFor = (names, teams) => {
+  // The season's team whose name shares the longest start with any of the bracket's names for it
+  let best = null, bestLen = 2;
+  for (const nm of names) {
+    const k = tkey(nm);
+    for (const [code, t] of Object.entries(teams)) {
+      const c = tkey(t.name);
+      const len = k.startsWith(c) || c.startsWith(k) ? Math.min(k.length, c.length) : 0;
+      if (len > bestLen) { best = code; bestLen = len; }
+    }
+  }
+  return best;
+};
+async function playoffsOf(s) {
+  const y = Number(s.code), page = `${y}–${String((y + 1) % 100).padStart(2, '0')} ${y >= 2013 ? 'SHL' : 'Elitserien'} season`;
+  const res = await fetch(`https://en.wikipedia.org/w/api.php?action=parse&format=json&prop=wikitext&redirects=1&page=${encodeURIComponent(page)}`,
+    { headers: { 'user-agent': 'SHLstats/1.0 (fan site data refresh; https://shlstats.net)' } });
+  const text = (await res.json()).parse?.wikitext?.['*'];
+  if (!text) return null;
+  const at = text.search(/\{\{\s*[^|{}]*Bracket/i);
+  if (at < 0) return { none: 1 }; // no playoffs that season (2019/20)
+  let depth = 0, end = at;
+  for (; end < text.length; end++) { if (text.startsWith('{{', end)) { depth++; end++; } else if (text.startsWith('}}', end)) { depth--; end++; if (!depth) break; } }
+  const body = text.slice(at, end);
+  const clean = (v) => v.replace(/<ref[^>]*\/>|<ref[\s\S]*?<\/ref>/g, '').replace(/'''?/g, '').trim();
+  const val = (k) => { const m = body.match(new RegExp(`\\|\\s*${k}\\s*=([^\\n]*)`)); return m ? clean(m[1]) : '' }; // each parameter has its own line
+  const names = (raw) => { const out = []; for (const m of raw.matchAll(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g)) { out.push(m[1]); if (m[2]) out.push(m[2]); } if (!out.length && raw) out.push(raw); return out };
+  const rounds = [...new Set([...body.matchAll(/RD(\d+)-team\d+/g)].map((m) => +m[1]))].sort((a, b) => a - b);
+  if (!rounds.length) return null;
+  const last = rounds[rounds.length - 1], result = {};
+  for (const r of rounds) {
+    for (let i = 1; ; i += 2) {
+      const a = val(`RD${r}-team${i}`), b = val(`RD${r}-team${i + 1}`);
+      if (!a && !b) break;
+      const ca = codeFor(names(a), s.teams), cb = codeFor(names(b), s.teams);
+      const sa = parseFloat(val(`RD${r}-score${i}`)) || 0, sb = parseFloat(val(`RD${r}-score${i + 1}`)) || 0;
+      for (const [c, won] of [[ca, sa > sb], [cb, sb > sa]]) {
+        if (!c) continue;
+        const reach = last - r + (won && r === last ? 0 : 1); // rounds from the final it went out in (0 = champion)
+        if (result[c] == null || reach < result[c]) result[c] = reach;
+      }
+    }
+  }
+  return { teams: result };
+}
+const finished = HIST_SEASONS.filter((s) => s.state === 'closed');
+let poFails = 0;
+for (const s of finished) {
+  const have = poCache[s.label];
+  if (have && (have.none || Object.values(have.teams || {}).includes(0))) continue; // complete
+  try { const p = await playoffsOf(s); if (p) poCache[s.label] = p; } catch (e) { poFails++; }
+}
+writeJson(PO_CACHE, poCache);
+
+// ---------- club history (every SHL/Elitserien season, back to 1975/76) ----------
+// Per current team: the table row of every season it played with its playoff result, that season's top scorer, the
+// club's all-time points and goalie leaders over the seasons with player stats, and its record against every
+// opponent. Codes are compared case-insensitively (the standings write "MoDo" where the schedule writes "MODO").
 const same = (a, b) => String(fix(a)).toUpperCase() === String(fix(b)).toUpperCase();
 const clubHistory = {}, histNames = {};
-for (const s of ALL_SEASONS) for (const [c, t] of Object.entries(s.teams || {})) histNames[c.toUpperCase()] ??= t.name;
+for (const s of HIST_SEASONS) for (const [c, t] of Object.entries(s.teams || {})) histNames[c.toUpperCase()] ??= t.name;
 for (const code of codes) {
   const seasons = [], leaders = {}, goalies = {}, vs = {};
-  for (const s of ALL_SEASONS) {
+  for (const s of HIST_SEASONS) {
     const row = (s.standings || []).find((r) => same(r.code, code));
     const sk = s.skaters.filter((p) => same(p.team, code)), gk = s.goalies.filter((p) => same(p.team, code));
     if (row) {
       const top = [...sk].sort((a, b) => b.pts - a.pts || b.g - a.g)[0];
+      const po = poCache[s.label]?.teams, poCode = po && Object.keys(po).find((c) => same(c, code));
       seasons.push([s.label, row.rank, row.gp, row.w, row.otw, row.otl, row.l, row.gf, row.ga, row.pts, (s.standings || []).length,
-        top ? top.name : null, top ? pidOf(top) : null, top ? top.pts : null]);
+        top ? top.name : null, top ? pidOf(top) : null, top ? top.pts : null, poCode != null ? po[poCode] : null]);
     }
     for (const p of sk) { const id = pidOf(p) || `n:${norm(p.name)}`, e = (leaders[id] ??= { id: pidOf(p), name: p.name, gp: 0, g: 0, a: 0, pts: 0, n: 0 }); e.gp += p.gp || 0; e.g += p.g || 0; e.a += p.a || 0; e.pts += p.pts || 0; e.n++; }
     for (const p of gk) { const id = pidOf(p) || `n:${norm(p.name)}`, e = (goalies[id] ??= { id: pidOf(p), name: p.name, gp: 0, w: 0, so: 0, sv: 0, sa: 0, n: 0 }); e.gp += p.gpi || 0; e.w += p.w_ || 0; e.so += p.so || 0; e.sv += p.sv || 0; e.sa += (p.sv || 0) + (p.ga || 0); e.n++; }
@@ -690,13 +763,13 @@ for (const code of codes) {
     }
   }
   clubHistory[code] = {
-    seasons, // [label, rank, gp, w, otw, otl, l, gf, ga, pts, teams in the league, top scorer, top scorer id, top scorer points], newest first
+    seasons, // [label, rank, gp, w, otw, otl, l, gf, ga, pts, teams in the league, top scorer, id, points, playoff result: rounds from the final, 0 = champion, null = none], newest first
     leaders: Object.values(leaders).sort((a, b) => b.pts - a.pts).slice(0, 10).map((e) => [e.id, e.name, e.gp, e.g, e.a, e.pts, e.n]),
     goalies: Object.values(goalies).filter((e) => e.gp > 0).sort((a, b) => b.gp - a.gp).slice(0, 5).map((e) => [e.id, e.name, e.gp, e.w, e.so, e.sa ? Math.round((e.sv / e.sa) * 1000) / 10 : null, e.n]),
     vs: Object.entries(vs).filter(([o]) => !same(o, code)).map(([o, v]) => [o, ...v]).sort((a, b) => b[1] - a[1]), // [opp, gp, w, l, gf, ga]
   };
 }
-writeJson('site/data/teams.json', { logs: teamLogs, news: teamNews, history: clubHistory, names: histNames });
+writeJson('site/data/teams.json', { logs: teamLogs, news: teamNews, history: clubHistory, names: histNames, poRounds: PO_ROUND });
 // Media page (phones): goal videos from the last two weeks with their xG, and every highlights package this season
 const mediaCut = Date.now() - 14 * 864e5;
 writeJson('site/data/media.json', {

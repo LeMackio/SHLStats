@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { TeamScatter } from '@/components/charts/TeamCharts'
-import { CountUp } from '@/components/site/CountUp'
 import { Icon } from '@/components/site/Icon'
 import { PageHead, PageSwitch, Seg } from '@/components/site/Layout'
 import { LeaderSection, type LeaderSectionDef } from '@/components/site/Leaders'
@@ -17,6 +16,7 @@ import { safeEmbed } from '@/lib/game'
 import { GK_MIN_GP, METRICS, MIN_GP, playerCards, type Card } from '@/lib/cards'
 import { isFinal, type Goalie, type Skater } from '@/lib/types'
 import { useNarrow } from '@/lib/useNarrow'
+import sm from './ShotMap.module.css'
 
 // edge.json: shot-level data for the season with every shot's expected goals
 interface Edge {
@@ -180,14 +180,13 @@ function Nexus({ E, tab }: { E: Edge; tab: '' | 'lag' }) {
   )
 }
 
-const Tile = ({ k, v, s }: { k: string; v: string | number; s?: ReactNode }) => (
-  // The subline is always there (empty if need be), so every tile has the same height whichever numbers are shown
-  <div className="tile"><span className="k">{k}</span><span className="v"><CountUp text={String(v)} /></span><span className="s">{s || ' '}</span></div>
-)
+
 
 interface Shot { k: number; sh: string | null; gk: string | null; x: number; y: number; g: number; xg: number; team: string; en: number; str: number; game: Edge['games'][number] | null; opp: string | null; clip: number }
 
-// Shot map explorer: pick a player, goalie or team, filter by outcome and game state, click a goal for its video
+// Shot map explorer, built in three fixed rows so nothing moves while exploring: a toolbar (who: player, goalie or
+// team, and the search), a single scrolling row of quick picks, then the rink with its filters beside a side column
+// (who it is, six key numbers, the distance split, and the picked goal with its video).
 function ShotMap({ E, skRows, gkRows, gkAll, lgSv }: { E: Edge; skRows: SkE[]; gkRows: GkE[]; gkAll: GkE[]; lgSv: number }) {
   const { core, cur, tName, fav } = useData()
   const narrow = useNarrow()
@@ -205,8 +204,8 @@ function ShotMap({ E, skRows, gkRows, gkAll, lgSv }: { E: Edge; skRows: SkE[]; g
   const [str, setStr] = useState<'all' | '0' | '1' | '2'>('all')
   const [view, setView] = useState<'dots' | 'heat'>('dots')
   const [sel, setSel] = useState(-1)
-  const picksFor = (k: typeof kind) => k === 'sk' ? [...skRows].sort((a, b) => b.e.g - a.e.g || b.e.xg - a.e.xg).slice(0, 8)
-    : k === 'gk' ? [...gkRows].sort((a, b) => b.e.sa - a.e.sa).slice(0, 8) : core.standings.map((r) => ({ id: r.code, name: tName(r.code), team: r.code }))
+  const picksFor = (k: typeof kind) => k === 'sk' ? [...skRows].sort((a, b) => b.e.g - a.e.g || b.e.xg - a.e.xg).slice(0, 12)
+    : k === 'gk' ? [...gkRows].sort((a, b) => b.e.sa - a.e.sa).slice(0, 12) : core.standings.map((r) => ({ id: r.code, name: tName(r.code), team: r.code }))
   const [id, setId] = useState<string | null>(() => picksFor('sk')[0]?.id ?? null)
   const detail = useRef<HTMLDivElement>(null)
 
@@ -218,22 +217,22 @@ function ShotMap({ E, skRows, gkRows, gkAll, lgSv }: { E: Edge; skRows: SkE[]; g
   const changeKind = (k: typeof kind) => { setKind(k); pick(k === 't' && fav ? fav : picksFor(k)[0]?.id) }
   const nameOf = (pid: string | null) => season(core, cur).find((p) => p.id === pid)?.name || 'Okänd'
 
-  // Who is shown, and the numbers for the shots in the chosen game state
+  // The numbers for the shots in the chosen game state
   const n = list.length, g = sum(list.map((s) => s.g)), xg = sum(list.map((s) => s.xg))
   const hd = list.filter((s) => s.xg >= HD), dist = n ? sum(list.map((s) => Math.hypot(s.x, s.y) / 10)) / n : 0
   const ne = list.filter((s) => !s.en), neG = sum(ne.map((s) => s.g)), neXg = sum(ne.map((s) => s.xg))
-  let who: ReactNode = null
-  if (kind === 't' && id) who = <div className="smap-who"><TeamBadge code={id} size="xl" /><div><a className="lfeat-name" href={`#/lag/${id}`}>{tName(id)}</a><div className="lfeat-meta"><span>{side === 'for' ? 'Lagets skott' : 'Skott mot laget'}</span></div></div></div>
-  else {
-    const p = (kind === 'sk' ? skRows : gkAll).find((r) => r.id === id)
-    if (p) who = (
-      <div className="smap-who"><Portrait id={p.id} name={p.name} team={p.team} size="sm" />
-        <div><a className="lfeat-name" href={`#/spelare/${encodeURIComponent(p.id)}`}>{p.name}</a><div className="lfeat-meta"><TeamBadge code={p.team} /><span>{p.team} · #{p.num ?? '–'} · {POS_SHORT[p.pos] || 'F'}</span></div></div></div>
-    )
-  }
-  const bands = ([['Nära mål', 0, 6], ['Mellandistans', 6, 12], ['Långt ifrån', 12, 999]] as const).map(([label, a, b]) => {
+  const p = kind === 't' ? null : (kind === 'sk' ? skRows : gkAll).find((r) => r.id === id)
+  const who = kind === 't' && id
+    ? <div className={sm.who}><TeamBadge code={id} size="xl" /><div><a href={`#/lag/${id}`}>{tName(id)}</a><small>{side === 'for' ? 'Lagets skott' : 'Skott mot laget'}</small></div></div>
+    : p ? <div className={sm.who}><Portrait id={p.id} name={p.name} team={p.team} size="sm" /><div><a href={`#/spelare/${encodeURIComponent(p.id)}`}>{p.name}</a><small><TeamBadge code={p.team} />{p.team} · #{p.num ?? '–'} · {POS_SHORT[p.pos] || (kind === 'gk' ? 'MV' : 'F')}</small></div></div>
+    : <div className={sm.who} />
+  const stats: [string, string, string?][] = defensive
+    ? [['Skott mot', String(n)], ['Insläppta', String(g)], ['Rädd%', ne.length ? dec((1 - neG / ne.length) * 100, 1) : '–', `liga ${dec(lgSv * 100, 1)}`],
+      ['xG mot', dec(xg, 1)], ['GSAx', ne.length ? pp(neXg - neG) : '–', 'över förväntan'], ['Farliga', String(hd.length), hd.length ? `${dec((1 - sum(hd.map((s) => s.g)) / hd.length) * 100, 0)} % räddade` : '']]
+    : [['Skott', String(n)], ['Mål', String(g)], ['xG', dec(xg, 1)], ['Mål över xG', pp(g - xg)], ['Farliga', String(hd.length), `${sum(hd.map((s) => s.g))} mål`], ['Snittavstånd', n ? `${dec(dist, 1)} m` : '–']]
+  const bands = ([['Nära', 0, 6], ['Mellan', 6, 12], ['Långt', 12, 999]] as const).map(([label, a, b]) => {
     const inBand = list.filter((s) => { const d = Math.hypot(s.x, s.y) / 10; return d >= a && d < b })
-    return { label, n: inBand.length, g: sum(inBand.map((s) => s.g)) }
+    return { label, n: inBand.length, g: sum(inBand.map((s) => s.g)), range: b > 100 ? `${a}+ m` : `${a}–${b} m` }
   })
   const mx = Math.max(1, ...bands.map((b) => b.n))
   const color = defensive ? 'var(--bad)' : 'var(--accent)'
@@ -245,68 +244,58 @@ function ShotMap({ E, skRows, gkRows, gkAll, lgSv }: { E: Edge; skRows: SkE[]; g
   const searchFilter = useCallback((h: Hit) => h.type === 'p' && (kind === 'sk' ? !!E.skaters[h.id] : !!E.goalies[h.id]), [kind, E])
 
   return (
-    <section className="panel smap-panel" id="shotmap">
+    <section className="panel" id="shotmap">
       <div className="p-head"><h2>Skottkarta</h2><p className="p-sub">Varje skott på mål {E.season.replace('-', '/')}. Större prick = farligare chans. Tryck på ett mål för att se det.</p></div>
-      <div className="p-body"><div className="smap">
-        <div className="smap-side">
-          <Seg id="sm-kind" value={kind} onChange={changeKind} options={[['sk', 'Spelare'], ['gk', 'Målvakt'], ['t', 'Lag']]} />
-          {/* Teams have no search, but its room is kept so nothing below moves when switching */}
-          {kind !== 't' ? <PickSearch key={kind} id="sm-search-wrap" placeholder={kind === 'gk' ? 'Sök målvakt' : 'Sök spelare'} label="Sök till skottkartan" filter={searchFilter} onPick={(h) => pick(h.id)} /> : <div className="sm-search-ph" aria-hidden="true" />}
-          <div className="chips" id="sm-picks">
-            {picks.map((r) => (
-              <button key={r.id} className={`chip ${kind === 't' ? 'chip-team' : ''}`} aria-pressed={r.id === id} onClick={() => pick(r.id)}>
-                {kind === 't' ? <><TeamBadge code={r.id} />{r.id}</> : r.name}
-              </button>
-            ))}
+      <div className="p-body">
+        <div className={sm.toolbar}>
+          <Seg id="sm-kind" label="Visa skott för" value={kind} onChange={changeKind} options={[['sk', 'Spelare'], ['gk', 'Målvakt'], ['t', 'Lag']]} />
+          {/* Teams are picked in the row below; the search keeps its room so the toolbar never reflows */}
+          <div className={`${sm.search} ${kind === 't' ? 'sm-hide' : ''}`} aria-hidden={kind === 't'}>
+            <PickSearch key={kind} id="sm-search-wrap" placeholder={kind === 'gk' ? 'Sök målvakt' : 'Sök spelare'} label="Sök till skottkartan" filter={searchFilter} onPick={(h) => pick(h.id)} />
           </div>
-          <div id="sm-info">
-            {who}
-            <div className="tiles">
-              {defensive ? <>
-                <Tile k="Skott mot" v={n} /><Tile k="Insläppta" v={g} />
-                <Tile k="Rädd%" v={ne.length ? dec((1 - neG / ne.length) * 100, 1) : '–'} s={`liga ${dec(lgSv * 100, 1)}`} />
-                <Tile k="xG mot" v={dec(xg, 1)} /><Tile k="GSAx" v={ne.length ? pp(neXg - neG) : '–'} s="räddat över förväntan" />
-                <Tile k="Farliga" v={hd.length} s={hd.length ? `${dec((1 - sum(hd.map((s) => s.g)) / hd.length) * 100, 0)} % räddade` : ''} />
-              </> : <>
-                <Tile k="Skott" v={n} /><Tile k="Mål" v={g} /><Tile k="xG" v={dec(xg, 1)} /><Tile k="Mål över xG" v={pp(g - xg)} />
-                <Tile k="Farliga" v={hd.length} s={`${sum(hd.map((s) => s.g))} mål`} /><Tile k="Snittavstånd" v={n ? dec(dist, 1) : '–'} s="meter" />
-              </>}
+        </div>
+        <div className={sm.picks} role="list" aria-label="Snabbval">
+          {picks.map((r) => (
+            <button key={r.id} role="listitem" className={sm.pick} aria-pressed={r.id === id} onClick={() => pick(r.id)}>
+              {kind === 't' ? <><TeamBadge code={r.id} />{r.id}</> : <><Avatar id={r.id} name={r.name} team={r.team} />{r.name}</>}
+            </button>
+          ))}
+        </div>
+        <div className={sm.layout}>
+          <div className={sm.rinkCol}>
+            <div className={sm.filters}>
+              <Seg id="sm-show" label="Vilka skott" value={show} onChange={setShow} options={[['all', 'Alla'], ['g', 'Mål'], ['hd', 'Farliga']]} />
+              <Seg id="sm-str" label="Spelläge" value={str} onChange={(v) => { setStr(v); setSel(-1) }} options={[['all', 'Alla lägen'], ['0', '5 mot 5'], ['1', 'PP'], ['2', 'BP']]} />
+              <Seg id="sm-view" label="Visning" value={view} onChange={setView} options={[['dots', 'Prickar'], ['heat', 'Värme']]} />
+              {/* Last in the row, so the space it keeps for players and goalies sits at the end */}
+              <div className={kind === 't' ? undefined : 'sm-hide'} aria-hidden={kind !== 't'}><Seg id="sm-side" label="Skott för eller mot" value={side} onChange={(v) => { setSide(v); setSel(-1) }} options={[['for', 'För'], ['mot', 'Mot']]} /></div>
+            </div>
+            <div className={sm.stage} id="sm-rink"><ShotRink shots={shown} color={color} mode={view} sel={sel} onGoal={selectGoal} /></div>
+            <div className="legend">
+              {view === 'heat'
+                ? <><span><i style={{ background: color }} />Mörkare = fler och farligare skott</span><span><i style={{ background: color, borderRadius: '50%' }} />{defensive ? 'Insläppt mål' : 'Mål'}</span></>
+                : <><span><i style={{ background: color, borderRadius: '50%' }} />{defensive ? 'Insläppt mål' : 'Mål'}</span><span><i style={{ background: 'var(--muted)', opacity: 0.55, borderRadius: '50%' }} />Räddat</span><span>Större = högre xG</span><span>Streckat = farligaste ytan</span></>}
             </div>
           </div>
-          <div id="sm-zones">
-            {n > 0 && (
-              <div className="sm-zones"><h3>Avstånd</h3>
-                {bands.map((b) => (
-                  <div className="smz" key={b.label}>
-                    <span className="smz-l">{b.label}</span>
-                    <div className="smz-bar"><i style={{ width: `${b.n / mx * 100}%` }} /><i className="g" style={{ width: `${b.g / mx * 100}%` }} /></div>
-                    <span className="smz-v num">{b.n} <small>{b.g} mål{b.n ? ` · ${Math.round(b.g / b.n * 100)} %` : ''}</small></span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <aside className={sm.side}>
+            {who}
+            <div className={sm.stats}>
+              {stats.map(([k, v, s]) => <div key={k}><small>{k}</small><b className="num">{v}</b><span>{s || ' '}</span></div>)}
+            </div>
+            <div className={sm.bands}>
+              <h3>Avstånd till mål</h3>
+              {bands.map((b) => (
+                <div key={b.label} className={sm.band}>
+                  <span>{b.label} <small>{b.range}</small></span>
+                  <span className={sm.bar}><i style={{ width: `${(b.n / mx) * 100}%` }} /><i className={sm.barGoals} style={{ width: `${(b.g / mx) * 100}%`, background: color }} /></span>
+                  <b className="num">{b.n}</b><small className="num">{b.g} mål</small>
+                </div>
+              ))}
+            </div>
+            <div ref={detail}><GoalDetail E={E} s={sel >= 0 ? shotsAll[sel] : null} nameOf={nameOf} /></div>
+          </aside>
         </div>
-        <div className="smap-main">
-          <div className="smap-bar">
-            {/* Only teams have shots for and against; the switch keeps its place for the others so the bar never reflows */}
-            <div className={kind === 't' ? undefined : 'sm-hide'} aria-hidden={kind !== 't'}><Seg id="sm-side" value={side} onChange={(v) => { setSide(v); setSel(-1) }} options={[['for', 'Skott för'], ['mot', 'Skott mot']]} /></div>
-            <Seg id="sm-show" value={show} onChange={setShow} options={[['all', 'Alla'], ['g', 'Mål'], ['hd', 'Farliga']]} />
-            <Seg id="sm-str" value={str} onChange={(v) => { setStr(v); setSel(-1) }} options={[['all', 'Alla lägen'], ['0', 'Jämnt'], ['1', 'PP'], ['2', 'BP']]} />
-            <Seg id="sm-view" value={view} onChange={setView} options={[['dots', 'Prickar'], ['heat', 'Värme']]} />
-          </div>
-          <div className="smap-stage" id="sm-rink"><ShotRink shots={shown} color={color} mode={view} sel={sel} onGoal={selectGoal} /></div>
-          <div className="legend" id="sm-legend">
-            {view === 'heat'
-              ? <><span><i style={{ background: color }} />Mörkare = fler och farligare skott</span><span><i style={{ background: color, borderRadius: '50%' }} />{defensive ? 'Insläppt mål' : 'Mål'}</span></>
-              : <>
-                <span><i style={{ background: color, borderRadius: '50%', boxShadow: `0 0 0 3px color-mix(in srgb, ${color} 35%, transparent)` }} />{defensive ? 'Insläppt mål' : 'Mål'}</span>
-                <span><i style={{ background: 'var(--muted)', opacity: 0.55, borderRadius: '50%' }} />Räddat</span><span>Större = högre xG</span><span>Streckat område = farligaste ytan</span>
-              </>}
-          </div>
-          <div id="sm-detail" ref={detail}><GoalDetail E={E} s={sel >= 0 ? shotsAll[sel] : null} nameOf={nameOf} /></div>
-        </div>
-      </div></div>
+      </div>
     </section>
   )
 }
@@ -344,7 +333,7 @@ function ShotRink({ shots, color, mode, sel, onGoal }: { shots: Shot[]; color: s
   const W = pad * 2 + 300 * S, H = pad * 2 + (xMax - xMin) * S, cx = W / 2
   // y is sideways from the shooter's view: positive = the shooter's right, so with the net at the top it goes right (as on shl.se)
   const X = (y: number) => cx + y * S, Y = (x: number) => pad + (x - xMin) * S
-  const L = X(150), R = X(-150), top = Y(xMin), bot = Y(xMax), cr = 85 * S
+  const L = X(-150), R = X(150), top = Y(xMin), bot = Y(xMax), cr = 85 * S // the boards' left and right edges
   const boards = `M${L} ${bot} L${L} ${top + cr} A${cr} ${cr} 0 0 1 ${L + cr} ${top} L${R - cr} ${top} A${cr} ${cr} 0 0 1 ${R} ${top + cr} L${R} ${bot}`
   const inside = shots.filter((s) => s.x >= xMin && s.x <= xMax)
   const far = shots.length - inside.length
@@ -382,8 +371,8 @@ function ShotRink({ shots, color, mode, sel, onGoal }: { shots: Shot[]; color: s
         ))}
         {[70, -70].map((y) => <circle key={`n${y}`} cx={X(y)} cy={Y(200)} r={3 * S} className="rk-dot" />)}
       </g>
-      <path d={`M${X(18)} ${Y(0)} A${18 * S} ${18 * S} 0 0 0 ${X(-18)} ${Y(0)} Z`} className="rk-crease" />
-      <rect x={X(9.15)} y={Y(-11)} width={18.3 * S} height={11 * S} rx={3 * S} className="rk-net" />
+      <path d={`M${X(-18)} ${Y(0)} A${18 * S} ${18 * S} 0 0 0 ${X(18)} ${Y(0)} Z`} className="rk-crease" />
+      <rect x={X(-9.15)} y={Y(-11)} width={18.3 * S} height={11 * S} rx={3 * S} className="rk-net" />
       <path d={boards} className="rk-boards" />
       <text x={R - 8} y={Y(172) - 8} textAnchor="end" className="rk-lbl">Blå linje</text>
       {heat}

@@ -16,6 +16,7 @@ import { teamHue, vivid } from '@/lib/teams'
 import type { Goalie, PlayersData, Skater } from '@/lib/types'
 import { useNarrow } from '@/lib/useNarrow'
 import { NotFound } from './NotFound'
+import pbg from './PointsByGame.module.css'
 
 type Row = (string | number)[]
 const n = (v: unknown) => +(v as number) || 0
@@ -115,17 +116,7 @@ function Player({ P, id, want }: { P: PlayersData; id: string; want: string }) {
     // Phones: this season only (no points chart or videos), and the games as rows that open the game
     const card = playerCards(core).get(id)
     let trend: ReactNode = null
-    if (!narrow && !gk && log.length >= 2) {
-      const pts = log.reduce<number[]>((acc, r) => [...acc, (acc[acc.length - 1] ?? 0) + n(r[4]) + n(r[5])], [])
-      trend = (
-        <Panel title="Poängutveckling" sub={`Ackumulerade poäng ${cur}.`}>
-          <div className="chart"><LineChart label="Poängutveckling" category="Match" series={[{ pts, color: 'var(--accent)', area: true, label: 'Poäng' }]} yFmt={(v) => String(Math.round(v))}
-            // Games played along the axis (1, 2, 3 …); the crosshair also names the date and the opponent
-            xLabels={log.map((_, i) => String(i + 1))}
-            tips={log.map((r, i) => { const g = gamesById[r[0] as string]; return `Match ${i + 1}${g ? ` · ${dateParts(g.start).d}/${dateParts(g.start).m}` : ''} mot ${r[2]}` })} /></div>
-        </Panel>
-      )
-    }
+    if (!gk && log.length >= 1) trend = <Panel title="Poängutveckling" sub={`Match för match ${cur}. Tryck på en stapel för matchen.`}><PointsByGame log={log} /></Panel>
     const recent = narrow ? [] : clips.slice(-3).reverse()
     const last5 = [...log].slice(-5).reverse()
     const parts = [
@@ -311,5 +302,47 @@ function Career({ rows, gk }: { rows: Row[]; gk: boolean }) {
         </Panel>
       )}
     </Board>
+  )
+}
+
+// Poängutveckling: the season game by game. Four numbers on top (points, pace over 52 games, the current point streak,
+// the last five games), then one bar per game in the site's bar style: goals in the accent, assists lighter on top
+function PointsByGame({ log }: { log: (string | number)[][] }) {
+  const { gamesById, tName } = useData()
+  const games = log.map((r, i) => ({ i, g: n(r[4]), a: n(r[5]), opp: String(r[2]), gid: String(r[0]), start: gamesById[r[0] as string]?.start }))
+  const pts = games.reduce((s, x) => s + x.g + x.a, 0), gp = games.length
+  let run = 0, best = 0
+  for (const x of games) { run = x.g + x.a > 0 ? run + 1 : 0; best = Math.max(best, run) }
+  const last5 = games.slice(-5).reduce((s, x) => s + x.g + x.a, 0)
+  const top = Math.max(2, ...games.map((x) => x.g + x.a))
+  return (
+    <div className={pbg.card}>
+      <div className={pbg.stats}>
+        <div><b className="num">{pts}</b><small>poäng på {gp} {gp === 1 ? 'match' : 'matcher'}</small></div>
+        <div><b className="num">{Math.round((pts / gp) * 52)}</b><small>poäng i takt över 52</small></div>
+        <div><b className="num">{run}</b><small>{run === 1 ? 'match' : 'matcher'} i rad med poäng (bäst {best})</small></div>
+        <div><b className="num">{last5}</b><small>poäng senaste {Math.min(5, gp)}</small></div>
+      </div>
+      <div className={pbg.chart} role="list" aria-label="Poäng match för match">
+        <div className={pbg.grid} aria-hidden="true">{Array.from({ length: top }, (_, k) => <span key={k} style={{ bottom: `${((k + 1) / top) * 100}%` }}>{k + 1}</span>)}</div>
+        <div className={pbg.bars}>
+          {games.map((x) => {
+            const p = x.start ? dateParts(x.start) : null
+            const what = x.g + x.a ? [x.g ? `${x.g} mål` : '', x.a ? `${x.a} assist` : ''].filter(Boolean).join(', ') : 'inga poäng'
+            return (
+              <a key={x.gid} role="listitem" className={pbg.col} href={`#/match/${x.gid}`} title={`Match ${x.i + 1}${p ? ` · ${p.d}/${p.m}` : ''} mot ${tName(x.opp)}: ${what}`}>
+                <span className={pbg.stack}>
+                  {x.a > 0 && <i className={pbg.a} style={{ height: `${(x.a / top) * 100}%` }} />}
+                  {x.g > 0 && <i className={pbg.g} style={{ height: `${(x.g / top) * 100}%` }} />}
+                  {x.g + x.a === 0 && <i className={pbg.zero} />}
+                </span>
+                <small>{(x.i + 1) % 5 === 0 || x.i === 0 || x.i === gp - 1 ? x.i + 1 : ''}</small>
+              </a>
+            )
+          })}
+        </div>
+      </div>
+      <div className="legend"><span><i className={pbg.dotG} />Mål</span><span><i className={pbg.dotA} />Assist</span><span>Siffrorna under är spelade matcher</span></div>
+    </div>
   )
 }

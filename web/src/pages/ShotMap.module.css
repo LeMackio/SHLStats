@@ -1,0 +1,49 @@
+/* Nexus shot map: a toolbar, one row of quick picks, then the rink beside a side column. Every row has a fixed
+   height, so switching player, goalie, team or filter never moves anything. */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.search { flex: 1 1 260px; max-width: 360px; }
+
+.picks { display: flex; gap: 6px; min-height: 40px; margin: var(--space-3) 0 var(--space-4); padding-bottom: 4px; overflow-x: auto; scrollbar-width: none; }
+.picks::-webkit-scrollbar { display: none; }
+.pick { display: inline-flex; flex: none; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 4px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--text-sm); font-weight: 500; white-space: nowrap; cursor: pointer; transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard); }
+.pick :global(.av), .pick :global(.tb) { width: 26px; height: 26px; }
+.pick[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in oklab, var(--accent) 14%, transparent); color: var(--foreground); }
+@media (hover: hover) and (pointer: fine) { .pick:hover { border-color: var(--border-strong); color: var(--foreground); } }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; align-items: start; gap: var(--space-5); }
+.rinkCol { display: grid; gap: var(--space-3); min-width: 0; }
+.filters { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.stage { overflow: hidden; border-radius: calc(var(--radius-control) - 4px); background: var(--surface-muted); padding: 10px; }
+.stage :global(svg.rink) { display: block; width: 100%; max-width: 560px; height: auto; margin: 0 auto; overflow: hidden; }
+
+.side { display: grid; align-content: start; gap: var(--space-4); }
+.who { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-3); min-height: 72px; }
+.who a { display: block; overflow: hidden; color: var(--foreground); font-size: 18px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.who small { display: flex; align-items: center; gap: 6px; margin-top: 4px; color: var(--text-muted); font-size: 13px; }
+.who :global(.portrait) { width: 64px; height: 64px; border-radius: 12px; }
+
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.stats div { display: grid; gap: 2px; min-width: 0; padding: 10px 12px; border-radius: calc(var(--radius-control) - 6px); background: var(--surface-muted); }
+.stats small { color: var(--text-muted); font-size: 12px; }
+.stats b { font-size: 20px; font-weight: 500; line-height: 1.15; }
+.stats span { overflow: hidden; color: var(--text-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+
+.bands { display: grid; gap: var(--space-2); }
+.bands h3 { margin: 0 0 2px; color: var(--foreground); font-size: var(--text-sm); font-weight: 500; }
+.band { display: grid; grid-template-columns: 96px minmax(0, 1fr) 28px 44px; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
+.band > span:first-child { color: var(--text-secondary); white-space: nowrap; }
+.band > span:first-child small { color: var(--text-muted); font-size: 11px; }
+.band b { font-weight: 500; text-align: right; }
+.band > small { color: var(--text-muted); font-size: 12px; text-align: right; }
+.bar { position: relative; height: 10px; overflow: hidden; border-radius: 3px; background: color-mix(in oklab, var(--foreground) 9%, transparent); }
+.bar i { position: absolute; top: 0; bottom: 0; left: 0; border-radius: inherit; background: color-mix(in oklab, var(--foreground) 22%, transparent); }
+.bar i.barGoals { opacity: .9; }
+
+@media (max-width: 960px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .side { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .search { flex-basis: 100%; max-width: none; }
+  .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
