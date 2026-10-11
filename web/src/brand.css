@@ -99,6 +99,8 @@ table.t tbody tr:hover td { background: color-mix(in oklab, var(--foreground) 3%
 table.t tr.fav td { background: color-mix(in oklab, var(--accent) 12%, var(--surface)); }
 table.t tr.fav td:first-child { box-shadow: inset 3px 0 var(--accent); }
 table.t .rank { font: 500 var(--text-sm) var(--font-body); }
+/* The rank keeps its zone colour (set per row in --zone): quarter-final white, play in grey, kval red, as in the legend */
+table.t td.rank, table.t tr.fav td.rank { color: var(--zone, var(--text-muted)); }
 table.t .odds span, .odds-pill { display: inline-block; text-align: center; min-width: 48px; padding: 3px 8px; border-radius: 999px; font-weight: 500; font-size: var(--text-xs); }
 @media (max-width: 700px) {
   table.t td { height: 44px; font-size: var(--text-sm); padding: 0 6px; }
