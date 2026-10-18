@@ -30,5 +30,16 @@
 <body>
 <div id="root"></div>
 <script type="module" src="/src/main.tsx"></script>
+<script>
+  // Cloudflare Web Analytics: visit counts without cookies, only on the live site (not local testing). "spa" also counts
+  // moving between pages inside the app.
+  if (/(^|\.)shlstats\.net$/.test(location.hostname)) {
+    var cf = document.createElement('script');
+    cf.defer = true;
+    cf.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+    cf.setAttribute('data-cf-beacon', '{"token": "e96959268809488fbcb58bd33fc19c73", "spa": true}');
+    document.body.appendChild(cf);
+  }
+</script>
 </body>
 </html>
