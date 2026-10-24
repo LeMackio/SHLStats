@@ -95,10 +95,10 @@ function Overview() {
         </div>
       )}
       <div className="ov-row r-two">
-        <Panel title="Slutspelsstrecket" sub="Chans att sluta topp 10 och nå slutspel.">
+        <Panel title="Slutspelsstrecket">
           <div className="chart"><HBars items={race} max={1} labelW={140} logos color={(it) => (it.v >= 0.5 ? 'var(--accent)' : 'var(--bad)')} /></div>
         </Panel>
-        <Panel title="Chans till SM-guld" sub="Andel av 10 000 simuleringar där laget vinner SM-finalen." more={{ href: '#/tabell', label: 'Alla odds' }}>
+        <Panel title="Chans till SM-guld" more={{ href: '#/tabell', label: 'Alla odds' }}>
           <div className="chart"><HBars items={gold} labelW={140} logos /></div>
         </Panel>
       </div>

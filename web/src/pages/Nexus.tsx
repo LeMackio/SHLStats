@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { TeamScatter } from '@/components/charts/TeamCharts'
-import { Icon } from '@/components/site/Icon'
 import { PageHead, PageSwitch, Seg } from '@/components/site/Layout'
 import { LeaderSection, type LeaderSectionDef } from '@/components/site/Leaders'
 import { Empty, PageState, Panel, Skeleton } from '@/components/site/Panel'
@@ -127,7 +126,7 @@ function Nexus({ E, tab }: { E: Edge; tab: '' | 'lag' }) {
   return (
     <>
       <p className="beta-note"><span>Beta</span>Nexus är i beta: siffrorna, modellerna och vyerna kan ändras medan vi bygger vidare.</p>
-      <PageHead title="Nexus">Skottkvalitet och förväntade mål (xG) för SHL {E.season.replace('-', '/')}. Varje skott på mål värderas efter var det kom ifrån och i vilket läge.</PageHead>
+      <PageHead title="Nexus" />
       {/* Two tabs: players (leaders, the shot map, player cards) and teams (the fair table, team xG and shot attempts) */}
       <PageSwitch base="/nexus" tabs={[{ key: '', label: 'Spelare' }, { key: 'lag', label: 'Lag' }]} active={tab} />
       {tab === '' && <>
@@ -140,25 +139,25 @@ function Nexus({ E, tab }: { E: Edge; tab: '' | 'lag' }) {
       </>}
       {tab === 'lag' && <>
       <div className="ov-row r-two">
-        <Panel title="Rättvis tabell" sub="Tabellen som den borde se ut om varje match slutat som chanserna (xG) sa."><FairTable E={E} /></Panel>
-        <Panel title="Lag: xG för och mot" sub="Förväntade mål per match. Bäst är uppe till höger: många chanser framåt, få bakåt.">
+        <Panel title="Rättvis tabell"><FairTable E={E} /></Panel>
+        <Panel title="Lag: xG för och mot">
           <div className="chart"><TeamScatter rows={teamRows.map((r) => ({ code: r.code, name: r.name, x: r.xgfpg, y: r.xgapg }))} xLabel="xG för per match" what={['xG för', 'xG mot']} /></div>
         </Panel>
       </div>
       {teamRows.some((r) => r.hasAtt) && (
         <div className="ov-row r-one">
-          <Panel title="Lag: skottförsök (Corsi)" sub="Alla skottförsök: på mål, utanför och blockerade. Andelen (CF%) visar vilket lag som har pucken och skapar mest, oavsett hur bra skotten var. Fenwick (FF%) räknar bort blockerade skott.">
+          <Panel title="Lag: skottförsök (Corsi)">
             <SortableTable cols={corsiCols} rows={teamRows.filter((r) => r.hasAtt)} sortKey="cfp" minWidth={640} />
           </Panel>
         </div>
       )}
       <div className="ov-row r-one">
-        <Panel title="Lag: xG-statistik" sub="Avslut = gjorda mål minus xG (skärpa framåt). Målvakt = xG mot minus insläppta (målvaktsspel).">
+        <Panel title="Lag: xG-statistik">
           <SortableTable cols={xgCols} rows={teamRows} sortKey="xgp" minWidth={640} />
         </Panel>
       </div>
       <div className="ov-row r-two">
-        <Panel title="Var målen görs" sub="Andel skott på mål som blir mål, per område. Ljusare = oftare mål. Rutor med färre än 8 skott visas inte.">
+        <Panel title="Var målen görs">
           <div className="chart"><GoalRateMap shots={E.shots.map((s) => ({ x: s[2] as number, y: s[3] as number, g: s[4] as number, en: s[7] as number }))} /></div>
         </Panel>
         <Panel title="Så räknas xG">
@@ -235,6 +234,10 @@ function ShotMap({ E, skRows, gkRows, gkAll, lgSv }: { E: Edge; skRows: SkE[]; g
     return { label, n: inBand.length, g: sum(inBand.map((s) => s.g)), range: b > 100 ? `${a}+ m` : `${a}–${b} m` }
   })
   const mx = Math.max(1, ...bands.map((b) => b.n))
+  // Until a goal is picked on the map, the latest goal among the shown shots is open (so the side column never waits
+  // on an instruction)
+  const latest = shown.filter((s) => s.g).sort((a, b) => String(b.game?.[3] ?? '').localeCompare(String(a.game?.[3] ?? '')))[0]
+  const open = sel >= 0 ? sel : latest?.k ?? -1
   const color = defensive ? 'var(--bad)' : 'var(--accent)'
   const selectGoal = (k: number) => {
     setSel(k)
@@ -245,7 +248,7 @@ function ShotMap({ E, skRows, gkRows, gkAll, lgSv }: { E: Edge; skRows: SkE[]; g
 
   return (
     <section className="panel" id="shotmap">
-      <div className="p-head"><h2>Skottkarta</h2><p className="p-sub">Varje skott på mål {E.season.replace('-', '/')}. Större prick = farligare chans. Tryck på ett mål för att se det.</p></div>
+      <div className="p-head"><h2>Skottkarta</h2></div>
       <div className="p-body">
         <div className={sm.toolbar}>
           <Seg id="sm-kind" label="Visa skott för" value={kind} onChange={changeKind} options={[['sk', 'Spelare'], ['gk', 'Målvakt'], ['t', 'Lag']]} />
@@ -270,7 +273,7 @@ function ShotMap({ E, skRows, gkRows, gkAll, lgSv }: { E: Edge; skRows: SkE[]; g
               {/* Last in the row, so the space it keeps for players and goalies sits at the end */}
               <div className={kind === 't' ? undefined : 'sm-hide'} aria-hidden={kind !== 't'}><Seg id="sm-side" label="Skott för eller mot" value={side} onChange={(v) => { setSide(v); setSel(-1) }} options={[['for', 'För'], ['mot', 'Mot']]} /></div>
             </div>
-            <div className={sm.stage} id="sm-rink"><ShotRink shots={shown} color={color} mode={view} sel={sel} onGoal={selectGoal} /></div>
+            <div className={sm.stage} id="sm-rink"><ShotRink shots={shown} color={color} mode={view} sel={open} onGoal={selectGoal} /></div>
             <div className="legend">
               {view === 'heat'
                 ? <><span><i style={{ background: color }} />Mörkare = fler och farligare skott</span><span><i style={{ background: color, borderRadius: '50%' }} />{defensive ? 'Insläppt mål' : 'Mål'}</span></>
@@ -292,7 +295,7 @@ function ShotMap({ E, skRows, gkRows, gkAll, lgSv }: { E: Edge; skRows: SkE[]; g
                 </div>
               ))}
             </div>
-            <div ref={detail}><GoalDetail E={E} s={sel >= 0 ? shotsAll[sel] : null} nameOf={nameOf} /></div>
+            <div ref={detail}><GoalDetail E={E} s={open >= 0 ? shotsAll[open] : null} nameOf={nameOf} /></div>
           </aside>
         </div>
       </div>
@@ -305,7 +308,7 @@ const season = (core: { seasons: Record<string, { skaters: { id: string; name: s
 const STR_NAME = ['Jämnt', 'Powerplay', 'Boxplay']
 function GoalDetail({ E, s, nameOf }: { E: Edge; s: Shot | null; nameOf: (id: string | null) => string }) {
   const { tName } = useData()
-  if (!s) return <div className="sm-hint"><Icon name="play" /><span>Tryck på ett mål på kartan för att se vem som gjorde det, hur farlig chansen var och spela upp videon.</span></div>
+  if (!s) return null
   const clip = s.clip >= 0 ? E.clips[s.clip] : null, [gid, , , date] = s.game || []
   const title = `${nameOf(s.sh)} mot ${tName(s.opp || '')}`
   return (
@@ -471,7 +474,7 @@ function FairTable({ E }: { E: Edge }) {
     <>
       <div className="tscroll">
         <table className="t fairt" style={{ minWidth: 480 }}>
-          <thead><tr><th className="rank">#</th><th className="l">Lag</th><th>M</th><th title="Förväntade poäng utifrån chanserna">xPoäng</th><th>Poäng</th><th>Tur</th><th title="Verklig placering jämfört med den rättvisa">Tabell</th><th>xG%</th></tr></thead>
+          <thead><tr><th className="rank">#</th><th className="l">Lag</th><th>M</th><th title="Förväntade poäng utifrån chanserna">xPoäng</th><th>Poäng</th><th title="Verkliga poäng minus xPoäng: plus är fler poäng än chanserna motiverar">Tur</th><th title="Platser högre (▲) eller lägre (▼) i den riktiga tabellen">Tabell</th><th>xG%</th></tr></thead>
           <tbody>
             {rows.map((t, i) => {
               const diff = t.pts - t.xpts, move = realRank.get(t.code)! - (i + 1)
@@ -489,7 +492,6 @@ function FairTable({ E }: { E: Edge }) {
           </tbody>
         </table>
       </div>
-      <p className="note">Tur = verkliga poäng minus xPoäng. Plus betyder fler poäng än chanserna motiverar (skärpa, målvakt eller tur), minus färre. Tabell visar hur många platser laget ligger högre (▲) eller lägre (▼) i den riktiga tabellen.</p>
     </>
   )
 }
@@ -513,7 +515,7 @@ function CardPanel() {
   const [x, setX] = useState<Card | undefined>(picks[0])
   return (
     <section className="panel">
-      <div className="p-head"><h2>Spelarkort</h2><p className="p-sub">Percentiler från ett viktat urval av två säsonger.</p></div>
+      <div className="p-head"><h2>Spelarkort</h2></div>
       <div className="p-body">
         <PickSearch placeholder="Sök spelare" label="Sök spelare" filter={filter} onPick={(h) => setX(CARD.get(h.id))} />
         {x && <><Chips list={picks} on={x.id} pick={setX} /><div id="card-slot"><PlayerCard x={x} /></div></>}
@@ -541,7 +543,7 @@ function SimilarCard() {
   const posName = x?.grp === 'G' ? 'målvakter' : x?.grp === 'D' ? 'backar' : 'forwards'
   return (
     <section className="panel">
-      <div className="p-head"><h2>Liknande spelare</h2><p className="p-sub">Spelarna med mest lika spelarkort, jämfört med andra på samma position.</p></div>
+      <div className="p-head"><h2>Liknande spelare</h2></div>
       <div className="p-body sim-body">
         <PickSearch placeholder="Sök spelare eller målvakt" label="Sök spelare att jämföra" filter={filter} onPick={(h) => setX(CARD.get(h.id))} />
         {x && <>

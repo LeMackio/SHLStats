@@ -164,13 +164,13 @@ main { max-width: 1320px; margin: 0 auto; padding: 22px 16px 64px; display: grid
 .p-head { padding: 16px 20px 10px; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; justify-content: space-between; }
 .p-head h2 { margin: 0; font: 700 23px/1.05 var(--display); letter-spacing: .01em; text-transform: uppercase; text-wrap: balance; }
 .p-head .more-link { font: 600 14px var(--display); letter-spacing: .06em; text-transform: uppercase; }
-.p-sub { margin: 0; color: var(--muted); font-size: 14px; flex-basis: 100%; }
+
 .p-body { padding: 0 20px 18px; display: grid; gap: 14px; min-width: 0; }
 .p-foot { margin-top: auto; border-top: 1px solid var(--line); padding: 10px 20px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
 .stamp { font-size: 12.5px; color: var(--faint); }
 .page-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px 20px; }
 .page-head h1 { margin: 0; font: 700 38px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; text-wrap: balance; }
-.page-head p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
+
 .crumbs { font: 600 13px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin-bottom: 6px; }
 .crumbs a { color: var(--muted); }
 .loading { padding: 40px; text-align: center; color: var(--muted); }
@@ -739,7 +739,6 @@ header.top { top: env(safe-area-inset-top, 0px); }
   .p-body { padding: 0 16px 16px; }
   .p-foot { padding: 12px 16px; font-size: 14px; }
   .p-head h2 { font-size: 21px; }
-  .p-sub, .page-head p { font-size: 15px; }
   .section-title { font-size: 15px; margin-top: 6px; }
   .mini-lbl, .tile .k, .ltile h3, .leader .lbl, .cmp-row .lbl, .mday-stats span, .s-date b, .tabs a .count { font-size: 13px; }
   .tile .s, .stamp, .note, .legend, .pc-foot, .video-note, .clip .cs, .grow .res small, .grow .cta, .teamcell .nm span, .teamtile small { font-size: 13px; }
@@ -1082,8 +1081,8 @@ ul.clubs .clubs-v b { color: var(--text); font-size: 15px; }
 .smz-v { font: 700 15px var(--display); text-align: right; white-space: nowrap; }
 .smz-v small { font: 500 12.5px var(--sans, inherit); color: var(--muted); margin-left: 4px; }
 
-.sm-hint { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; border: 1px dashed var(--line); color: var(--muted); font-size: 14px; }
-.sm-hint .ic { width: 18px; height: 18px; flex: none; color: var(--accent); }
+
+
 .smd { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; padding: 12px; border-radius: 14px; background: var(--panel-2); animation: smFade .3s ease-out both; }
 .smd-video { all: unset; cursor: pointer; position: relative; width: 190px; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; }
 .smd-video img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s; }
@@ -1247,7 +1246,7 @@ dialog.sheet { display: none; }
 :root { --radius: 18px; --r-in: 12px; --r-sm: 8px; }
 .panel, .ltile, .teamtile, .gcard, .news, .pcard, .leader, dialog.video { border-radius: var(--radius); }
 .p-foot { border-radius: 0 0 var(--radius) var(--radius); }
-.tile, .grow, .lp, .mini-game, .mday-stats div, .rx, .rstars li, .rmoments li, .smd, .tnews, .live-nums > div, .sm-hint, .clip, .clip .thumb,
+.tile, .grow, .lp, .mini-game, .mday-stats div, .rx, .rstars li, .rmoments li, .smd, .tnews, .live-nums > div, .clip, .clip .thumb,
 .set-teams button, .mt-stats div, .smap-stage, .results, .nitem, ul.clubs li, .pickteams button, .smd-video, .stat-search input, .search input, .field select, .field input { border-radius: var(--r-in); }
 .tb { border-radius: var(--r-sm); }
 .tb.lg, .tb.xl { border-radius: var(--r-in); }
@@ -1335,7 +1334,6 @@ dialog.sheet { display: none; }
   .gc-tops > div span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .gc-tops i { font-style: normal; color: var(--faint); margin: 0 6px; }
   .gc-tops b { color: var(--accent); }
-  .gc-lbl { font: 700 12px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
   .gc-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 30px; }
   .gc-foot .card-foot { margin-left: auto; }
   .gc-arena { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1405,7 +1403,6 @@ ol.lb.nologo li { grid-template-columns: 24px minmax(0, 1fr) auto; }
   .gch-who small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
   a.gchip { cursor: pointer; color: var(--text); }
   .gchip.empty { grid-template-columns: 1fr; min-height: 46px; }
-  .gcard > .gc-lbl { margin-bottom: -4px; }
   .datetabs a.today span::after { content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); margin-left: 4px; vertical-align: 2px; }
 
   /* Hem: team card */
@@ -1492,7 +1489,7 @@ ol.lb.nologo:not(.noav) .av { width: 36px; height: 36px; }
 
 /* Match header: no box behind the score or time; side label above the logo, rank badge and points under the name */
 .band .mscore { background: none; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 0 6px; min-width: 0; text-shadow: 0 2px 12px rgba(0, 0, 0, .35); }
-.mh-side { font: 700 12px var(--display); letter-spacing: .14em; text-transform: uppercase; opacity: .85; }
+
 .mh-rec { display: inline-flex; align-items: center; gap: 6px; font: 600 14px var(--display); letter-spacing: .03em; }
 .band .mh-rec .gc-rank { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 6px; background: rgba(0, 0, 0, .28); color: #fff; font: 700 12.5px var(--display); }
 .band .mteam .mh-rec { color: #fff; opacity: .92; }
@@ -2249,7 +2246,6 @@ footer#foot p { margin: 0; }
   .panel { border-radius: var(--radius); box-shadow: none; border: 1px solid var(--line); background: var(--panel); }
   .p-head h2, .section-title { font: 700 16px var(--body); text-transform: none; letter-spacing: .01em; }
   .p-head h2::first-letter { text-transform: uppercase; }
-  .p-sub { font-size: 13px; }
   .tile, .ltile, .grow, .lp, .mini-game, .smd, .tnews, .clip { border-radius: var(--r-in); }
   .tile .k, .stamp, .lbl, .mini-lbl, .lfeat-lbl, .gr-st, .gr-day, .mts-k, .gl-per, .phero-season { font-family: var(--body); letter-spacing: .06em; }
   .tile .v, .lfeat-val, .gr-num, .gr-time, .mts-odds b, .mts-res, .gl-sc, .gl-name a, .wp-team b, .score, .big { font-family: var(--body); }
@@ -2332,7 +2328,6 @@ footer#foot p { margin: 0; }
   .mpanel .band::after { display: none; }
   .mpanel .band .crumbs, .mpanel .band .crumbs a { color: #9b9da3; font-family: var(--body); letter-spacing: .04em; }
   .mpanel .mteam b { font: 900 24px/1.1 var(--body); text-transform: uppercase; letter-spacing: .01em; text-shadow: none; color: #fff; }
-  .mpanel .mh-side { font: 400 12px var(--body); letter-spacing: .12em; color: #9b9da3; }
   .mpanel .mscore .sc { font: 300 76px/1 var(--body); letter-spacing: 0; text-shadow: none; }
   .mpanel .mscore .sc.sm { font-size: 56px; }
   .mpanel .mscore .st { font: 400 13px var(--body); letter-spacing: .12em; color: #b9bbc0; }
@@ -2347,8 +2342,6 @@ footer#foot p { margin: 0; }
 }
 
 @media (min-width: 701px) {
-  /* Team card: the season line is a small label above the name, with room under it */
-  .ref-first.ref-kicker { font: 400 14px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: #a0a2a8; margin-bottom: 12px; }
   .ref-first { margin-bottom: 4px; }
 }
 
@@ -2423,7 +2416,7 @@ ol.lb.noav li:first-child .v { color: var(--text); }
 
 /* ---------- No blue text anywhere: blue stays for fills (bars, pills); text is white ---------- */
 a, .vid-dot, .strip-today, .s-date.today b, .s-date.today span, .rm-tag, details.explain summary, table.t th.sorted, .t td.best,
-.gc-mine, .gc-tops b, .gch-play, .mt-hot-v b, .sheet-close, .sheet-btn, body.search-open .search-cancel, .sm-hint .ic,
+.gc-mine, .gc-tops b, .gch-play, .mt-hot-v b, .sheet-close, .sheet-btn, body.search-open .search-cancel,
 .fd-pill svg, .feed-cta, .datetabs a.on b, .section-title .ic, .p-head h2 .ic { color: var(--text); }
 .vid-dot::before { border-left-color: var(--text); }
 .pcard .metric .pct { color: var(--text) !important; }
@@ -2623,7 +2616,6 @@ a, .vid-dot, .strip-today, .s-date.today b, .s-date.today span, .rm-tag, details
   .ref-main { position: relative; z-index: 1; padding: 22px 18px 4px; }
   .ref-first, .ref-namerow, .ref-left > .ref-rule:first-of-type { max-width: 60%; }
   .ref-first { font: 300 18px/1.15 var(--body); color: #c8cacf; margin-bottom: 2px; }
-  .ref-first.ref-kicker { font: 400 11.5px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: #a0a2a8; margin-bottom: 10px; }
   .ref-namerow { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-height: 104px; }
   .ref-last { margin: 0; font: 900 32px/1.02 var(--body); text-transform: uppercase; letter-spacing: .005em; color: #fff; overflow-wrap: anywhere; }
   .ref-badge { display: inline-flex; align-items: center; gap: 10px; font: 700 16px var(--body); color: #fff; }
@@ -2659,7 +2651,6 @@ a, .vid-dot, .strip-today, .s-date.today b, .s-date.today span, .rm-tag, details
       radial-gradient(75% 130% at 100% 45%, color-mix(in srgb, var(--ab, var(--ac)) 32%, transparent), transparent 70%), #1b1c1f; }
   .mpanel .band::after { display: none; }
   .mpanel .mteam b { font: 900 15px/1.15 var(--body); text-transform: uppercase; letter-spacing: .01em; text-shadow: none; color: #fff; }
-  .mpanel .mh-side { font: 400 11px var(--body); letter-spacing: .12em; color: #9b9da3; }
   .mpanel .mscore .sc { font: 300 52px/1 var(--body); letter-spacing: 0; text-shadow: none; }
   .mpanel .mscore .sc.sm { font-size: 40px; }
   .mpanel .mscore .st { font: 400 12px var(--body); letter-spacing: .1em; color: #b9bbc0; }

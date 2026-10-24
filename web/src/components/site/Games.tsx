@@ -87,7 +87,7 @@ export function GameCard({ g, d }: { g: Game; d?: GameDetails | null }) {
         ? <a className="gchip" href={`#/spelare/${encodeURIComponent(p.id)}`}><Avatar id={p.id} name={p.name} team={c} eager /><span className="gch-who"><b>{shortName(p.name)}</b><small>{c} · {p[k]} {k === 'g' ? 'mål' : 'assist'}</small></span></a>
         : <div className="gchip empty"><span className="gch-who"><small>{c} · inga {k === 'g' ? 'mål' : 'assist'} än</small></span></div>
     }
-    mid = <><div className="gc-lbl">Lagens bästa</div><div className="gc-goals">{leadChip(g.home, 'g')}{leadChip(g.away, 'g')}{leadChip(g.home, 'a')}{leadChip(g.away, 'a')}</div></>
+    mid = <><div className="gc-goals">{leadChip(g.home, 'g')}{leadChip(g.away, 'g')}{leadChip(g.home, 'a')}{leadChip(g.away, 'a')}</div></>
   }
 
   const hl = done && d?.hl && safeEmbed(d.hl.embed) ? d.hl : null

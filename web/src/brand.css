@@ -113,9 +113,9 @@ table.t .odds span, .odds-pill { display: inline-block; text-align: center; min-
 .gr-day, .gr-st, .mscore .st, .timeline h4, .cmp-row .lbl, .line .lab, .playbtn, .favlink, .mini-lbl, .strip-today,
 details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .btn, .mday-stats span, .lfeat-lbl,
 .nslide-meta, .live-badge, .live-nums .k, .recap h3, .rx-win, .rm-tag, .tn-meta, .rk-lbl, .sm-zones h3, .smd-k, .gc-top,
-.gc-foot span:last-child, .sheet-in h3, .card-foot, .list-foot, .gc-mine, .gc-lbl, .mt-lbl, .mt-g-d, .mh-side,
+.gc-foot span:last-child, .sheet-in h3, .card-foot, .list-foot, .gc-mine, .mt-lbl, .mt-g-d,
 .phero-team, .phero-season, .ol-k, .wc-mid span, .lu-lab, .pc-team, .mts-lbl, .mts-k, .mts-odds span, .mts-d, .gl-per,
-.fd-sides, .fd-stats span, .wp-team small, .ref-first.ref-kicker, .pk-k, .tf-date, .beta-note span, .ps-tiles span,
+.fd-sides, .fd-stats span, .wp-team small, .pk-k, .tf-date, .beta-note span, .ps-tiles span,
 .ps-rh, .pg-d, .p-head .more-link, .tabs a, nav.main a, .datetabs a b, .stamp.up {
   text-transform: none; letter-spacing: var(--tracking-body); font-weight: 500;
 }
@@ -166,11 +166,11 @@ details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .b
 .panel .p-head h2 { font-size: 16px; font-weight: 600; }
 .gr-t b, ol.lb .n a, ol.lb .n b, .tf-row .tf-opp b, .teamcell .nm b, .pcell a, .rk-nm a { font-size: 15px; font-weight: 500; }
 .gr-time, .gr-num, .tf-res b { font-size: 18px; font-weight: 500; }
-.p-sub, .stamp, .legend, .note, .more-link, .gr-day, .gr-st, .pcell small, .rk-nm small, ol.lb small, .tf-row small, .tf-date, .day h3 { font-size: 13px; }
+.stamp, .legend, .note, .more-link, .gr-day, .gr-st, .pcell small, .rk-nm small, ol.lb small, .tf-row small, .tf-date, .day h3 { font-size: 13px; }
 .more-link { font-weight: 500; }
 @media (max-width: 700px) {
   .gr-t b, ol.lb .n a, ol.lb .n b, .tf-row .tf-opp b, .teamcell .nm b, .pcell a, .rk-nm a { font-size: 16px; }
-  .p-sub, .stamp, .legend, .note, .more-link, .gr-day, .gr-st, .pcell small, .rk-nm small, ol.lb small, .tf-row small, .tf-date, .day h3 { font-size: 13.5px; }
+  .stamp, .legend, .note, .more-link, .gr-day, .gr-st, .pcell small, .rk-nm small, ol.lb small, .tf-row small, .tf-date, .day h3 { font-size: 13.5px; }
 }
 
 /* GM–IM: the dash sits in the same place on every row */

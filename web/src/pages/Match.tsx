@@ -79,8 +79,9 @@ function Match({ g, want }: { g: Game; want: string }) {
     const i = core.standings.findIndex((t) => t.code === c)
     return i >= 0 ? <span className="mh-rec"><span className="gc-rank" style={{ '--zone': zoneBad(i + 1) } as React.CSSProperties}>{i + 1}</span>{core.standings[i].pts} p</span> : null
   }
-  const team = (c: string, side: string) => (
-    <a className="mteam" href={`#/lag/${c}`}><span className="mh-side">{side}</span><TeamBadge code={c} size="xl" /><b>{tName(c)}</b>{rec(c)}</a>
+  // Home on the left, away on the right (the usual order, so no label)
+  const team = (c: string) => (
+    <a className="mteam" href={`#/lag/${c}`}><TeamBadge code={c} size="xl" /><b>{tName(c)}</b>{rec(c)}</a>
   )
 
   let body: ReactNode
@@ -100,12 +101,12 @@ function Match({ g, want }: { g: Game; want: string }) {
           </div>
           <div className="crumbs" style={{ padding: '16px 22px 0' }}><a href="#/matcher">Matcher</a> / {tName(g.home)} – {tName(g.away)}</div>
           <div className="mhead" style={{ '--n': Math.max(tName(g.home).length, tName(g.away).length) } as React.CSSProperties}>
-            {team(g.home, 'Hemma')}
+            {team(g.home)}
             <div className="mscore">
               {done || live ? <div className="sc">{hs}–{as}</div> : <div className="sc sm">{fmtTime(g.start)}</div>}
               <div className={`st ${live ? 'live' : ''}`}>{done ? statusTxt(g) : live ? <><i className="live-dot" />{liveClock(d?.live ?? null)}</> : fmtDay(g.start)}</div>
             </div>
-            {team(g.away, 'Borta')}
+            {team(g.away)}
           </div>
         </div>
         <div className="mmeta" style={{ paddingTop: 14 }}>{meta.map((m) => <span key={m}>{m}</span>)}</div>
@@ -126,11 +127,11 @@ function Summary({ d, done }: { d: GameDetails; done: boolean }) {
       <Panel title="Lagstatistik"><TeamCompare d={d} /></Panel>
       {done && <Recap d={d} />}
       {(d.shots?.length || d.live) && (
-        <Panel title="Matchbild" className="wide" sub={d.live ? 'Skott på mål minut för minut, uppdateras under matchen.' : 'Skott på mål minut för minut.'}><Momentum d={d} /></Panel>
+        <Panel title="Matchbild" className="wide"><Momentum d={d} /></Panel>
       )}
       {/* The win chance only while the game is on */}
       {core.model && d.live && (
-        <Panel title="Vinstchans live" className="wide wp-card" sub="Uppdateras under matchen. Bygger på lagens styrka, ställningen och tiden som är kvar."><WinChart d={d} /></Panel>
+        <Panel title="Vinstchans live" className="wide wp-card"><WinChart d={d} /></Panel>
       )}
     </Board>
   )

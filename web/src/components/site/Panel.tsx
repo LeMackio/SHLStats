@@ -3,11 +3,11 @@ import type { ReactNode } from 'react'
 import { EmptyState } from '@/components/arc/empty-state/empty-state'
 import { useNarrow } from '@/lib/useNarrow'
 
-// A card on a page: title row (with an optional "see more" link and subtitle), body and optional footer.
+// A card on a page: title row (with an optional "see more" link), body and optional footer. No subtitle: a card
+// whose title and content need explaining gets a clearer title or layout instead.
 // On phones the "see more" link sits in the card's bottom corner (like the other cards there); on desktop in the header.
-export function Panel({ title, sub, more, extra, foot, className = '', id, children }: {
+export function Panel({ title, more, extra, foot, className = '', id, children }: {
   title?: ReactNode
-  sub?: ReactNode
   more?: { href: string; label: ReactNode }
   extra?: ReactNode // other controls in the title row (a toggle), which stay there on phones
   foot?: ReactNode
@@ -24,7 +24,6 @@ export function Panel({ title, sub, more, extra, foot, className = '', id, child
           <h2>{title}</h2>
           {extra}
           {more && !low && <MoreLink href={more.href}>{more.label}</MoreLink>}
-          {sub && <p className="p-sub">{sub}</p>}
         </div>
       )}
       <div className="p-body">{children}</div>

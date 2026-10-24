@@ -78,14 +78,13 @@ export function LeaderList<T extends { id: string; name: string; team: string }>
 // uppercase name with a badge and a button, large numbers, a short facts list, a big photo on the right over a
 // blurred copy of it, and a stats band along the bottom
 export interface RefRow { label: string; cells: [string, ReactNode][] }
-export function RefHero({ bg, mark, tc, photo, photoCls = '', first, firstCls = '', last, badge, action, big = [], facts = [], rows = [], tabs }: {
+export function RefHero({ bg, mark, tc, photo, photoCls = '', first, last, badge, action, big = [], facts = [], rows = [], tabs }: {
   bg?: string
   mark?: string // team code: its logo drawn as outlines behind the name
   tc?: string
   photo?: string
   photoCls?: string
-  first: ReactNode
-  firstCls?: string
+  first?: ReactNode // a player's first name above the last name (teams have only the name)
   last: string
   badge?: ReactNode
   action?: ReactNode
@@ -121,7 +120,7 @@ export function RefHero({ bg, mark, tc, photo, photoCls = '', first, firstCls = 
       {photo && <RefPhoto src={photo} cls={photoCls} clean={narrow && !photoCls} />}
       {action && <div className="ref-action">{action}</div>}
       <div className="ref-main"><div className="ref-left">
-        <div className={`ref-first ${firstCls}`}>{first}</div>
+        {first && <div className="ref-first">{first}</div>}
         <div className="ref-namerow">
           <h1 className="ref-last" style={{ '--w': Math.max(...String(last).split(/\s+/).map((x) => x.length)) } as React.CSSProperties}>{last}</h1>
           {badge && <span className="ref-badge">{badge}</span>}

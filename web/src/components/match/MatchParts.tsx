@@ -324,12 +324,11 @@ export function MatchPlayers({ d, official }: { d: GameDetails; official?: { hom
 }
 
 export function MatchEvents({ d }: { d: GameDetails }) {
-  const { tName } = useData()
   const narrow = useNarrow()
   const cell = (g: number, sh?: number) => <><b className="num">{g}</b><small className="num">{sh ?? '–'} skott</small></>
   return (
     <Board>
-      <Panel title="Skottkarta" className="wide" sub={`${tName(d.home)} anfaller åt höger, ${tName(d.away)} åt vänster. Ungefärliga positioner.`}>
+      <Panel title="Skottkarta" className="wide">
         <div className="chart"><Rink d={d} /></div>
       </Panel>
       <Panel title="Utvisningar">
@@ -372,13 +371,13 @@ export function MatchEvents({ d }: { d: GameDetails }) {
 
 // Shot map: a 60 × 30 m rink in 0.1 m units; x in the data is the distance from the attacked goal line
 function Rink({ d }: { d: GameDetails }) {
-  const { tName } = useData()
+  const { tName, teams } = useData()
   const W = 600, H = 300, GL = 40
   const [hc, ac] = pairColors(d.home, d.away), col = (s: string) => s === 'home' ? hc : ac
   const pt = (s: string, e: { x?: number; y?: number }) => s === 'home' ? [W - GL - e.x!, H / 2 - e.y!] : [GL + e.x!, H / 2 + e.y!]
   return (
     <>
-      <svg viewBox={`-4 -4 ${W + 8} ${H + 26}`} role="img" aria-label="Skottkarta">
+      <svg viewBox={`-4 -4 ${W + 8} ${H + 8}`} role="img" aria-label={`Skottkarta: ${tName(d.home)} anfaller åt höger, ${tName(d.away)} åt vänster`}>
         <rect x="0" y="0" width={W} height={H} rx="84" style={{ fill: 'var(--panel-2)', stroke: 'var(--line)' }} strokeWidth="2" />
         <line x1={W / 2} x2={W / 2} y1="0" y2={H} style={{ stroke: 'color-mix(in srgb, var(--bad) 55%, transparent)' }} strokeWidth="4" />
         <line x1={W / 2 - 71} x2={W / 2 - 71} y1="0" y2={H} style={{ stroke: 'color-mix(in srgb, var(--accent) 60%, transparent)' }} strokeWidth="4" />
@@ -389,16 +388,17 @@ function Rink({ d }: { d: GameDetails }) {
         {[[GL + 60, 80], [GL + 60, 220], [W - GL - 60, 80], [W - GL - 60, 220]].map(([cx, cy], i) => <circle key={i} cx={cx} cy={cy} r="45" style={{ fill: 'none', stroke: 'var(--line)' }} strokeWidth="2" />)}
         <path d={`M${GL} 132 a18 18 0 0 1 0 36`} style={{ fill: 'color-mix(in srgb, var(--accent) 25%, transparent)' }} />
         <path d={`M${W - GL} 132 a18 18 0 0 0 0 36`} style={{ fill: 'color-mix(in srgb, var(--accent) 25%, transparent)' }} />
+        {/* Each team's logo in the zone it attacks, so the map reads without a caption: away attacks left, home right */}
+        {teams[d.away]?.logo && <image href={teams[d.away].logo} x={W / 2 - 71 - 150} y={H / 2 - 60} width="120" height="120" opacity="0.12" />}
+        {teams[d.home]?.logo && <image href={teams[d.home].logo} x={W / 2 + 71 + 30} y={H / 2 - 60} width="120" height="120" opacity="0.12" />}
         {d.shots.filter((s) => s.x != null).map((s, i) => { const [x, y] = pt(s.team, s); return <circle key={`s${i}`} cx={x} cy={y} r="5" style={{ fill: col(s.team), opacity: 0.6, stroke: 'var(--panel)' }} strokeWidth="1" /> })}
         {d.goals.filter((g) => g.x != null).map((g, i) => {
           const [x, y] = pt(g.team, g)
           return <g key={`g${i}`} transform={`translate(${x} ${y})`}><circle r="9" style={{ fill: col(g.team), stroke: 'var(--text)' }} strokeWidth="2" /><title>{`Mål: ${g.scorer?.name || ''} (${g.t})`}</title></g>
         })}
-        <text x="10" y={H + 18} fontSize="12" style={{ fill: 'var(--muted)' }}>◀ {d.away} anfaller</text>
-        <text x={W - 10} y={H + 18} textAnchor="end" fontSize="12" style={{ fill: 'var(--muted)' }}>{d.home} anfaller ▶</text>
       </svg>
       <div className="legend" style={{ marginTop: 8 }}>
-        <span><i style={{ background: hc, borderRadius: '50%' }} />{tName(d.home)}</span><span><i style={{ background: ac, borderRadius: '50%' }} />{tName(d.away)}</span><span>Stor ring = mål</span>
+        <span>Stor ring = mål</span>
       </div>
     </>
   )

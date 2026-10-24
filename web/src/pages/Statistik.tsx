@@ -68,7 +68,7 @@ export function StatistikPage() {
 
   return (
     <>
-      <PageHead title="Statistik">Topplistor och fullständig statistik för alla SHL-spelare. Tryck på en spelare för hela profilen.</PageHead>
+      <PageHead title="Statistik" />
       {/* Phones: one leader section at a time, picked with tabs at the top */}
       {narrow && (
         <Seg className="stat-tabs" id="stat-tabs" fill label="Topplista" value={sec} onChange={setSec}
@@ -79,13 +79,12 @@ export function StatistikPage() {
       </div>
       <AllPlayers />
       <Board>
-        <Panel title="Målvakter: räddade mål över snittet" className="gsaa-card"
-          sub="Räddningar minus de skott en genomsnittlig SHL-målvakt skulle ha räddat. Tar inte hänsyn till skottens kvalitet.">
+        <Panel title="Målvakter: räddade mål över snittet" className="gsaa-card">
           <Seg id="gs" value={gSeason} onChange={setGSeason} options={[[prev, prev], [cur, cur]]} />
           <div className="chart"><GsaaChart season={core.seasons[gSeason]} label={gSeason} isCur={gSeason === cur} /></div>
         </Panel>
         {/* Its skater counterpart beside it, drawn the same way, so the row is never half empty */}
-        <Panel title="Utespelare: poäng per match" className="gsaa-card" sub="Spelare med minst 40 % av lagets matcher.">
+        <Panel title="Utespelare: poäng per match" className="gsaa-card">
           <Seg id="ppg" value={pSeason} onChange={setPSeason} options={[[prev, prev], [cur, cur]]} />
           <div className="chart"><HBars items={ppgLeaders(pSeason)} logos labelW={170} fmt={(v) => dec(v, 2)} /></div>
         </Panel>

@@ -149,7 +149,6 @@ export function SpecialTeams({ rows }: { rows: { code: string; name: string; pp:
           )
         })}
       </svg>
-      <p className="note">Boxplaystapeln börjar på 50 % för att skillnaderna ska synas.</p>
     </>
   )
 }

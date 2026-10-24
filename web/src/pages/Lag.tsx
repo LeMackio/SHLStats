@@ -23,7 +23,7 @@ import season from './LagSeason.module.css'
 const TABS = ['', 'schema', 'trupp', 'media', 'historik']
 
 export function LagPage({ code, tab: want }: { code: string; tab: string }) {
-  const { core, games, cur, tName, teams } = useData()
+  const { core, games, tName, teams } = useData()
   const { current } = useTheme()
   const TD = useFile(teamsFile)
   const s = core.sim[code], r = core.standings.find((t) => t.code === code)
@@ -58,8 +58,8 @@ export function LagPage({ code, tab: want }: { code: string; tab: string }) {
   return (
     <>
       {/* The profile-style top card, with the club logo where a player's photo would be */}
-      <RefHero bg={teams[code].logo} mark={code} tc={vivid(teamHue(code))} photo={teams[code].logo} photoCls="ref-logo" firstCls="ref-kicker"
-        first={hh ? 'Klubbens historia' : `SHL ${cur.replace('-', '/').replace(/^(\d\d)/, '20$1')}`} last={tName(code)} action={<FavButton code={code} />}
+      <RefHero bg={teams[code].logo} mark={code} tc={vivid(teamHue(code))} photo={teams[code].logo} photoCls="ref-logo"
+        last={tName(code)} action={<FavButton code={code} />}
         // Only who the team is and where it stands (the record, odds and stats each live in one card below). On the Historia
         // tab the header shows the club's titles instead of this season.
         big={hh ? hh.big : [['Placering', ordinal(rank)], ['Poäng', r.pts], ['Matcher', r.gp]]}
@@ -70,7 +70,7 @@ export function LagPage({ code, tab: want }: { code: string; tab: string }) {
         tabs={<RouteTabs base={`/lag/${code}`} tabs={tabs} active={tab} />} />
       {tab === 'trupp' ? <Roster code={code} />
         : tab === 'schema' ? <Schedule teamGames={teamGames} />
-        : tab === 'historik' ? <History code={code} H={td.history?.[code]} names={td.names || {}} />
+        : tab === 'historik' ? <History H={td.history?.[code]} names={td.names || {}} />
         : tab === 'media' ? <Media code={code} news={td.news[code] || []} />
         : <Overview code={code} teamGames={teamGames} logs={td.logs[code] || []} />}
     </>
@@ -111,7 +111,7 @@ function Overview({ code, teamGames, logs }: { code: string; teamGames: Game[]; 
       <Panel title="Senaste resultat" more={{ href: `#/lag/${code}/schema`, label: 'Alla resultat' }}>
         {last.length ? <div className="day">{last.map((g) => <GameRow key={g.id} g={g} dated />)}</div> : <Empty>Inga spelade matcher ännu.</Empty>}
       </Panel>
-      <Panel title="Säsongsstatistik" sub="Placering i ligan. Full stapel = bäst i SHL.">
+      <Panel title="Säsongsstatistik">
         <SeasonStats code={code} xgp={S?.all.xgp ?? null} gax={S && S.all.xgp != null ? S.all.gf - S.all.xgf : null} />
       </Panel>
       {/* The top eight, or every player's numbers in a sortable table: the card keeps its width and grows straight down,
@@ -131,7 +131,7 @@ function Overview({ code, teamGames, logs }: { code: string; teamGames: Game[]; 
         </Grow>
         {sk.length > 8 && <button className="more" onClick={() => setAllSk(!allSk)} aria-expanded={allSk}>{allSk ? 'Visa topp 8' : `Visa statistik för alla ${sk.length} spelare`}</button>}
       </Panel>
-      <Panel title="Slutspel och prognos" sub="10 000 simuleringar av resten av säsongen."><Outlook code={code} /></Panel>
+      <Panel title="Slutspel och prognos"><Outlook code={code} /></Panel>
       {S && <GameByGame S={S} />}
       {S && <HomeAway S={S} />}
     </Board>
@@ -211,7 +211,7 @@ function Media({ code, news }: { code: string; news: TeamNews[] }) {
   return (
     <Board>
       {news.length > 0 && (
-        <Panel title={`Nyheter om ${tName(code)}`} className="wide" sub="Från klubbens egen sajt och shl.se. Artiklarna öppnas hos källan.">
+        <Panel title={`Nyheter om ${tName(code)}`} className="wide">
           <div className="tnews-row"><TeamNewsCards code={code} news={news} /></div>
         </Panel>
       )}
@@ -291,7 +291,7 @@ function GameByGame({ S }: { S: SeasonLog }) {
   const RES_TXT = { V: 'Vinst', ÖV: 'Vinst ÖT', ÖF: 'Förlust ÖT', F: 'Förlust' }, RES_CLS = { V: 'w', ÖV: 'o', ÖF: 'ol', F: 'l' }
   const hasXg = S.rows.some((r) => r.xgf != null)
   return (
-    <Panel title="Match för match" sub={hasXg ? 'Nyast först. Stapeln visar lagets andel av chanserna (xG) i matchen.' : 'Nyast först.'}>
+    <Panel title="Match för match">
       <div className="tf-list">
         {[...S.rows].reverse().slice(0, all ? undefined : 10).map((r) => {
           const share = r.xgf != null && r.xgf + (r.xga ?? 0) > 0 ? r.xgf / (r.xgf + (r.xga ?? 0)) : null
@@ -421,8 +421,8 @@ function useExpand(n: number, total: number) {
   return [all ? total : n, button] as const
 }
 
-function History({ code, H, names }: { code: string; H?: ClubHistory; names: Record<string, string> }) {
-  const { cur, tName, teams } = useData()
+function History({ H, names }: { H?: ClubHistory; names: Record<string, string> }) {
+  const { cur, teams } = useData()
   const [nSeasons, moreSeasons] = useExpand(10, H?.seasons.length || 0)
   const [nLeaders, moreLeaders] = useExpand(5, H?.leaders.length || 0)
   const [nVs, moreVs] = useExpand(8, H?.vs.length || 0)
@@ -431,7 +431,7 @@ function History({ code, H, names }: { code: string; H?: ClubHistory; names: Rec
 
   return (
     <Board>
-      <Panel title="Alla säsonger i SHL" className="wide" sub="Nyast först. Grundserien och hur slutspelet slutade.">
+      <Panel title="Alla säsonger i SHL" className="wide">
         <div className="tscroll">
           <table className="t">
             <thead><tr><th className="l">Säsong</th><th>Serie</th><th className="l">Slutspel</th><th className="ph-x">SM</th><th className="ph-x">V</th><th className="ph-x">ÖV</th><th className="ph-x">ÖF</th><th className="ph-x">F</th><th className="ph-x">Mål</th><th>P</th><th className="l ph-x">Poängbäst</th></tr></thead>
@@ -452,7 +452,7 @@ function History({ code, H, names }: { code: string; H?: ClubHistory; names: Rec
         {moreSeasons}
       </Panel>
       {H.leaders.length > 0 && (
-        <Panel title="Poängliga genom tiderna" sub={`Grundserien i ${tName(code)}, säsonger med spelarstatistik.`}>
+        <Panel title="Poängliga genom tiderna">
           <div className="tscroll">
             <table className="t">
               <thead><tr><th className="rank">#</th><th className="l">Spelare</th><th className="ph-x">Säs.</th><th>SM</th><th>M</th><th>A</th><th>P</th></tr></thead>
@@ -463,7 +463,7 @@ function History({ code, H, names }: { code: string; H?: ClubHistory; names: Rec
         </Panel>
       )}
       {H.goalies.length > 0 && (
-        <Panel title="Målvakter genom tiderna" sub="Flest matcher i grundserien.">
+        <Panel title="Målvakter genom tiderna">
           <div className="tscroll">
             <table className="t">
               <thead><tr><th className="rank">#</th><th className="l">Målvakt</th><th className="ph-x">Säs.</th><th>SM</th><th className="ph-x">V</th><th className="ph-x">Nollor</th><th>Rädd%</th></tr></thead>
@@ -472,7 +472,7 @@ function History({ code, H, names }: { code: string; H?: ClubHistory; names: Rec
           </div>
         </Panel>
       )}
-      <Panel title="Mot varje motståndare" sub="Alla grundseriematcher sedan 1975/76. Stapeln visar andelen vinster.">
+      <Panel title="Mot varje motståndare">
         <div className={hist.vs}>
           {H.vs.slice(0, nVs).map(([o, gp, w, , gf, ga]) => (
             <div key={o} className={hist.vsRow}>

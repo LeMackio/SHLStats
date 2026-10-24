@@ -19,7 +19,7 @@ export function MatcherPage({ view }: { view: string }) {
 
 // Computers: the whole regular season's schedule, grouped by day, filtered by team
 function GamesList({ view }: { view: string }) {
-  const { games, codes, cur, tName, fav } = useData()
+  const { games, codes, tName, fav } = useData()
   const [team, setTeamState] = useKeptState('games-team', () => (fav && store.get('shlstats-gfilter') === 'fav' ? fav : 'ALL'))
   const setTeam = (t: string) => { setTeamState(t); store.set('shlstats-gfilter', t !== 'ALL' && t === fav ? 'fav' : null) }
 
@@ -35,7 +35,7 @@ function GamesList({ view }: { view: string }) {
   const teamOptions = [{ value: 'ALL', label: 'Alla lag' }, ...[...codes].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => ({ value: c, label: tName(c) }))]
   return (
     <>
-      <PageHead title="Matcher & resultat">Hela grundseriens spelschema {cur.replace('-', '/')} med resultat, målvideor och vinstchanser.</PageHead>
+      <PageHead title="Matcher & resultat" />
       <PageSwitch base="/matcher" active={view === 'kommande' ? '' : view}
         tabs={[{ key: '', label: 'Kommande' }, { key: 'spelade', label: 'Spelade' }, { key: 'alla', label: 'Alla' }]} />
       <section className="panel">

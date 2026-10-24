@@ -16,11 +16,10 @@ const TABS = [{ key: '', label: 'Tabell' }, { key: 'odds', label: 'Odds' }]
 
 // Tabell: the table with team stats, and the odds
 export function TabellPage({ tab }: { tab: string }) {
-  const { cur } = useData()
   const active = tab === 'odds' ? 'odds' : '' // old addresses (#/tabell/lagstatistik …) open the table tab
   return (
     <>
-      <PageHead title="Tabell">SHL {cur.replace('-', '/')}. Tryck på ett lag för trupp, schema och odds.</PageHead>
+      <PageHead title="Tabell" />
       <PageSwitch base="/tabell" tabs={TABS} active={active} />
       {active === 'odds' ? <OddsTab /> : <TableTab />}
     </>
@@ -82,19 +81,17 @@ function TableTab() {
               <div hidden={pane !== 'std'}><StandingsTable mode="stats" /><Legend /></div>
               <div hidden={pane !== 'adv'}>
                 <SortableTable cols={cols} rows={rows} sortKey="pts" fav={fav} minWidth={860} />
-                <p className="note">Tryck på en kolumnrubrik för att sortera.</p>
               </div>
             </div>
           </Panel>
-        : <Panel title="Tabell" className="wide" foot={<span className="stamp">Uppdaterad {stamp}</span>}
-            sub="Tryck på en kolumnrubrik för att sortera. Skott, powerplay, boxplay, tekningar och tacklingar räknas från matchdata.">
+        : <Panel title="Tabell" className="wide" foot={<span className="stamp">Uppdaterad {stamp}</span>}>
             <SortableTable key="table" cols={cols} rows={rows} sortKey="rank" desc={false} fav={fav} minWidth={1040} />
             <Legend />
           </Panel>}
-      <Panel title="Anfall mot försvar" sub="Gjorda och insläppta mål per match. Bäst är uppe till höger.">
+      <Panel title="Anfall mot försvar">
         <div className="chart"><TeamScatter rows={rows.map((r) => ({ code: r.code, name: r.name, x: r.gfpg, y: r.gapg }))} /></div>
       </Panel>
-      <Panel title="Specialteam" sub="Powerplay och boxplay i procent.">
+      <Panel title="Specialteam">
         <div className="chart"><SpecialTeams rows={rows} /></div>
       </Panel>
     </Board>
@@ -123,7 +120,7 @@ function OddsTab() {
   ]
   return (
     <Board>
-      <Panel title="Odds" className="wide" sub="10 000 simuleringar av resten av grundserien och slutspelet. Tryck på en kolumnrubrik för att sortera." foot={<span className="stamp">Uppdaterad {stamp}</span>}>
+      <Panel title="Odds" className="wide" foot={<span className="stamp">Uppdaterad {stamp}</span>}>
         <SortableTable key="odds" cols={cols} rows={odds} sortKey={narrow ? 'pts' : 'rank'} desc={narrow} fav={fav} minWidth={narrow ? 640 : 960} caption="Odds" />
         <Legend />
         <details className="explain">
@@ -135,10 +132,10 @@ function OddsTab() {
           </div>
         </details>
       </Panel>
-      <Panel title="Poängprognos" sub="Poäng efter 52 omgångar. Stapeln visar 80 % av utfallen och pricken är snittet.">
+      <Panel title="Poängprognos">
         <div className="chart"><PointsRange rows={rows} /></div>
       </Panel>
-      <Panel title="Slutplacering" sub="Chans i procent att sluta på varje placering efter 52 omgångar.">
+      <Panel title="Slutplacering">
         <div className="chart"><FinalPlacing rows={rows} /></div>
       </Panel>
     </Board>

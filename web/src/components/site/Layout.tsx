@@ -5,8 +5,9 @@ import { Icon } from './Icon'
 import switchStyles from './Switch.module.css'
 import { SlideIndicator } from './SlideIndicator'
 
-export function PageHead({ title, children }: { title: ReactNode; children?: ReactNode }) {
-  return <div className="page-head"><div><h1>{title}</h1>{children && <p>{children}</p>}</div></div>
+// A page's title on its own: no tagline under it
+export function PageHead({ title }: { title: ReactNode }) {
+  return <div className="page-head"><div><h1>{title}</h1></div></div>
 }
 
 // Masonry board: each item spans rows equal to its measured height, so shorter panels slot into the

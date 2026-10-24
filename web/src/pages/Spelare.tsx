@@ -116,12 +116,12 @@ function Player({ P, id, want }: { P: PlayersData; id: string; want: string }) {
     // Phones: this season only (no points chart or videos), and the games as rows that open the game
     const card = playerCards(core).get(id)
     let trend: ReactNode = null
-    if (!gk && log.length >= 1) trend = <Panel title="Poängutveckling" sub={`Match för match ${cur}. Tryck på en stapel för matchen.`}><PointsByGame log={log} /></Panel>
+    if (!gk && log.length >= 1) trend = <Panel title="Poängutveckling"><PointsByGame log={log} /></Panel>
     const recent = narrow ? [] : clips.slice(-3).reverse()
     const last5 = [...log].slice(-5).reverse()
     const parts = [
       narrow && curP ? <SeasonCard key="season" p={curP} gk={gk} team={team} /> : null,
-      card ? <Panel key="card" title="Spelarkort" sub={gk ? 'Percentiler jämfört med andra SHL-målvakter.' : 'Percentiler jämfört med andra SHL-spelare på samma position.'}><PlayerCardCompact x={card} /></Panel> : null,
+      card ? <Panel key="card" title="Spelarkort"><PlayerCardCompact x={card} /></Panel> : null,
       trend,
       recent.length ? (
         <Panel key="clips" title="Senaste målen" more={clips.length > 3 ? { href: `#/spelare/${encodeURIComponent(id)}/mal`, label: 'Alla mål' } : undefined}>
@@ -277,7 +277,7 @@ function Career({ rows, gk }: { rows: Row[]; gk: boolean }) {
   const seasonTxt = (c: { from: string; to: string }) => c.from === c.to ? c.from.replace('-', '/') : `${c.from.replace('-', '/')} – ${c.to.replace('-', '/')}`
   return (
     <Board>
-      <Panel title="SHL-karriär" className="wide" sub="Grundserien i SHL säsong för säsong. Färgad siffra = bästa säsongen i den kategorin.">
+      <Panel title="SHL-karriär" className="wide">
         <div className="tscroll">{table}</div>
       </Panel>
       <Panel title="Klubbar i SHL">
@@ -292,7 +292,7 @@ function Career({ rows, gk }: { rows: Row[]; gk: boolean }) {
         </ul>
       </Panel>
       {rows.length > 1 && (
-        <Panel title={gk ? 'Räddningsprocent per säsong' : 'Poäng per säsong'} sub={gk ? 'Säsonger med färre än 10 matcher säger mindre.' : 'Grundserien, äldst överst.'}>
+        <Panel title={gk ? 'Räddningsprocent per säsong' : 'Poäng per säsong'}>
           <div className="chart">
             {gk
               ? <LineChart label="Räddningsprocent per säsong" category="Säsong" fromZero={false} yFmt={(v) => dec(v, 1)} xLabels={chrono.map((r) => r[0] as string)}

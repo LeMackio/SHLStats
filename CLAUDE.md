@@ -8,7 +8,8 @@ Fan site with stats for the Swedish Hockey League, live at https://shlstats.net.
 - Once a change is finished and tested, commit and push it without asking first. The owner doesn't want to click
   through GitHub Desktop.
 - Before committing:
-  - Run the type check and the build in `web/` (`npx tsc --noEmit -p .`, `npm run build`).
+  - Run the type check and the build in `web/` (`npx tsc -p tsconfig.app.json --noEmit`, `npm run build`).
+    `tsc -p .` checks nothing: the root tsconfig only holds references.
   - Check the change in the browser, at desktop width and at phone width (375 px), in both the dark and the light theme.
   - If data or `fetch-data.mjs` changed, run `node fetch-data.mjs` from the repo root. It must exit with 0.
 - A local `node fetch-data.mjs` run also rewrites `history/odds.json`. Discard that with
@@ -17,6 +18,17 @@ Fan site with stats for the Swedish Hockey League, live at https://shlstats.net.
 - After pushing, confirm that the Actions run for the commit succeeded
   (`https://api.github.com/repos/LeMackio/SHLStats/actions/runs`) and that the live site serves the new build.
 - Write commit messages in English, as a short summary line followed by bullets explaining what changed and why.
+
+## Principles
+
+- Cut taglines, helper text and secondary labels. If a screen needs them to make sense, fix the layout.
+  - Cards have a title and content only: `Panel` has no subtitle prop, and `PageHead` has no tagline.
+  - No "Tryck på …" instructions. Show the thing instead, for example by opening the latest goal on a shot map.
+  - Definitions of column abbreviations go in the header's `title` tooltip, not in a note under the table.
+  - Data lines (a date under a clip, "4 mål" under a player) are content, not helper text.
+- Make the decision that improves all three: the user experience, the developer experience, and the experience of an
+  agent working in this repo, without breaking anything. Prefer rules that the code enforces, such as a prop that
+  doesn't exist, over rules that have to be remembered.
 
 ## Layout
 
