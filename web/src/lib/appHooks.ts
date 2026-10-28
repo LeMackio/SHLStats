@@ -10,25 +10,23 @@ export function useBodyClass(cls: string, on: boolean) {
   }, [cls, on])
 }
 
-// Phone menu: shrinks to a compact bar while scrolling down, and grows back when scrolling up or at the top
+// Phone menu: shrinks to a compact bar (icons only) while the page scrolls, either way, and shows its labels again
+// once scrolling has stopped for a moment
 export function useCompactNav() {
   useEffect(() => {
-    let lastY = scrollY, ticking = false
+    // Scroll events already come at most once a frame, and the work is one class, so no frame throttling is needed
+    let lastY = scrollY, idle = 0
+    const body = document.body
+    const expand = () => body.classList.remove('nav-compact')
     const onScroll = () => {
-      if (ticking) return
-      ticking = true
-      requestAnimationFrame(() => {
-        ticking = false
-        const y = scrollY, body = document.body, compact = body.classList.contains('nav-compact')
-        if (!isNarrow()) { if (compact) body.classList.remove('nav-compact'); lastY = y; return }
-        if (y < 40) { if (compact) body.classList.remove('nav-compact') }
-        else if (y > lastY + 6) { if (!compact) body.classList.add('nav-compact') }
-        else if (y < lastY - 6) { if (compact) body.classList.remove('nav-compact') }
-        if (Math.abs(y - lastY) > 6) lastY = y
-      })
+      clearTimeout(idle)
+      idle = window.setTimeout(expand, 260)
+      const y = scrollY
+      if (!isNarrow()) { expand(); lastY = y; return }
+      if (Math.abs(y - lastY) > 6) { body.classList.add('nav-compact'); lastY = y }
     }
     addEventListener('scroll', onScroll, { passive: true })
-    return () => removeEventListener('scroll', onScroll)
+    return () => { removeEventListener('scroll', onScroll); clearTimeout(idle) }
   }, [])
 }
 

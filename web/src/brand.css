@@ -334,7 +334,6 @@ ol.lb .v { min-width: 2.6em; font-variant-numeric: tabular-nums; text-align: rig
 .tc-who { display: grid; gap: 2px; min-width: 0; }
 .tc-nm { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .tc-nm b { min-width: 0; overflow: hidden; font: 700 18px/1.1 var(--display); letter-spacing: .01em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
-.tc-nm .gc-rank { flex: none; }
 .tc-who small { color: var(--muted); font-size: 13px; }
 .tc-pts { min-width: 2ch; font: 700 26px/1 var(--display); text-align: right; }
 

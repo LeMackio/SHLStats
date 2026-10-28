@@ -214,11 +214,11 @@ function FavTeamCard({ f, next, last, det }: { f: string; next?: Game; last?: Ga
         {last && <GameCard g={last} d={det[last.id]} bare />}
         {top.length > 0 && (
           <ol className="tc-top">
-            {top.map((p, i) => (
+            {top.map((p) => (
               <li key={p.id}>
                 <a className="tc-p" href={`#/spelare/${encodeURIComponent(p.id)}`}>
                   <Avatar id={p.id} name={p.name} team={f} eager />
-                  <span className="tc-who"><span className="tc-nm"><b>{p.name}</b><span className="gc-rank">{i + 1}</span></span><small>{p.g} mål · {p.a} assist</small></span>
+                  <span className="tc-who"><span className="tc-nm"><b>{p.name}</b></span><small>{p.g} mål · {p.a} assist</small></span>
                   <span className="tc-pts num">{p.pts}</span>
                 </a>
               </li>
