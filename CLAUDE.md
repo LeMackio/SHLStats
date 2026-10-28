@@ -30,6 +30,18 @@ Fan site with stats for the Swedish Hockey League, live at https://shlstats.net.
   agent working in this repo, without breaking anything. Prefer rules that the code enforces, such as a prop that
   doesn't exist, over rules that have to be remembered.
 
+## Design language
+
+- One material: soft slabs. Cards have a large radius (`--soft-radius`), no hard border, a light rim on the top edge
+  and a soft shadow (`--soft-edge`, `--soft-rim`, `--soft-shadow`). Things inside a card (chips, tiles, game rows, the
+  table-place chip) are smaller slabs (`--tile`, `--tile-edge`, `--tile-rim`). Round buttons float (`--float`).
+- One solid accent pill marks the main action (follow a team, a game's highlights).
+- Chips on a dark or club-colour header stay a dark see-through tint, not a slab.
+- The phone menu is a glass tray with the current page in a dark pill, in both themes.
+- Phone cards follow the match card (`GameCard`): status chip, team rows (logo, name, place chip, big number), chips.
+- The tokens and rules live at the end of `web/src/brand.css` ("Soft surfaces"); use them instead of new borders or
+  shadows.
+
 ## Layout
 
 - `fetch-data.mjs` downloads everything from shl.se's API and Wikipedia and writes `site/data/*.json`, including the

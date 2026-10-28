@@ -45,17 +45,24 @@ export function TeamNow({ f }: { f: string }) {
   const game = live || next
   const G = game && side(game)
   const R = last && side(last)
-  // Form: wins, losses and goals over the last five games
+  // Form: the last five results, in the club-colour bar
   const form = five.map((g) => { const s = side(g); return { g, won: s.us > s.them, extra: !!(g.ot || g.so), us: s.us, them: s.them } })
-  const wins = form.filter((x) => x.won).length, gf = form.reduce((n, x) => n + x.us, 0), ga = form.reduce((n, x) => n + x.them, 0)
 
   return (
     <div className={`mday-side mts ${styles.card}`} style={{ '--tc': tColor(f), '--tt': lum(tColor(f)) > 0.5 ? '#10151c' : '#ffffff' } as React.CSSProperties}>
-      <a className="mts-hero" href={`#/lag/${f}`}>
+      <div className="mts-hero">
         {teams[f]?.logo && <img className="mts-logo" src={teams[f].logo} alt="" />}
-        <b className="mts-name" style={{ '--n': tName(f).length } as React.CSSProperties}>{tName(f)}</b>
+        {/* The name's link covers the whole bar; the form squares sit above it as their own links */}
+        <a className="mts-name tc-cover" href={`#/lag/${f}`} style={{ '--n': tName(f).length } as React.CSSProperties}>{tName(f)}</a>
         <span className="mts-pos"><span className="mts-rank">{me.rank}</span>{me.pts} poäng</span>
-      </a>
+        {form.length > 0 && (
+          <div className="tc-sqs">
+            {form.map((x) => (
+              <a key={x.g.id} href={`#/match/${x.g.id}`} className={`tc-sq ${x.won ? 'w' : 'l'}`} title={`${x.us}–${x.them}${x.extra ? ' efter övertid' : ''}`}>{x.won ? 'V' : 'F'}</a>
+            ))}
+          </div>
+        )}
+      </div>
       <div className={styles.body}>
         {game && G && (
           <a className={styles.row} href={`#/match/${game.id}`}>
@@ -80,21 +87,6 @@ export function TeamNow({ f }: { f: string }) {
               </span>
             </span>
           </a>
-        )}
-        {form.length > 0 && (
-          <div className={styles.row}>
-            <span className={styles.line}>
-              <span className={styles.chips}>
-                {form.map((x) => (
-                  <a key={x.g.id} href={`#/match/${x.g.id}`} className={`${styles.res} ${x.won ? styles.w : styles.l}`} title={`${x.us}–${x.them}${x.extra ? ' efter övertid' : ''}`}>{x.won ? 'V' : 'F'}</a>
-                ))}
-              </span>
-              <span className={styles.stats}>
-                <span><b className="num">{wins}–{form.length - wins}</b><small>vinster</small></span>
-                <span><b className="num">{gf}–{ga}</b><small>mål</small></span>
-              </span>
-            </span>
-          </div>
         )}
       </div>
     </div>

@@ -180,10 +180,10 @@ function FavHome({ f, next, last, det, news }: { f: string; next?: Game; last?: 
   )
 }
 
-// The followed team on phones: one card. On top the club-colour bar (logo, name, table place, points; it opens the team
-// page), then everything in the match card's style: the next (or live) game and the latest result as match cards
-// without their own surface, the form (the last five results as squares, oldest first, with wins and goals) and the
-// team's top five in points as rows built like a match card's team rows.
+// The followed team on phones: one card. On top the club-colour bar: logo, name, table place, points and the form (the
+// last five results as squares, oldest first, each opening its game); the rest of the bar opens the team page. Then,
+// in the match card's style, the next (or live) game and the latest result as match cards without their own surface,
+// and the team's top five in points as rows built like a match card's team rows.
 function FavTeamCard({ f, next, last, det }: { f: string; next?: Game; last?: Game; det: Record<string, GameDetails | null> }) {
   const { core, cur, games, tName, teams } = useData()
   const table = useMemo(() => liveTable(core, games), [core, games])
@@ -192,30 +192,26 @@ function FavTeamCard({ f, next, last, det }: { f: string; next?: Game; last?: Ga
     const home = g.home === f, us = (home ? g.hs : g.as) ?? 0, them = (home ? g.as : g.hs) ?? 0
     return { g, us, them, won: us > them }
   })
-  const wins = form.filter((x) => x.won).length, gf = sum(form.map((x) => x.us)), ga = sum(form.map((x) => x.them))
   const top = core.seasons[cur].skaters.filter((p) => p.team === f).sort((a, b) => b.pts - a.pts || b.g - a.g).slice(0, 5)
   const tc = tColor(f)
   return (
     <section className="panel m-card mts team-card" style={{ '--tc': tc, '--tt': lum(tc) > 0.5 ? '#10151c' : '#ffffff' } as React.CSSProperties}>
-      <a className="mts-hero" href={`#/lag/${f}`}>
+      <div className="mts-hero">
         {teams[f]?.logo && <img className="mts-logo" src={teams[f].logo} alt="" />}
-        <b className="mts-name" style={{ '--n': tName(f).length } as React.CSSProperties}>{tName(f)}</b>
+        {/* The name's link covers the whole bar; the form squares sit above it as their own links */}
+        <a className="mts-name tc-cover" href={`#/lag/${f}`} style={{ '--n': tName(f).length } as React.CSSProperties}>{tName(f)}</a>
         {me && <span className="mts-pos"><span className="mts-rank">{me.rank}</span>{me.pts} poäng</span>}
-      </a>
+        {form.length > 0 && (
+          <div className="tc-sqs">
+            {form.map((x) => (
+              <a key={x.g.id} href={`#/match/${x.g.id}`} className={`tc-sq ${x.won ? 'w' : 'l'}`} title={`${x.us}–${x.them}${x.g.ot || x.g.so ? ' efter övertid' : ''}`}>{x.won ? 'V' : 'F'}</a>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="tc-body">
         {next && <GameCard g={next} d={det[next.id]} bare />}
         {last && <GameCard g={last} d={det[last.id]} bare />}
-        {form.length > 0 && (
-          <div className="tc-form">
-            <div className="tc-sqs">
-              {form.map((x) => (
-                <a key={x.g.id} href={`#/match/${x.g.id}`} className={`tc-sq ${x.won ? 'w' : 'l'}`} title={`${x.us}–${x.them}${x.g.ot || x.g.so ? ' efter övertid' : ''}`}>{x.won ? 'V' : 'F'}</a>
-              ))}
-            </div>
-            <span className="tc-stat"><b className="num">{wins}–{form.length - wins}</b><small>vinster</small></span>
-            <span className="tc-stat"><b className="num">{gf}–{ga}</b><small>mål</small></span>
-          </div>
-        )}
         {top.length > 0 && (
           <ol className="tc-top">
             {top.map((p, i) => (

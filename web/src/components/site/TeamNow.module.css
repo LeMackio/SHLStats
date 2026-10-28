@@ -19,11 +19,4 @@
 .w { background: var(--good); }
 .l { background: var(--bad); }
 
-/* Form: the five results as chips, then the record and goals */
-.line:has(.chips) { grid-template-columns: auto 1fr; }
-.chips { display: flex; gap: 4px; }
-.stats { display: flex; justify-content: flex-end; gap: var(--space-4); }
-.stats span { display: grid; justify-items: end; line-height: 1.15; }
-.stats b { font-size: var(--text-base); font-weight: 500; }
-.stats small { color: var(--text-muted); font-size: var(--text-xs); }
 

@@ -316,8 +316,6 @@ ol.lb .v { min-width: 2.6em; font-variant-numeric: tabular-nums; text-align: rig
 /* Matcher: the button back to today's (or the next) game day stays on one line */
 .today-pill { white-space: nowrap; }
 
-/* Phone cards follow the match card (.gcard): the same surface, no border */
-@media (max-width: 700px) { .panel.m-card { border: 0; } }
 
 /* A match card drawn inside another card (GameCard bare): the same content, no surface of its own */
 .gcard.gc-bare { padding: 0; border-radius: 0; background: none; box-shadow: none; }
@@ -328,15 +326,6 @@ ol.lb .v { min-width: 2.6em; font-variant-numeric: tabular-nums; text-align: rig
 .team-card .tc-body { display: grid; padding: 0 16px; }
 .team-card .tc-body > * { padding: 14px 0; }
 .team-card .tc-body > * + * { border-top: 1px solid var(--line); }
-/* Team card on Hem: the form, five result squares (the match card's chip shape) with wins and goals in its figures */
-.tc-form { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 18px; }
-.tc-sqs { display: flex; gap: 6px; }
-.tc-sq { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 6px; color: #fff; font: 700 13px var(--display); letter-spacing: .04em; text-decoration: none !important; }
-.tc-sq.w { background: var(--good); }
-.tc-sq.l { background: var(--bad); }
-.tc-stat { display: grid; justify-items: end; gap: 2px; }
-.tc-stat b { font: 700 22px/1 var(--display); }
-.tc-stat small { color: var(--muted); font-size: 12.5px; }
 /* ...and the top five: rows built like a match card's team rows (40 px picture, the name in its type with the place in the
    same small chip, points in its big figures) */
 .tc-top { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
@@ -348,3 +337,86 @@ ol.lb .v { min-width: 2.6em; font-variant-numeric: tabular-nums; text-align: rig
 .tc-nm .gc-rank { flex: none; }
 .tc-who small { color: var(--muted); font-size: 13px; }
 .tc-pts { min-width: 2ch; font: 700 26px/1 var(--display); text-align: right; }
+
+/* ---------- Soft surfaces: the site's material ----------
+   Cards are soft, tactile slabs: a large radius, no hard border, a light rim along the top edge and a soft shadow under
+   them, as if resting on the page. Things inside a card (chips, small tiles, the table place) are smaller slabs of the
+   same material. Round buttons float with the same shadow; one solid accent pill marks the main action. The phone menu
+   is a clear glass tray with the current page in a dark pill (in both themes, like a control bar). */
+:root {
+  --soft-radius: 22px;
+  --soft-edge: rgba(255, 255, 255, .055);
+  --soft-rim: inset 0 1px 0 rgba(255, 255, 255, .06);
+  --soft-shadow: 0 1px 2px rgba(0, 0, 0, .28), 0 10px 28px rgba(0, 0, 0, .22);
+  --tile: var(--panel-2);
+  --tile-edge: rgba(255, 255, 255, .06);
+  --tile-rim: inset 0 1px 0 rgba(255, 255, 255, .07);
+  --float: #26272b;
+  --float-shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 20px rgba(0, 0, 0, .3);
+  --pill-dark: #141517;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #e9ecef; --panel: #f6f7f8; --panel-2: #eceef1;
+    --soft-edge: rgba(255, 255, 255, .85);
+    --soft-rim: inset 0 1px 0 #fff;
+    --soft-shadow: 0 1px 2px rgba(23, 32, 43, .05), 0 10px 26px rgba(23, 32, 43, .07);
+    --tile: #ffffff; --tile-edge: rgba(23, 32, 43, .06); --tile-rim: inset 0 1px 0 #fff;
+    --float: #f8f9fa; --float-shadow: 0 1px 2px rgba(23, 32, 43, .06), 0 8px 20px rgba(23, 32, 43, .1);
+  }
+}
+:root[data-theme="light"] {
+  --bg: #e9ecef; --panel: #f6f7f8; --panel-2: #eceef1;
+  --soft-edge: rgba(255, 255, 255, .85);
+  --soft-rim: inset 0 1px 0 #fff;
+  --soft-shadow: 0 1px 2px rgba(23, 32, 43, .05), 0 10px 26px rgba(23, 32, 43, .07);
+  --tile: #ffffff; --tile-edge: rgba(23, 32, 43, .06); --tile-rim: inset 0 1px 0 #fff;
+  --float: #f8f9fa; --float-shadow: 0 1px 2px rgba(23, 32, 43, .06), 0 8px 20px rgba(23, 32, 43, .1);
+}
+
+/* Cards */
+.panel, .gcard:not(.gc-bare) { border: 1px solid var(--soft-edge); border-radius: var(--soft-radius); box-shadow: var(--soft-rim), var(--soft-shadow); }
+.ref, .mpanel { border-radius: var(--soft-radius); box-shadow: var(--soft-shadow); }
+
+/* Small slabs inside cards: chips, tiles, the table place and status chips */
+.gchip, .gc-chip, .gc-rank, .grow, .tile, .clip, .tnews, .smd, .lp, .rx, .live-nums > div {
+  border: 1px solid var(--tile-edge); background: var(--tile); box-shadow: var(--tile-rim);
+}
+.gchip { border-radius: 16px; }
+.gc-chip, .gc-rank { border-radius: 8px; }
+.gc-chip.live { border-color: color-mix(in srgb, var(--bad) 30%, transparent); background: color-mix(in srgb, var(--bad) 14%, var(--tile)); }
+
+/* Round buttons float (settings, theme, search, the back arrow) */
+.settings-btn, .theme-btn, .m-back { border: 1px solid var(--soft-edge); background: var(--float); box-shadow: var(--tile-rim), var(--float-shadow); }
+header [class*="_trigger_"] { box-shadow: var(--tile-rim), var(--float-shadow) !important; }
+
+/* The main action is one solid accent pill: following a team, a game's highlights */
+.ref .ref-btn { border: 0; background: #2f7bff; color: #fff; box-shadow: 0 6px 16px color-mix(in srgb, #2f7bff 35%, transparent); }
+.ref .ref-btn[aria-pressed="true"] { background: rgba(255, 255, 255, .16); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); }
+.gc-btn { background: #2f7bff !important; color: #fff !important; box-shadow: 0 4px 12px color-mix(in srgb, #2f7bff 30%, transparent); }
+.gc-btn .ic { color: #fff; }
+
+/* Phone menu: a clear glass tray; the current page in a dark pill with a light rim, in both themes */
+@media (max-width: 700px) {
+  .bottom-nav { --nav-on: #fff; border-color: rgba(255, 255, 255, .14); }
+  .bottom-nav .sl-pill { background: var(--pill-dark); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 0 0 1px rgba(255, 255, 255, .06), 0 6px 16px rgba(0, 0, 0, .3); }
+  .bottom-nav a.on, .bottom-nav.has-ind a.on, .bottom-nav a.bn-hover, .bottom-nav a.on .ic, .bottom-nav a.bn-hover .ic { color: #fff; }
+}
+@media (max-width: 700px) and (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .bottom-nav { --nav-on: #fff; border-color: rgba(255, 255, 255, .7); }
+}
+@media (max-width: 700px) {
+  :root[data-theme="light"] .bottom-nav { --nav-on: #fff; border-color: rgba(255, 255, 255, .7); }
+}
+
+/* Team card on Hem: the form in the club-colour bar, five squares under the points, each a small slab of its own */
+.mts-hero { position: relative; }
+.tc-cover { color: inherit; text-decoration: none !important; }
+.tc-cover::after { position: absolute; inset: 0; z-index: 1; content: ""; }
+.mts-hero .tc-sqs { position: relative; z-index: 2; display: flex; gap: 6px; margin-top: 6px; }
+.tc-sq { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 8px; color: #fff; font: 700 12.5px var(--display); text-decoration: none !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 2px 6px rgba(0, 0, 0, .18); }
+.tc-sq.w { background: var(--good); }
+.tc-sq.l { background: var(--bad); }
+/* ...except chips on a dark or club-colour header, which stay a dark see-through tint so their white figures read */
+.band .mh-rec .gc-rank, .thero .phero-team .gc-rank, .ref .gc-rank { border: 0; background: rgba(0, 0, 0, .28); box-shadow: none; }
