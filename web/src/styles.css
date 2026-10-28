@@ -1531,10 +1531,12 @@ ol.lb.nologo:not(.noav) .av { width: 36px; height: 36px; }
   .gchip { transition: background .12s; }
   .gchip:active { background: color-mix(in srgb, var(--accent) 22%, var(--panel-2)); }
 
-  /* Day switching: the new day slides in from the side it came from */
-  .daylist { will-change: transform; }
-  .daylist.in-next { animation: dayInNext .24s cubic-bezier(.2, .8, .2, 1) both; }
-  .daylist.in-prev { animation: dayInPrev .24s cubic-bezier(.2, .8, .2, 1) both; }
+  /* Day switching: the new day slides in from the side it came from. Fill mode "backwards", not "both": a finished
+     animation that kept holding transform would stop the next swipe from moving the list. Sideways drags belong to
+     the swipe, up and down to the page scroll. */
+  .daylist { will-change: transform; touch-action: pan-y; }
+  .daylist.in-next { animation: dayInNext .24s cubic-bezier(.2, .8, .2, 1) backwards; }
+  .daylist.in-prev { animation: dayInPrev .24s cubic-bezier(.2, .8, .2, 1) backwards; }
   @keyframes dayInNext { from { transform: translate3d(48px, 0, 0); opacity: 0; } to { transform: none; opacity: 1; } }
   @keyframes dayInPrev { from { transform: translate3d(-48px, 0, 0); opacity: 0; } to { transform: none; opacity: 1; } }
 

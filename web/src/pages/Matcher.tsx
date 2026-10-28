@@ -5,7 +5,7 @@ import { GameCard, GameRow } from '@/components/site/Games'
 import { PageHead, PageSwitch } from '@/components/site/Layout'
 import { Empty, Panel, Skeleton } from '@/components/site/Panel'
 import { useData } from '@/data/context'
-import { detailsFor, hasGame, loadGame } from '@/data/games'
+import { detailsFor, hasGame } from '@/data/games'
 import { dateParts, DAYS, fmtDay, MONTHS, store, todayStr } from '@/lib/format'
 import { useKeptState } from '@/lib/pageState'
 import { go } from '@/lib/router'
@@ -73,24 +73,26 @@ function DayPage({ want }: { want: string }) {
   const dayGames = useMemo(() => games.filter((g) => g.start.startsWith(day))
     .sort((a, b) => Number(isFav(b)) - Number(isFav(a)) || a.start.localeCompare(b.start)), [games, day, fav]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Goals for the finished and live games; live games refresh with every live update
-  const [det, setDet] = useState<{ day: string; d: Record<string, GameDetails | null> } | null>(null)
+  // Goals for the finished and live games, kept per day: the neighbouring days are fetched ahead, so a swipe lands on
+  // a day that is already complete (no loading screen, no goals popping in afterwards). Live games refresh every 15 s.
+  const [det, setDet] = useState<Record<string, Record<string, GameDetails | null>>>({})
   const liveSig = dayGames.filter(isLive).map((g) => `${g.id}|${g.hs}|${g.as}|${g.state}`).join(';')
   useEffect(() => {
     let off = false
-    detailsFor(dayGames, core.seasons[cur]).then((d) => { if (!off) setDet({ day, d }) })
+    const fetchDay = (dd: string) => detailsFor(games.filter((g) => g.start.startsWith(dd)), core.seasons[cur]).then((d) => { if (!off) setDet((m) => ({ ...m, [dd]: d })) })
+    fetchDay(day)
+    for (const dd of [prev, next]) if (dd) fetchDay(dd)
     return () => { off = true }
   }, [day, liveSig]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!liveSig) return
-    const t = setInterval(() => detailsFor(dayGames, core.seasons[cur]).then((d) => setDet({ day, d })), 15000)
+    const t = setInterval(() => detailsFor(dayGames, core.seasons[cur]).then((d) => setDet((m) => ({ ...m, [day]: d }))), 15000)
     return () => clearInterval(t)
   }, [liveSig]) // eslint-disable-line react-hooks/exhaustive-deps
-  // Load the neighbouring days in the background so switching needs no loading screen
-  useEffect(() => { for (const dd of [prev, next]) if (dd) for (const x of games) if (x.start.startsWith(dd) && isFinal(x)) loadGame(x.id) }, [prev, next]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Slide the new day in from the side it came from (a swipe sets the side; a tapped date compares with the last day)
-  const [enter] = useState(() => enterFrom || (lastDay && lastDay !== day ? (day > lastDay ? 1 : -1) : 0))
+  // Slide the new day in from the side it came from (a swipe sets the side; a tapped date compares with the last day).
+  // Worked out for every day: the page stays mounted while the day changes.
+  const enter = useMemo(() => enterFrom || (lastDay && lastDay !== day ? (day > lastDay ? 1 : -1) : 0), [day])
   useEffect(() => { lastDay = day; enterFrom = 0 }, [day])
 
   const tabs = useRef<HTMLElement>(null)
@@ -98,10 +100,11 @@ function DayPage({ want }: { want: string }) {
     const t = tabs.current, on = t?.querySelector<HTMLElement>('.on')
     if (t && on) t.scrollLeft = on.offsetLeft - (t.clientWidth - on.offsetWidth) / 2 // centre the chosen day
   }, [day])
-  const list = useSwipe(prev, next)
+  const dayDet = det[day]
+  const waiting = !dayDet && dayGames.some((g) => (isFinal(g) || isLive(g)) && !hasGame(g.id))
+  const list = useSwipe(prev, next, waiting ? '' : day) // bound when the day's list is on screen
 
   if (!days.length) return <Panel title="Matcher"><Empty>Inget spelschema ännu.</Empty></Panel>
-  const waiting = (!det || det.day !== day) && dayGames.some((g) => (isFinal(g) || isLive(g)) && !hasGame(g.id))
   return (
     <>
       <nav className="datetabs" id="datetabs" aria-label="Matchdagar" ref={tabs}>
@@ -116,7 +119,7 @@ function DayPage({ want }: { want: string }) {
       </nav>
       {waiting ? <Skeleton /> : (
         <div key={day} className={`daylist ${enter > 0 ? 'in-next' : enter < 0 ? 'in-prev' : ''}`} id="daylist" ref={list}>
-          {dayGames.map((g) => <GameCard key={g.id} g={g} d={det?.day === day ? det.d[g.id] : undefined} />)}
+          {dayGames.map((g) => <GameCard key={g.id} g={g} d={dayDet?.[g.id]} />)}
         </div>
       )}
       {day !== home && <a className="today-pill" href={`#/matcher/${home}`}>{dayLabel(home) === 'Idag' ? 'Idag' : 'Nästa matchdag'}</a>}
@@ -124,15 +127,19 @@ function DayPage({ want }: { want: string }) {
   )
 }
 
-// Swipe sideways on the games to change day: the list follows the finger, slides out, and the next day slides in
-function useSwipe(prev?: string, next?: string) {
+// Swipe sideways on the games to change day: the list follows the finger, slides out, and the next day slides in.
+// Bound once per day's list (the list is redrawn for each day), with the neighbouring days read from a ref, so a re-render
+// mid-swipe (goals arriving, a live update) never drops the gesture. A quick flick counts as well as a long drag.
+function useSwipe(prev: string | undefined, next: string | undefined, day: string) {
   const ref = useRef<HTMLDivElement>(null)
+  const sides = useRef({ prev, next })
+  sides.current = { prev, next }
   useEffect(() => {
     const list = ref.current
     if (!list) return
-    let x0: number | null = null, y0 = 0, dragging = false
+    let x0: number | null = null, y0 = 0, t0 = 0, dragging = false
     const reset = () => { list.style.transition = 'transform .22s cubic-bezier(.2, .8, .2, 1), opacity .22s'; list.style.transform = ''; list.style.opacity = '' }
-    const start = (e: TouchEvent) => { x0 = (e.target as Element).closest('.gc-goals') ? null : e.touches[0].clientX; y0 = e.touches[0].clientY; dragging = false }
+    const start = (e: TouchEvent) => { x0 = (e.target as Element).closest('.gc-goals') ? null : e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = e.timeStamp; dragging = false }
     const move = (e: TouchEvent) => {
       if (x0 == null) return
       const dx = e.touches[0].clientX - x0, dy = e.touches[0].clientY - y0
@@ -140,6 +147,7 @@ function useSwipe(prev?: string, next?: string) {
         if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { x0 = null; return } // scrolling up or down
         if (Math.abs(dx) > 12) dragging = true; else return
       }
+      const { prev, next } = sides.current
       const damp = (dx < 0 && !next) || (dx > 0 && !prev) ? 0.25 : 0.9 // resist at the first and last day
       list.style.transition = 'none'
       list.style.transform = `translate3d(${dx * damp}px, 0, 0)`
@@ -147,9 +155,10 @@ function useSwipe(prev?: string, next?: string) {
     }
     const end = (e: TouchEvent) => {
       if (x0 == null || !dragging) { x0 = null; return }
-      const dx = e.changedTouches[0].clientX - x0, to = dx < 0 ? next : prev
+      const dx = e.changedTouches[0].clientX - x0, to = dx < 0 ? sides.current.next : sides.current.prev
+      const flick = Math.abs(dx) > 30 && Math.abs(dx) / Math.max(1, e.timeStamp - t0) > 0.45
       x0 = null; dragging = false
-      if (Math.abs(dx) > 70 && to) {
+      if ((Math.abs(dx) > 70 || flick) && to) {
         list.style.transition = 'transform .17s ease-in, opacity .17s ease-in'
         list.style.transform = `translate3d(${dx < 0 ? -60 : 60}%, 0, 0)`; list.style.opacity = '0'
         enterFrom = dx < 0 ? 1 : -1
@@ -167,6 +176,6 @@ function useSwipe(prev?: string, next?: string) {
       list.removeEventListener('touchend', end)
       list.removeEventListener('touchcancel', cancel)
     }
-  })
+  }, [day])
   return ref
 }

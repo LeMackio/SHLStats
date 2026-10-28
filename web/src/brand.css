@@ -283,35 +283,35 @@ details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .b
 /* Team names in the match header fit their column (the header clips anything wider) */
 @media (max-width: 699px) { .mpanel .mhead .mteam b { font-size: min(16px, calc(158cqi / var(--n, 10))); } }
 
-/* Phone menu in the style of the NHL app, made of Liquid Glass: the page shows through a blurred, brightened bar with
-   a light rim along its top edge; white icons and labels, the current page in a glass pill with its icon and label in
-   blue. A followed team's logo sits on the Hem button. */
+/* Phone menu: a flat bar of clear glass (the page shows through, blurred), no gradients or heavy shadows. The current
+   page sits in a flat pill that can be dragged along the bar (BottomNav); while dragging it grows a little and the item
+   under it lights up. A followed team's logo sits on the Hem button. */
 @media (max-width: 700px) {
-  .bottom-nav { --nav-tint: rgba(28, 29, 33, .42); --nav-rim: rgba(255, 255, 255, .22); --nav-edge: rgba(255, 255, 255, .1); --nav-ink: #f4f5f7; --nav-on: #5b9bff;
-    --nav-pill: rgba(0, 0, 0, .34); --nav-pill-rim: rgba(255, 255, 255, .14);
-    left: 12px; right: 12px; padding: 6px; border: 1px solid var(--nav-edge);
-    background: linear-gradient(180deg, rgba(255, 255, 255, .1), rgba(255, 255, 255, .02) 45%, rgba(255, 255, 255, .05)), var(--nav-tint);
-    backdrop-filter: blur(24px) saturate(190%) brightness(1.05); -webkit-backdrop-filter: blur(24px) saturate(190%) brightness(1.05);
-    box-shadow: inset 0 1px 0 var(--nav-rim), inset 0 -1px 0 rgba(255, 255, 255, .05), 0 12px 32px rgba(0, 0, 0, .35); }
-  .bottom-nav a, .bottom-nav.has-ind a { min-height: 60px; gap: 4px; color: var(--nav-ink); font: 500 12.5px var(--body); letter-spacing: 0; text-shadow: 0 1px 6px rgba(0, 0, 0, .25); }
-  .bottom-nav a .ic { width: 25px; height: 25px; stroke-width: 1.8; filter: drop-shadow(0 1px 4px rgba(0, 0, 0, .25)); }
-  .bottom-nav a.on, .bottom-nav.has-ind a.on { color: var(--nav-on); font-weight: 500; }
-  .bottom-nav a.on .ic { color: var(--nav-on); stroke-width: 2; }
-  .bottom-nav .sl-pill { border-radius: 999px; background: linear-gradient(180deg, rgba(255, 255, 255, .06), transparent 60%), var(--nav-pill);
-    box-shadow: inset 0 1px 0 var(--nav-pill-rim), inset 0 0 0 1px rgba(255, 255, 255, .05), 0 2px 8px rgba(0, 0, 0, .2); }
+  .bottom-nav { --nav-glass: rgba(22, 24, 29, .38); --nav-line: rgba(255, 255, 255, .1); --nav-ink: #f4f5f7; --nav-on: #5b9bff; --nav-pill: rgba(255, 255, 255, .12);
+    left: 12px; right: 12px; padding: 6px; border: 1px solid var(--nav-line); background: var(--nav-glass);
+    backdrop-filter: blur(20px) saturate(170%); -webkit-backdrop-filter: blur(20px) saturate(170%);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .18); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .bottom-nav a, .bottom-nav.has-ind a { min-height: 60px; gap: 4px; color: var(--nav-ink); font: 500 12.5px var(--body); letter-spacing: 0; text-shadow: none; -webkit-user-drag: none; }
+  .bottom-nav a .ic { width: 25px; height: 25px; stroke-width: 1.8; filter: none; }
+  .bottom-nav a.on, .bottom-nav.has-ind a.on, .bottom-nav a.bn-hover { color: var(--nav-on); font-weight: 500; }
+  .bottom-nav a.on .ic, .bottom-nav a.bn-hover .ic { color: var(--nav-on); stroke-width: 2; }
+  .bottom-nav.bn-dragging a.on:not(.bn-hover), .bottom-nav.bn-dragging a.on:not(.bn-hover) .ic { color: var(--nav-ink); }
+  .bottom-nav .sl-pill { border-radius: 999px; background: var(--nav-pill); box-shadow: none; transition: transform .32s cubic-bezier(.3, .8, .3, 1), width .32s, scale .2s; }
+  .bottom-nav.bn-dragging .sl-pill { transition: scale .2s; scale: 1.08; }
   .bn-team { display: grid; width: 25px; height: 25px; place-items: center; transition: width .35s, height .35s; }
   .bn-team .tb { width: 25px; height: 25px; }
   body.nav-compact .bottom-nav a .bn-team, body.nav-compact .bottom-nav a .bn-team .tb { width: 21px; height: 21px; }
 }
 @media (max-width: 700px) and (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .bottom-nav { --nav-tint: rgba(255, 255, 255, .5); --nav-rim: rgba(255, 255, 255, .9); --nav-edge: rgba(23, 32, 43, .08); --nav-ink: #17202b; --nav-on: #1f6feb;
-    --nav-pill: rgba(23, 32, 43, .08); --nav-pill-rim: rgba(255, 255, 255, .8); box-shadow: inset 0 1px 0 var(--nav-rim), 0 10px 28px rgba(23, 32, 43, .16); }
-  :root:not([data-theme="dark"]) .bottom-nav a { text-shadow: none; }
-  :root:not([data-theme="dark"]) .bottom-nav a .ic { filter: none; }
+  :root:not([data-theme="dark"]) .bottom-nav { --nav-glass: rgba(255, 255, 255, .45); --nav-line: rgba(23, 32, 43, .08); --nav-ink: #17202b; --nav-on: #1f6feb; --nav-pill: rgba(23, 32, 43, .07); box-shadow: 0 6px 20px rgba(23, 32, 43, .08); }
 }
 @media (max-width: 700px) {
-  :root[data-theme="light"] .bottom-nav { --nav-tint: rgba(255, 255, 255, .5); --nav-rim: rgba(255, 255, 255, .9); --nav-edge: rgba(23, 32, 43, .08); --nav-ink: #17202b; --nav-on: #1f6feb;
-    --nav-pill: rgba(23, 32, 43, .08); --nav-pill-rim: rgba(255, 255, 255, .8); box-shadow: inset 0 1px 0 var(--nav-rim), 0 10px 28px rgba(23, 32, 43, .16); }
-  :root[data-theme="light"] .bottom-nav a { text-shadow: none; }
-  :root[data-theme="light"] .bottom-nav a .ic { filter: none; }
+  :root[data-theme="light"] .bottom-nav { --nav-glass: rgba(255, 255, 255, .45); --nav-line: rgba(23, 32, 43, .08); --nav-ink: #17202b; --nav-on: #1f6feb; --nav-pill: rgba(23, 32, 43, .07); box-shadow: 0 6px 20px rgba(23, 32, 43, .08); }
 }
+@media (max-width: 700px) and (prefers-reduced-motion: reduce) { .bottom-nav .sl-pill { transition: none; } .bottom-nav.bn-dragging .sl-pill { scale: none; } }
+
+/* Leader lists: every row is its own grid, so the value column gets one fixed width (tabular figures, right-aligned)
+   and the names line up from row to row whatever the number of digits */
+ol.lb .v { min-width: 2.6em; font-variant-numeric: tabular-nums; text-align: right; }
+/* Matcher: the button back to today's (or the next) game day stays on one line */
+.today-pill { white-space: nowrap; }

@@ -71,7 +71,7 @@ function Overview() {
           </div>
         </Panel>
         <Panel title="Målvakter" extra={<Seg id="ov-gk-stat" value={gkStat} onChange={setGkStat} options={[['svp', 'Rädd%'], ['gaa', 'GAA'], ['gsaa', 'GSAA']]} />}
-          foot={<><MoreLink href="#/statistik">Alla målvakter</MoreLink><span className="stamp">Minst {gmin} matcher</span></>}>
+          foot={<MoreLink href="#/statistik">Alla målvakter</MoreLink>}>
           <div id="ov-gk" className="fill">
             <LeaderList rows={season.goalies.filter((g) => g.gpi >= gmin).sort((a, b) => gkOrder(b) - gkOrder(a))} val={(g) => g} fmt={gkFmt} avatars={false} sub={(g) => `${g.gpi} matcher`} />
           </div>
@@ -115,7 +115,6 @@ function MyTeamSide() {
     return (
       <div className="mday-side">
         <span className="mini-lbl">Följ ditt lag</span>
-        <p className="muted" style={{ margin: 0, fontSize: 14 }}>Välj ett lag så visas dess tabellplats, odds och matcher här, och lagets matcher lyfts fram över hela sajten.</p>
         <div className="pickteams sm">
           {[...codes].sort((a, b) => tName(a).localeCompare(tName(b), 'sv')).map((c) => (
             <button key={c} title={`Följ ${tName(c)}`} aria-label={`Följ ${tName(c)}`} onClick={() => setFav(c)}><TeamBadge code={c} size="md" /></button>
@@ -124,7 +123,7 @@ function MyTeamSide() {
       </div>
     )
   }
-  return <TeamNow f={f} onUnfollow={() => setFav(null)} />
+  return <TeamNow f={f} />
 }
 
 const dayLabel = (d: string) => {
@@ -170,12 +169,12 @@ function PhoneHome() {
 }
 
 function FavHome({ f, next, last, det, news }: { f: string; next?: Game; last?: Game; det: Record<string, GameDetails | null>; news: import('@/lib/types').TeamNews[] }) {
-  const { core, cur, tName, setFav } = useData()
+  const { core, cur, tName } = useData()
   const sk = core.seasons[cur].skaters.filter((p) => p.team === f).sort((a, b) => b.pts - a.pts || b.g - a.g)
   return (
     <>
       {/* The same card as on computers: what matters right now. The next game is in it, so only a live game gets its own card below */}
-      <section className="panel m-card team-now-m"><TeamNow f={f} onUnfollow={() => setFav(null)} /></section>
+      <section className="panel m-card team-now-m"><TeamNow f={f} /></section>
       {next && isLive(next) && <><Sec title="Pågår nu" sub={fmtDay(next.start)} /><GameCard g={next} d={det[next.id]} /></>}
       {last && <><Sec title="Senaste match" sub={fmtDay(last.start)} /><GameCard g={last} d={det[last.id]} /></>}
       <Sec title="Poängliga" />

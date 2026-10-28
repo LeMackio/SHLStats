@@ -189,7 +189,7 @@ function Preview({ g }: { g: Game }) {
             <div className="wc-team"><TeamBadge code={g.away} size="lg" /><span className="wc-code">{g.away}</span><b className="num">{pctTxt(1 - ph)}</b></div>
           </div>
           <div className="rx-track wc-track"><i style={{ width: `${ph * 100}%` }} /><i style={{ width: `${(1 - ph) * 100}%` }} /></div>
-          <div className="wc-foot"><span>Förväntade mål</span><b className="num">{dec(lh, 1)} – {dec(la, 1)}</b><span className="faint">Övertid = lika efter 60 minuter</span></div>
+          <div className="wc-foot"><span>Förväntade mål</span><b className="num">{dec(lh, 1)} – {dec(la, 1)}</b></div>
         </div>
       </Panel>
       <Panel title="Säsongsjämförelse">

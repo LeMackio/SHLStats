@@ -276,8 +276,8 @@ function ShotMap({ E, skRows, gkRows, gkAll, lgSv }: { E: Edge; skRows: SkE[]; g
             <div className={sm.stage} id="sm-rink"><ShotRink shots={shown} color={color} mode={view} sel={open} onGoal={selectGoal} /></div>
             <div className="legend">
               {view === 'heat'
-                ? <><span><i style={{ background: color }} />Mörkare = fler och farligare skott</span><span><i style={{ background: color, borderRadius: '50%' }} />{defensive ? 'Insläppt mål' : 'Mål'}</span></>
-                : <><span><i style={{ background: color, borderRadius: '50%' }} />{defensive ? 'Insläppt mål' : 'Mål'}</span><span><i style={{ background: 'var(--muted)', opacity: 0.55, borderRadius: '50%' }} />Räddat</span><span>Större = högre xG</span><span>Streckat = farligaste ytan</span></>}
+                ? <span><i style={{ background: color, borderRadius: '50%' }} />{defensive ? 'Insläppt mål' : 'Mål'}</span>
+                : <><span><i style={{ background: color, borderRadius: '50%' }} />{defensive ? 'Insläppt mål' : 'Mål'}</span><span><i style={{ background: 'var(--muted)', opacity: 0.55, borderRadius: '50%' }} />Räddat</span></>}
             </div>
           </div>
           <aside className={sm.side}>

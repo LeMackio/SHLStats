@@ -342,7 +342,7 @@ function PointsByGame({ log }: { log: (string | number)[][] }) {
           })}
         </div>
       </div>
-      <div className="legend"><span><i className={pbg.dotG} />Mål</span><span><i className={pbg.dotA} />Assist</span><span>Siffrorna under är spelade matcher</span></div>
+      <div className="legend"><span><i className={pbg.dotG} />Mål</span><span><i className={pbg.dotA} />Assist</span></div>
     </div>
   )
 }
