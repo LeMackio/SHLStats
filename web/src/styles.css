@@ -1725,16 +1725,17 @@ footer#foot p { margin: 0; }
 .foot-sig { display: flex; align-items: baseline; gap: 7px; color: var(--muted); font: 600 14px var(--display); letter-spacing: .04em; }
 .foot-sig .brand-word { font-size: 19px; }
 
-/* Your team next to the news (computers): club-colour header like the team page hero, then the details */
+/* Your team next to the news (computers): a flat club-colour header (text dark or white, whichever reads on the colour),
+   then the details */
 .mday-side.mts { padding: 0; gap: 0; justify-content: flex-start; }
-.mts-hero { position: relative; overflow: hidden; display: grid; gap: 6px; padding: 18px 20px 16px; color: #fff; text-decoration: none !important;
-  background: radial-gradient(120% 110% at 80% 20%, color-mix(in srgb, var(--tc) 88%, #fff 12%) 0%, var(--tc) 40%, color-mix(in srgb, var(--tc) 55%, #06080b) 100%); }
+.mts-hero { position: relative; overflow: hidden; display: grid; gap: 6px; padding: 18px 20px 16px; color: var(--tt, #fff); text-decoration: none !important;
+  background: var(--tc); }
 .mts-hero > * { position: relative; z-index: 1; }
-.mts-logo { position: absolute !important; z-index: 0 !important; right: -14px; top: 50%; translate: 0 -50%; height: 128%; width: auto; opacity: .3; filter: drop-shadow(0 10px 20px rgba(0, 0, 0, .3)); }
+.mts-logo { position: absolute !important; z-index: 0 !important; right: -14px; top: 50%; translate: 0 -50%; height: 128%; width: auto; opacity: .22; }
 .mts-lbl { font: 700 11.5px var(--display); letter-spacing: .1em; text-transform: uppercase; color: rgba(255, 255, 255, .82); }
-.mts-name { font: 900 italic 30px/.95 "Archivo", var(--display); font-stretch: 78%; text-transform: uppercase; text-shadow: 0 2px 14px rgba(0, 0, 0, .35); max-width: 82%; }
-.mts-pos { display: flex; align-items: center; gap: 8px; font: 600 13.5px var(--display); letter-spacing: .03em; color: rgba(255, 255, 255, .9); }
-.mts-rank { display: inline-grid; place-items: center; min-width: 24px; height: 22px; padding: 0 6px; border-radius: 7px; background: rgba(0, 0, 0, .3); color: #fff; font: 700 13px var(--display); }
+.mts-name { font: 900 italic 30px/.95 "Archivo", var(--display); font-stretch: 78%; text-transform: uppercase; max-width: 82%; }
+.mts-pos { display: flex; align-items: center; gap: 8px; font: 600 13.5px var(--display); letter-spacing: .03em; color: inherit; }
+.mts-rank { display: inline-grid; place-items: center; min-width: 24px; height: 22px; padding: 0 6px; border-radius: 7px; background: color-mix(in srgb, currentColor 16%, transparent); color: inherit; font: 700 13px var(--display); }
 .mts-hero:hover .mts-name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .mts-body { display: grid; gap: 10px; padding: 14px 16px 12px; }
 .mts-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }

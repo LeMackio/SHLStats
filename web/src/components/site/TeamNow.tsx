@@ -3,7 +3,7 @@ import { useData } from '@/data/context'
 import { liveClock, loadLive, type LiveData } from '@/data/live'
 import { fmtDay, fmtTime, todayStr } from '@/lib/format'
 import { liveTable } from '@/lib/liveTable'
-import { tColor } from '@/lib/teams'
+import { lum, tColor } from '@/lib/teams'
 import { isFinal, isLive, type Game } from '@/lib/types'
 import { TeamBadge } from './TeamBadge'
 import styles from './TeamNow.module.css'
@@ -50,7 +50,7 @@ export function TeamNow({ f }: { f: string }) {
   const wins = form.filter((x) => x.won).length, gf = form.reduce((n, x) => n + x.us, 0), ga = form.reduce((n, x) => n + x.them, 0)
 
   return (
-    <div className={`mday-side mts ${styles.card}`} style={{ '--tc': tColor(f) } as React.CSSProperties}>
+    <div className={`mday-side mts ${styles.card}`} style={{ '--tc': tColor(f), '--tt': lum(tColor(f)) > 0.5 ? '#10151c' : '#ffffff' } as React.CSSProperties}>
       <a className="mts-hero" href={`#/lag/${f}`}>
         {teams[f]?.logo && <img className="mts-logo" src={teams[f].logo} alt="" />}
         <b className="mts-name" style={{ '--n': tName(f).length } as React.CSSProperties}>{tName(f)}</b>
