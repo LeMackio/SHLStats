@@ -32,9 +32,10 @@ Fan site with stats for the Swedish Hockey League, live at https://shlstats.net.
 
 ## Design language
 
-- One material: soft slabs. Cards have a large radius (`--soft-radius`), no hard border, a light rim on the top edge
-  and a soft shadow (`--soft-edge`, `--soft-rim`, `--soft-shadow`). Things inside a card (chips, tiles, game rows, the
-  table-place chip) are smaller slabs (`--tile`, `--tile-edge`, `--tile-rim`). Round buttons float (`--float`).
+- One material: flat slabs. Cards have a large radius (`--soft-radius`) and no border, shadow or rim; surfaces are told
+  apart by colour alone (page, card, and smaller slabs inside a card: chips, tiles, game rows, the table-place chip,
+  `--tile`). The rim and shadow tokens exist but are set to none, so depth comes back by changing one value. Round
+  buttons are flat discs (`--float`).
 - One solid accent pill marks the main action (follow a team, a game's highlights).
 - Chips on a dark or club-colour header stay a dark see-through tint, not a slab.
 - The phone menu is a glass tray with the current page in a dark pill, in both themes.
