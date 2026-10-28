@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { HBars } from '@/components/charts/Basic'
 import { GameCard, GameRow } from '@/components/site/Games'
 import { Seg } from '@/components/site/Layout'
@@ -11,7 +11,9 @@ import { useData } from '@/data/context'
 import { detailsFor } from '@/data/games'
 import { teamsFile, useFile } from '@/data/loaders'
 import { dec, fmtDay, sum, todayStr } from '@/lib/format'
-import { goalieMinGp, gsaa } from '@/lib/stats'
+import { liveTable } from '@/lib/liveTable'
+import { go } from '@/lib/router'
+import { goalieMinGp, gsaa, zoneBad } from '@/lib/stats'
 import { isFinal, isLive, type Game, type GameDetails, type Goalie, type Skater } from '@/lib/types'
 import { useNarrow } from '@/lib/useNarrow'
 
@@ -173,9 +175,9 @@ function FavHome({ f, next, last, det, news }: { f: string; next?: Game; last?: 
   const sk = core.seasons[cur].skaters.filter((p) => p.team === f).sort((a, b) => b.pts - a.pts || b.g - a.g)
   return (
     <>
-      {/* The same card as on computers: what matters right now. The next game is in it, so only a live game gets its own card below */}
-      <section className="panel m-card team-now-m"><TeamNow f={f} /></section>
-      {next && isLive(next) && <><Sec title="Pågår nu" sub={fmtDay(next.start)} /><GameCard g={next} d={det[next.id]} /></>}
+      {/* The team, then its games as the same match cards as everywhere: the next (or live) game and the latest result */}
+      <FavTeamCard f={f} />
+      {next && <><Sec title={isLive(next) ? 'Pågår nu' : 'Nästa match'} sub={fmtDay(next.start)} /><GameCard g={next} d={det[next.id]} /></>}
       {last && <><Sec title="Senaste match" sub={fmtDay(last.start)} /><GameCard g={last} d={det[last.id]} /></>}
       <Sec title="Poängliga" />
       <MCard foot={{ href: `#/lag/${f}/trupp`, label: 'Hela truppen' }}>
@@ -183,6 +185,40 @@ function FavHome({ f, next, last, det, news }: { f: string; next?: Game; last?: 
       </MCard>
       {news.length > 0 && <><Sec title={`Nyheter om ${tName(f)}`} /><div className="tnews-row"><TeamNewsCards code={f} news={news} /></div></>}
     </>
+  )
+}
+
+// The followed team on phones, built like a match card: one row (logo, name, table place, points as the big number), then
+// the last five games, newest first, as chips in the card's sideways row (each opens its game). The card opens the team page.
+function FavTeamCard({ f }: { f: string }) {
+  const { core, games, tName } = useData()
+  const table = useMemo(() => liveTable(core, games), [core, games])
+  const me = table.find((r) => r.code === f)
+  const form = games.filter((g) => isFinal(g) && (g.home === f || g.away === f)).slice(-5).reverse()
+  const open = () => go(`#/lag/${f}`)
+  return (
+    <article className="gcard team-card" tabIndex={0} role="link" aria-label={tName(f)}
+      onClick={(e) => { if (!(e.target as Element).closest('a, button')) open() }}
+      onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }}>
+      <div className="gc-row">
+        <TeamBadge code={f} size="md" />
+        <div className="gc-nm"><b>{tName(f)}</b>{me && <span className="gc-rank" title="Tabellplats" style={{ '--zone': zoneBad(me.rank) } as React.CSSProperties}>{me.rank}</span>}</div>
+        {me && <span className="gc-num num" title="Poäng">{me.pts}</span>}
+      </div>
+      {form.length > 0 && (
+        <div className="gc-goals">
+          {form.map((g) => {
+            const home = g.home === f, us = (home ? g.hs : g.as) ?? 0, them = (home ? g.as : g.hs) ?? 0, opp = home ? g.away : g.home, won = us > them
+            return (
+              <a key={g.id} className="gchip" href={`#/match/${g.id}`}>
+                <TeamBadge code={opp} size="md" />
+                <span className="gch-who"><b><span className={`fm-res ${won ? 'w' : 'l'}`}>{won ? 'V' : 'F'}</span>{us}–{them}{g.so ? ' str' : g.ot ? ' ÖT' : ''}</b><small>{home ? 'Hemma' : 'Borta'} · {opp}</small></span>
+              </a>
+            )
+          })}
+        </div>
+      )}
+    </article>
   )
 }
 

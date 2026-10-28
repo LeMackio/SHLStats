@@ -315,3 +315,12 @@ details.explain summary, .section-title, .mday-top .kicker, .mday-top .count, .b
 ol.lb .v { min-width: 2.6em; font-variant-numeric: tabular-nums; text-align: right; }
 /* Matcher: the button back to today's (or the next) game day stays on one line */
 .today-pill { white-space: nowrap; }
+
+/* The followed team's card on phones (Hem), built like a match card: the form chips carry the opponent's logo at the
+   size of a player photo, and a small win/loss square before the score */
+.gchip .tb { width: 30px; height: 30px; }
+.fm-res { display: inline-grid; width: 18px; height: 18px; margin-right: 6px; place-items: center; border-radius: 5px; color: #fff; font: 700 11px var(--display); vertical-align: 1px; }
+.fm-res.w { background: var(--good); }
+.fm-res.l { background: var(--bad); }
+/* Phone cards follow the match card (.gcard): the same surface, no border */
+@media (max-width: 700px) { .panel.m-card { border: 0; } }
