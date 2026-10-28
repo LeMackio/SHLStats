@@ -412,3 +412,22 @@ header [class*="_trigger_"] { box-shadow: var(--tile-rim), var(--float-shadow) !
 .tc-sq.l { background: var(--bad); }
 /* ...except chips on a dark or club-colour header, which stay a dark see-through tint so their white figures read */
 .band .mh-rec .gc-rank, .thero .phero-team .gc-rank, .ref .gc-rank { border: 0; background: rgba(0, 0, 0, .28); box-shadow: none; }
+
+/* ---------- Foldables (iPhone Duo and the like) ----------
+   Folded the outer screen is a wide phone (about 466 px) and needs nothing special. Unfolded the inner screen is
+   about 626 x 890 upright and 890 x 626 sideways. */
+/* Upright, the phone layout gets tablet room: the menu keeps a phone's width in the middle instead of stretching ... */
+@media (min-width: 520px) and (max-width: 700px) {
+  .bottom-nav { left: calc(50% - 240px); right: calc(50% - 240px); }
+  body.nav-compact .bottom-nav { left: calc(50% - 190px); right: calc(50% - 190px); }
+}
+/* ... and a game day's match cards sit two side by side, as each card is complete on its own */
+@media (min-width: 560px) and (max-width: 700px) {
+  .daylist { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .daylist .gc-nm b { font-size: 16px; }
+}
+/* Sideways, the header is one row (logo, menu, search) instead of two, so the short screen keeps its height for content */
+@media (min-width: 860px) and (max-width: 1080px) {
+  .top-in { grid-template-columns: auto 1fr auto; }
+  nav.main { grid-row: 1; grid-column: 2; justify-self: center; }
+}

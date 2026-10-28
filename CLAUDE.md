@@ -11,6 +11,8 @@ Fan site with stats for the Swedish Hockey League, live at https://shlstats.net.
   - Run the type check and the build in `web/` (`npx tsc -p tsconfig.app.json --noEmit`, `npm run build`).
     `tsc -p .` checks nothing: the root tsconfig only holds references.
   - Check the change in the browser, at desktop width and at phone width (375 px), in both the dark and the light theme.
+    Layout changes also at the iPhone Duo's sizes: folded about 466 x 678, unfolded about 626 x 890 upright and
+    890 x 626 sideways (estimates; Apple hasn't published CSS sizes). The foldable rules are at the end of brand.css.
   - If data or `fetch-data.mjs` changed, run `node fetch-data.mjs` from the repo root. It must exit with 0.
 - A local `node fetch-data.mjs` run also rewrites `history/odds.json`. Discard that with
   `git checkout -- history/odds.json` before committing or pulling. The scheduled GitHub Action owns that file.
