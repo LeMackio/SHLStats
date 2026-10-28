@@ -13,43 +13,50 @@ const ITEMS: [string, string, string][] = [
   ['media', 'Media', 'play'],
 ]
 
-// Phones: the main menu as a flat glass bar. The current page sits in a pill that can be dragged along the bar: it
-// follows the finger, the item under it lights up, and letting go opens that page (a tap works as usual). Following
-// a team puts its logo on the Hem button in place of the house icon.
+// Phones: the main menu as a flat glass bar (or, where the screen gives the page a strip down the right side, a rail in
+// that strip: useSideRail). The current page sits in a pill that can be dragged along the bar: it follows the finger,
+// the item under it lights up, and letting go opens that page (a tap works as usual). Following a team puts its logo
+// on the Hem button in place of the house icon.
 export function BottomNav({ path }: { path: string }) {
   const { fav } = useData()
   const active = navKey(segOf(path))
   const nav = useRef<HTMLElement>(null)
-  const drag = useRef<{ x0: number; moved: boolean; id: number } | null>(null)
+  const drag = useRef<{ x0: number; y0: number; moved: boolean; id: number } | null>(null)
   const dragged = useRef(false) // a drag just ended: swallow the click some browsers still send
 
   const items = () => [...(nav.current?.querySelectorAll<HTMLAnchorElement>(':scope > a') ?? [])]
   const pill = () => nav.current?.querySelector<HTMLElement>('.sl-pill') ?? null
-  // The item whose centre is closest to x (relative to the bar)
-  const nearest = (x: number) => items().reduce((best, a) => Math.abs(a.offsetLeft + a.offsetWidth / 2 - x) < Math.abs(best.offsetLeft + best.offsetWidth / 2 - x) ? a : best)
-  const placePill = (a: HTMLElement, x?: number) => {
+  // Along the bar: sideways for the bottom bar, up and down for the side rail
+  const vertical = () => document.body.classList.contains('side-rail')
+  const along = (e: { clientX: number; clientY: number }) => { const r = nav.current!.getBoundingClientRect(); return vertical() ? e.clientY - r.top : e.clientX - r.left }
+  const start = (a: HTMLElement) => vertical() ? a.offsetTop : a.offsetLeft
+  const size = (a: HTMLElement) => vertical() ? a.offsetHeight : a.offsetWidth
+  // The item whose centre is closest to a point along the bar
+  const nearest = (v: number) => items().reduce((best, a) => Math.abs(start(a) + size(a) / 2 - v) < Math.abs(start(best) + size(best) / 2 - v) ? a : best)
+  const placePill = (a: HTMLElement, v?: number) => {
     const p = pill(), bar = nav.current
     if (!p || !bar) return
-    const left = x == null ? a.offsetLeft : Math.max(items()[0].offsetLeft, Math.min(x - a.offsetWidth / 2, bar.clientWidth - a.offsetWidth - items()[0].offsetLeft))
-    p.style.transform = `translate(${left}px, ${a.offsetTop}px)`
+    const first = items()[0], room = vertical() ? bar.clientHeight : bar.clientWidth
+    const pos = v == null ? start(a) : Math.max(start(first), Math.min(v - size(a) / 2, room - size(a) - start(first)))
+    p.style.transform = vertical() ? `translate(${a.offsetLeft}px, ${pos}px)` : `translate(${pos}px, ${a.offsetTop}px)`
   }
   const hover = (a: HTMLElement | null) => items().forEach((el) => el.classList.toggle('bn-hover', el === a))
 
   const down = (e: React.PointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return
-    drag.current = { x0: e.clientX, moved: false, id: e.pointerId }
+    drag.current = { x0: e.clientX, y0: e.clientY, moved: false, id: e.pointerId }
   }
   const move = (e: React.PointerEvent) => {
     const d = drag.current, bar = nav.current
     if (!d || !bar || d.id !== e.pointerId) return
     if (!d.moved) {
-      if (Math.abs(e.clientX - d.x0) < 8) return
+      if ((vertical() ? Math.abs(e.clientY - d.y0) : Math.abs(e.clientX - d.x0)) < 8) return
       d.moved = true
       try { bar.setPointerCapture(e.pointerId) } catch { /* the pointer already ended */ }
       bar.classList.add('bn-dragging')
     }
-    const x = e.clientX - bar.getBoundingClientRect().left, a = nearest(x)
-    placePill(a, x)
+    const v = along(e), a = nearest(v)
+    placePill(a, v)
     hover(a)
   }
   const up = (e: React.PointerEvent) => {
@@ -58,7 +65,7 @@ export function BottomNav({ path }: { path: string }) {
     if (!d?.moved || !bar) return
     bar.classList.remove('bn-dragging')
     hover(null)
-    const a = nearest(e.clientX - bar.getBoundingClientRect().left)
+    const a = nearest(along(e))
     placePill(a)
     // The pointer is captured, so no click follows: open the page here (or stay, if it is the current one)
     if (!a.classList.contains('on')) location.hash = a.getAttribute('href')!.slice(1)

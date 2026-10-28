@@ -7,7 +7,7 @@ import { SettingsSheet } from '@/components/site/SettingsSheet'
 import { Strip } from '@/components/site/Strip'
 import { VideoDialog } from '@/components/site/VideoDialog'
 import { useData } from '@/data/context'
-import { useAppMode, useBodyClass, useCompactNav, usePullToRefresh } from '@/lib/appHooks'
+import { useAppMode, useBodyClass, useCompactNav, usePullToRefresh, useSideRail } from '@/lib/appHooks'
 import { usePageName } from '@/lib/pageTitle'
 import { segOf, SUB_PAGES, TITLES, usePath } from '@/lib/router'
 import { NotFound } from '@/pages/NotFound'
@@ -70,6 +70,7 @@ export default function App() {
   useBodyClass('is-home', path === '/') // the settings button shows on Hem (phones)
   useBodyClass('is-sub', SUB_PAGES.includes(seg))
   useCompactNav()
+  useSideRail()
   usePullToRefresh()
   useAppMode(core.updated)
   useScrollOnNavigate(path)

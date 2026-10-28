@@ -10,8 +10,29 @@ export function useBodyClass(cls: string, on: boolean) {
   }, [cls, on])
 }
 
+// Phones whose screen gives the page a strip down the right side (the iPhone Duo's outer screen, opened from the home
+// screen): the menu becomes a rail in that strip. The strip is the right safe-area inset, read from a probe; when it is
+// too narrow for the menu, or there is none, the page keeps the bottom bar. Re-checked on every resize (rotating,
+// folding and unfolding).
+export function useSideRail() {
+  useEffect(() => {
+    const probe = document.createElement('div')
+    probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;padding-right:env(safe-area-inset-right)'
+    document.body.appendChild(probe)
+    const check = () => {
+      const w = parseFloat(getComputedStyle(probe).paddingRight) || 0
+      const on = isNarrow() && w >= 48
+      document.body.classList.toggle('side-rail', on)
+      document.documentElement.style.setProperty('--rail-w', `${w}px`)
+    }
+    check()
+    addEventListener('resize', check)
+    return () => { removeEventListener('resize', check); probe.remove(); document.body.classList.remove('side-rail') }
+  }, [])
+}
+
 // Phone menu: shrinks to a compact bar (icons only) while the page scrolls, either way, and shows its labels again
-// once scrolling has stopped for a moment
+// once scrolling has stopped for a moment. A side rail keeps its labels: it covers no content.
 export function useCompactNav() {
   useEffect(() => {
     // Scroll events already come at most once a frame, and the work is one class, so no frame throttling is needed
@@ -22,7 +43,7 @@ export function useCompactNav() {
       clearTimeout(idle)
       idle = window.setTimeout(expand, 260)
       const y = scrollY
-      if (!isNarrow()) { expand(); lastY = y; return }
+      if (!isNarrow() || body.classList.contains('side-rail')) { expand(); lastY = y; return }
       if (Math.abs(y - lastY) > 6) { body.classList.add('nav-compact'); lastY = y }
     }
     addEventListener('scroll', onScroll, { passive: true })

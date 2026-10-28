@@ -431,3 +431,17 @@ header [class*="_trigger_"] { box-shadow: var(--tile-rim), var(--float-shadow) !
   .top-in { grid-template-columns: auto 1fr auto; }
   nav.main { grid-row: 1; grid-column: 2; justify-self: center; }
 }
+/* A side rail instead of the bottom bar, in the strip some screens give the page down their right side (useSideRail
+   sets .side-rail and --rail-w, the strip's width). The same glass and dark pill, the items stacked top to bottom,
+   centred on the screen's height; labels always show. */
+@media (max-width: 700px) {
+  body.side-rail .bottom-nav, body.side-rail.nav-compact .bottom-nav {
+    top: 50%; right: calc(var(--rail-w) / 2 - 36px); bottom: auto; left: auto; display: flex; width: 72px; flex-direction: column; gap: 4px;
+    padding: 6px; border-radius: 36px; transform: translateY(-50%);
+  }
+  body.side-rail .bottom-nav a, body.side-rail.nav-compact .bottom-nav a { min-height: 60px; padding: 8px 2px; gap: 3px; font-size: 11.5px; }
+  body.side-rail.nav-compact .bottom-nav a .nl { max-height: 16px; opacity: 1; }
+  body.side-rail.nav-compact .bottom-nav a .ic { width: 25px; height: 25px; }
+}
+/* ...and the page leaves the strip to the rail */
+@media (max-width: 700px) { body.side-rail { padding-right: var(--rail-w); } }
