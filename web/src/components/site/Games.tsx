@@ -42,8 +42,9 @@ export function GameRow({ g, dated = false }: { g: Game; dated?: boolean }) {
 const PLAY = <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" /></svg>
 
 // One game as a card (phones): a status chip, a row per team (table position, and the score once it has started), then the goals
-// as a sideways row (tap one to watch it) or each team's top scorers. Tapping the card opens the match page.
-export function GameCard({ g, d }: { g: Game; d?: GameDetails | null }) {
+// as a sideways row (tap one to watch it) or each team's top scorers. Tapping the card opens the match page. "bare" draws the
+// same content without the card's own surface, for a game inside another card (the followed team's card on Hem).
+export function GameCard({ g, d, bare = false }: { g: Game; d?: GameDetails | null; bare?: boolean }) {
   const { core, cur, tName, fav } = useData()
   const done = isFinal(g), live = isLive(g), isFav = !!fav && (g.home === fav || g.away === fav)
   const hs = live && d ? d.hs ?? g.hs : g.hs, as = live && d ? d.as ?? g.as : g.as
@@ -105,14 +106,15 @@ export function GameCard({ g, d }: { g: Game; d?: GameDetails | null }) {
   }
   const open = () => go(`#/match/${g.id}`)
   return (
-    <article className={`gcard ${isFav ? 'fav' : ''} ${live ? 'is-live' : ''}`} tabIndex={0} role="link" aria-label={`${tName(g.home)} mot ${tName(g.away)}`}
+    <article className={`gcard ${isFav && !bare ? 'fav' : ''} ${live ? 'is-live' : ''} ${bare ? 'gc-bare' : ''}`} tabIndex={0} role="link" aria-label={`${tName(g.home)} mot ${tName(g.away)}`}
       // Opens the match page when tapped anywhere except on a button or link inside it
       onClick={(e) => { if (!(e.target as Element).closest('button, a')) open() }}
       onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }}>
       <div className="gc-head">
-        {done ? <span className="gc-chip">{statusTxt(g)}</span>
+        {/* Inside another card there is no heading with the date, so the chip carries it */}
+        {done ? <span className="gc-chip">{statusTxt(g)}{bare && ` · ${fmtDay(g.start)}`}</span>
           : live ? <span className="gc-chip live"><i className="live-dot" />{liveClock((d?.live as LiveData) ?? null)}</span>
-          : <span className="gc-chip">{fmtTime(g.start)}</span>}
+          : <span className="gc-chip">{bare && `${fmtDay(g.start)} `}{fmtTime(g.start)}</span>}
       </div>
       {row(g.home, 'home')}{row(g.away, 'away')}{mid}{wpBar}
       {hl && <div className="gc-foot"><button className="gc-btn" data-embed={hl.embed} data-title={`${g.home}–${g.away} sammandrag`}>{PLAY}Sammandrag</button></div>}

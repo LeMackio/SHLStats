@@ -324,3 +324,13 @@ ol.lb .v { min-width: 2.6em; font-variant-numeric: tabular-nums; text-align: rig
 .fm-res.l { background: var(--bad); }
 /* Phone cards follow the match card (.gcard): the same surface, no border */
 @media (max-width: 700px) { .panel.m-card { border: 0; } }
+
+/* A match card drawn inside another card (GameCard bare): the same content, no surface of its own */
+.gcard.gc-bare { padding: 0; border-radius: 0; background: none; box-shadow: none; }
+.gcard.gc-bare:active { transform: none; }
+/* The followed team's card on phones (Hem): the club-colour bar, then the next game, the latest result, the form and the
+   top five, each part in the match card's style with a line between them */
+.team-card { overflow: hidden; }
+.team-card .tc-body { display: grid; padding: 0 16px; }
+.team-card .tc-body > * { padding: 14px 0; }
+.team-card .tc-body > * + * { border-top: 1px solid var(--line); }

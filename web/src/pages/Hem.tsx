@@ -5,15 +5,15 @@ import { Seg } from '@/components/site/Layout'
 import { Empty, MoreLink, Panel, Skeleton } from '@/components/site/Panel'
 import { ClipCard, LeaderList, NewsBox, TeamNewsCards } from '@/components/site/Pieces'
 import { Legend, StandingsTable } from '@/components/site/Standings'
-import { TeamBadge } from '@/components/site/TeamBadge'
+import { Avatar, TeamBadge } from '@/components/site/TeamBadge'
 import { TeamNow } from '@/components/site/TeamNow'
 import { useData } from '@/data/context'
 import { detailsFor } from '@/data/games'
 import { teamsFile, useFile } from '@/data/loaders'
 import { dec, fmtDay, sum, todayStr } from '@/lib/format'
 import { liveTable } from '@/lib/liveTable'
-import { go } from '@/lib/router'
-import { goalieMinGp, gsaa, zoneBad } from '@/lib/stats'
+import { goalieMinGp, gsaa, shortName } from '@/lib/stats'
+import { lum, tColor } from '@/lib/teams'
 import { isFinal, isLive, type Game, type GameDetails, type Goalie, type Skater } from '@/lib/types'
 import { useNarrow } from '@/lib/useNarrow'
 
@@ -171,54 +171,65 @@ function PhoneHome() {
 }
 
 function FavHome({ f, next, last, det, news }: { f: string; next?: Game; last?: Game; det: Record<string, GameDetails | null>; news: import('@/lib/types').TeamNews[] }) {
-  const { core, cur, tName } = useData()
-  const sk = core.seasons[cur].skaters.filter((p) => p.team === f).sort((a, b) => b.pts - a.pts || b.g - a.g)
+  const { tName } = useData()
   return (
     <>
-      {/* The team, then its games as the same match cards as everywhere: the next (or live) game and the latest result */}
-      <FavTeamCard f={f} />
-      {next && <><Sec title={isLive(next) ? 'Pågår nu' : 'Nästa match'} sub={fmtDay(next.start)} /><GameCard g={next} d={det[next.id]} /></>}
-      {last && <><Sec title="Senaste match" sub={fmtDay(last.start)} /><GameCard g={last} d={det[last.id]} /></>}
-      <Sec title="Poängliga" />
-      <MCard foot={{ href: `#/lag/${f}/trupp`, label: 'Hela truppen' }}>
-        <LeaderList rows={sk} val={(p) => p.pts} n={5} logos={false} sub={(p) => `${p.g} mål, ${p.a} assist`} />
-      </MCard>
+      <FavTeamCard f={f} next={next} last={last} det={det} />
       {news.length > 0 && <><Sec title={`Nyheter om ${tName(f)}`} /><div className="tnews-row"><TeamNewsCards code={f} news={news} /></div></>}
     </>
   )
 }
 
-// The followed team on phones, built like a match card: one row (logo, name, table place, points as the big number), then
-// the last five games, newest first, as chips in the card's sideways row (each opens its game). The card opens the team page.
-function FavTeamCard({ f }: { f: string }) {
-  const { core, games, tName } = useData()
+// The followed team on phones: one card. On top the club-colour bar (logo, name, table place, points; it opens the team
+// page), then everything in the match card's style: the next (or live) game and the latest result as match cards
+// without their own surface, the last five games as chips (newest first, each opens its game) and the team's top five
+// in points as player chips.
+function FavTeamCard({ f, next, last, det }: { f: string; next?: Game; last?: Game; det: Record<string, GameDetails | null> }) {
+  const { core, cur, games, tName, teams } = useData()
   const table = useMemo(() => liveTable(core, games), [core, games])
   const me = table.find((r) => r.code === f)
   const form = games.filter((g) => isFinal(g) && (g.home === f || g.away === f)).slice(-5).reverse()
-  const open = () => go(`#/lag/${f}`)
+  const top = core.seasons[cur].skaters.filter((p) => p.team === f).sort((a, b) => b.pts - a.pts || b.g - a.g).slice(0, 5)
+  const tc = tColor(f)
   return (
-    <article className="gcard team-card" tabIndex={0} role="link" aria-label={tName(f)}
-      onClick={(e) => { if (!(e.target as Element).closest('a, button')) open() }}
-      onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }}>
-      <div className="gc-row">
-        <TeamBadge code={f} size="md" />
-        <div className="gc-nm"><b>{tName(f)}</b>{me && <span className="gc-rank" title="Tabellplats" style={{ '--zone': zoneBad(me.rank) } as React.CSSProperties}>{me.rank}</span>}</div>
-        {me && <span className="gc-num num" title="Poäng">{me.pts}</span>}
+    <section className="panel m-card mts team-card" style={{ '--tc': tc, '--tt': lum(tc) > 0.5 ? '#10151c' : '#ffffff' } as React.CSSProperties}>
+      <a className="mts-hero" href={`#/lag/${f}`}>
+        {teams[f]?.logo && <img className="mts-logo" src={teams[f].logo} alt="" />}
+        <b className="mts-name" style={{ '--n': tName(f).length } as React.CSSProperties}>{tName(f)}</b>
+        {me && <span className="mts-pos"><span className="mts-rank">{me.rank}</span>{me.pts} poäng</span>}
+      </a>
+      <div className="tc-body">
+        {next && <GameCard g={next} d={det[next.id]} bare />}
+        {last && <GameCard g={last} d={det[last.id]} bare />}
+        {form.length > 0 && (
+          <div className="gcard gc-bare">
+            <div className="gc-goals">
+              {form.map((g) => {
+                const home = g.home === f, us = (home ? g.hs : g.as) ?? 0, them = (home ? g.as : g.hs) ?? 0, opp = home ? g.away : g.home, won = us > them
+                return (
+                  <a key={g.id} className="gchip" href={`#/match/${g.id}`}>
+                    <TeamBadge code={opp} size="md" />
+                    <span className="gch-who"><b><span className={`fm-res ${won ? 'w' : 'l'}`}>{won ? 'V' : 'F'}</span>{us}–{them}{g.so ? ' str' : g.ot ? ' ÖT' : ''}</b><small>{home ? 'Hemma' : 'Borta'} · {opp}</small></span>
+                  </a>
+                )
+              })}
+            </div>
+          </div>
+        )}
+        {top.length > 0 && (
+          <div className="gcard gc-bare">
+            <div className="gc-goals">
+              {top.map((p) => (
+                <a key={p.id} className="gchip" href={`#/spelare/${encodeURIComponent(p.id)}`}>
+                  <Avatar id={p.id} name={p.name} team={f} eager />
+                  <span className="gch-who"><b>{shortName(p.name)}</b><small>{p.pts} p · {p.g}+{p.a}</small></span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-      {form.length > 0 && (
-        <div className="gc-goals">
-          {form.map((g) => {
-            const home = g.home === f, us = (home ? g.hs : g.as) ?? 0, them = (home ? g.as : g.hs) ?? 0, opp = home ? g.away : g.home, won = us > them
-            return (
-              <a key={g.id} className="gchip" href={`#/match/${g.id}`}>
-                <TeamBadge code={opp} size="md" />
-                <span className="gch-who"><b><span className={`fm-res ${won ? 'w' : 'l'}`}>{won ? 'V' : 'F'}</span>{us}–{them}{g.so ? ' str' : g.ot ? ' ÖT' : ''}</b><small>{home ? 'Hemma' : 'Borta'} · {opp}</small></span>
-              </a>
-            )
-          })}
-        </div>
-      )}
-    </article>
+    </section>
   )
 }
 
