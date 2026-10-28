@@ -316,12 +316,6 @@ ol.lb .v { min-width: 2.6em; font-variant-numeric: tabular-nums; text-align: rig
 /* Matcher: the button back to today's (or the next) game day stays on one line */
 .today-pill { white-space: nowrap; }
 
-/* The followed team's card on phones (Hem), built like a match card: the form chips carry the opponent's logo at the
-   size of a player photo, and a small win/loss square before the score */
-.gchip .tb { width: 30px; height: 30px; }
-.fm-res { display: inline-grid; width: 18px; height: 18px; margin-right: 6px; place-items: center; border-radius: 5px; color: #fff; font: 700 11px var(--display); vertical-align: 1px; }
-.fm-res.w { background: var(--good); }
-.fm-res.l { background: var(--bad); }
 /* Phone cards follow the match card (.gcard): the same surface, no border */
 @media (max-width: 700px) { .panel.m-card { border: 0; } }
 
@@ -334,3 +328,23 @@ ol.lb .v { min-width: 2.6em; font-variant-numeric: tabular-nums; text-align: rig
 .team-card .tc-body { display: grid; padding: 0 16px; }
 .team-card .tc-body > * { padding: 14px 0; }
 .team-card .tc-body > * + * { border-top: 1px solid var(--line); }
+/* Team card on Hem: the form, five result squares (the match card's chip shape) with wins and goals in its figures */
+.tc-form { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 18px; }
+.tc-sqs { display: flex; gap: 6px; }
+.tc-sq { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 6px; color: #fff; font: 700 13px var(--display); letter-spacing: .04em; text-decoration: none !important; }
+.tc-sq.w { background: var(--good); }
+.tc-sq.l { background: var(--bad); }
+.tc-stat { display: grid; justify-items: end; gap: 2px; }
+.tc-stat b { font: 700 22px/1 var(--display); }
+.tc-stat small { color: var(--muted); font-size: 12.5px; }
+/* ...and the top five: rows built like a match card's team rows (40 px picture, the name in its type with the place in the
+   same small chip, points in its big figures) */
+.tc-top { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.tc-p { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; color: var(--text); text-decoration: none !important; }
+.tc-p .av { width: 40px; height: 40px; }
+.tc-who { display: grid; gap: 2px; min-width: 0; }
+.tc-nm { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tc-nm b { min-width: 0; overflow: hidden; font: 700 18px/1.1 var(--display); letter-spacing: .01em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.tc-nm .gc-rank { flex: none; }
+.tc-who small { color: var(--muted); font-size: 13px; }
+.tc-pts { min-width: 2ch; font: 700 26px/1 var(--display); text-align: right; }

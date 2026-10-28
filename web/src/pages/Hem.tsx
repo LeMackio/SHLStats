@@ -12,7 +12,7 @@ import { detailsFor } from '@/data/games'
 import { teamsFile, useFile } from '@/data/loaders'
 import { dec, fmtDay, sum, todayStr } from '@/lib/format'
 import { liveTable } from '@/lib/liveTable'
-import { goalieMinGp, gsaa, shortName } from '@/lib/stats'
+import { goalieMinGp, gsaa } from '@/lib/stats'
 import { lum, tColor } from '@/lib/teams'
 import { isFinal, isLive, type Game, type GameDetails, type Goalie, type Skater } from '@/lib/types'
 import { useNarrow } from '@/lib/useNarrow'
@@ -182,13 +182,17 @@ function FavHome({ f, next, last, det, news }: { f: string; next?: Game; last?: 
 
 // The followed team on phones: one card. On top the club-colour bar (logo, name, table place, points; it opens the team
 // page), then everything in the match card's style: the next (or live) game and the latest result as match cards
-// without their own surface, the last five games as chips (newest first, each opens its game) and the team's top five
-// in points as player chips.
+// without their own surface, the form (the last five results as squares, oldest first, with wins and goals) and the
+// team's top five in points as rows built like a match card's team rows.
 function FavTeamCard({ f, next, last, det }: { f: string; next?: Game; last?: Game; det: Record<string, GameDetails | null> }) {
   const { core, cur, games, tName, teams } = useData()
   const table = useMemo(() => liveTable(core, games), [core, games])
   const me = table.find((r) => r.code === f)
-  const form = games.filter((g) => isFinal(g) && (g.home === f || g.away === f)).slice(-5).reverse()
+  const form = games.filter((g) => isFinal(g) && (g.home === f || g.away === f)).slice(-5).map((g) => {
+    const home = g.home === f, us = (home ? g.hs : g.as) ?? 0, them = (home ? g.as : g.hs) ?? 0
+    return { g, us, them, won: us > them }
+  })
+  const wins = form.filter((x) => x.won).length, gf = sum(form.map((x) => x.us)), ga = sum(form.map((x) => x.them))
   const top = core.seasons[cur].skaters.filter((p) => p.team === f).sort((a, b) => b.pts - a.pts || b.g - a.g).slice(0, 5)
   const tc = tColor(f)
   return (
@@ -202,31 +206,28 @@ function FavTeamCard({ f, next, last, det }: { f: string; next?: Game; last?: Ga
         {next && <GameCard g={next} d={det[next.id]} bare />}
         {last && <GameCard g={last} d={det[last.id]} bare />}
         {form.length > 0 && (
-          <div className="gcard gc-bare">
-            <div className="gc-goals">
-              {form.map((g) => {
-                const home = g.home === f, us = (home ? g.hs : g.as) ?? 0, them = (home ? g.as : g.hs) ?? 0, opp = home ? g.away : g.home, won = us > them
-                return (
-                  <a key={g.id} className="gchip" href={`#/match/${g.id}`}>
-                    <TeamBadge code={opp} size="md" />
-                    <span className="gch-who"><b><span className={`fm-res ${won ? 'w' : 'l'}`}>{won ? 'V' : 'F'}</span>{us}–{them}{g.so ? ' str' : g.ot ? ' ÖT' : ''}</b><small>{home ? 'Hemma' : 'Borta'} · {opp}</small></span>
-                  </a>
-                )
-              })}
+          <div className="tc-form">
+            <div className="tc-sqs">
+              {form.map((x) => (
+                <a key={x.g.id} href={`#/match/${x.g.id}`} className={`tc-sq ${x.won ? 'w' : 'l'}`} title={`${x.us}–${x.them}${x.g.ot || x.g.so ? ' efter övertid' : ''}`}>{x.won ? 'V' : 'F'}</a>
+              ))}
             </div>
+            <span className="tc-stat"><b className="num">{wins}–{form.length - wins}</b><small>vinster</small></span>
+            <span className="tc-stat"><b className="num">{gf}–{ga}</b><small>mål</small></span>
           </div>
         )}
         {top.length > 0 && (
-          <div className="gcard gc-bare">
-            <div className="gc-goals">
-              {top.map((p) => (
-                <a key={p.id} className="gchip" href={`#/spelare/${encodeURIComponent(p.id)}`}>
+          <ol className="tc-top">
+            {top.map((p, i) => (
+              <li key={p.id}>
+                <a className="tc-p" href={`#/spelare/${encodeURIComponent(p.id)}`}>
                   <Avatar id={p.id} name={p.name} team={f} eager />
-                  <span className="gch-who"><b>{shortName(p.name)}</b><small>{p.pts} p · {p.g}+{p.a}</small></span>
+                  <span className="tc-who"><span className="tc-nm"><b>{p.name}</b><span className="gc-rank">{i + 1}</span></span><small>{p.g} mål · {p.a} assist</small></span>
+                  <span className="tc-pts num">{p.pts}</span>
                 </a>
-              ))}
-            </div>
-          </div>
+              </li>
+            ))}
+          </ol>
         )}
       </div>
     </section>
